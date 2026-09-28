@@ -5,15 +5,39 @@ const { Pool } = pg;
 
 /* ═══════════════════════════════════════════════
    إعداد الاتصال — يدعم Aiven SSL
+   ─────────────────────────────────────────────
+   ملاحظة مهمة: عندما يحتوي DATABASE_URL على
+   ?sslmode=require، فإن مكتبة pg تتجاهل كائن ssl
+   المخصص وترجع لإعداداتها الافتراضية التي تتحقق
+   من الشهادة وتفشل مع شهادة Aiven الموقّعة ذاتيًا.
+
+   الحل: نزيل sslmode من الرابط وتمرير ssl بشكل صريح.
    ═══════════════════════════════════════════════ */
 
 function buildConfig() {
-  if (process.env.DATABASE_URL) {
+  let connectionString = process.env.DATABASE_URL;
+
+  /* أزل sslmode من الرابط لتجنّب تعارضه مع كائن ssl */
+  if (connectionString) {
+    try {
+      const u = new URL(connectionString);
+      u.searchParams.delete('sslmode');
+      u.searchParams.delete('sslrootcert');
+      connectionString = u.toString();
+    } catch {
+      /* تجاهل إذا لم يكن URL صالحاً */
+    }
+  }
+
+  if (connectionString) {
     return {
-      connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false }
+      connectionString,
+      ssl: {
+        rejectUnauthorized: false  // يقبل شهادة Aiven الموقّعة ذاتيًا
+      }
     };
   }
+
   return {
     host: process.env.DB_HOST,
     port: Number(process.env.DB_PORT) || 5432,
@@ -27,8 +51,8 @@ function buildConfig() {
 /* ═══════════════════════════════════════════════
    Pool عالمي يُعاد استخدامه بين invocations
    ─────────────────────────────────────────────
-   Vercel يُعيد استخدام globalThis بين الطلبات الدافئة
-   وهذا يمنع إنشاء pool جديد في كل cold start.
+   Vercel يُعيد استخدام globalThis بين الطلبات
+   الدافئة وهذا يمنع إنشاء pool جديد في كل cold start.
    ═══════════════════════════════════════════════ */
 
 const POOL_KEY = '__khayal_pg_pool__';
