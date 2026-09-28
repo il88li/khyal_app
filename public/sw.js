@@ -1,47 +1,73 @@
 /* ═══════════════════════════════════════════════
-   خيال — Service Worker v1
-   استراتيجيات التخزين المؤقت الذكية
+   خيال — Service Worker v5.1.1
    ═══════════════════════════════════════════════ */
 
-const VERSION = 'khayal-v1';
+// ⚠️ مهم: عدّل هذا الرقم عند كل نشر مهم
+// أو استخدم timestamp تلقائي
+const VERSION = 'khayal-5-1-1-' + '20250928';
+
 const STATIC_CACHE = `${VERSION}-static`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 const DATA_CACHE = `${VERSION}-data`;
 
+// ملفات أساسية فقط — لا تفشل إن لم يوجد ملف
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/css/style.css',
-  '/js/app.js',
+  '/css/style.css?v=8',
+  '/js/app.js?v=8',
   '/js/screens.js',
-  '/js/skeleton.js'
+  '/js/skeleton.js',
+  '/js/cache.js'
 ];
 
-/* ═══ التثبيت — تخزين الأصول الأساسية ═══ */
+/* ═══ التثبيت ═══ */
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(STATIC_CACHE)
-      .then((cache) => cache.addAll(STATIC_ASSETS))
+      .then(async (cache) => {
+        // ✅ استخدم add() لكل ملف منفردًا حتى لا يفشل الكل
+        const results = await Promise.allSettled(
+          STATIC_ASSETS.map((url) =>
+            cache.add(url).catch((err) => {
+              console.warn('[SW] فشل تخزين:', url, err.message);
+              return null;
+            })
+          )
+        );
+        return results;
+      })
       .then(() => self.skipWaiting())
-      .catch((err) => console.warn('SW install failed:', err))
+      .catch((err) => console.warn('[SW] فشل التثبيت:', err))
   );
 });
 
-/* ═══ التنشيط — حذف النسخ القديمة ═══ */
+/* ═══ التنشيط — احذف كل النسخ القديمة ═══ */
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
       .then((keys) => Promise.all(
         keys
           .filter((k) => !k.startsWith(VERSION))
-          .map((k) => caches.delete(k))
+          .map((k) => {
+            console.log('[SW] حذف الكاش القديم:', k);
+            return caches.delete(k);
+          })
       ))
       .then(() => self.clients.claim())
+      .then(() => {
+        // ✅ أخبر كل التبويبات المفتوحة أن هناك نسخة جديدة
+        return self.clients.matchAll({ type: 'window' });
+      })
+      .then((clients) => {
+        clients.forEach((client) => {
+          try { client.postMessage({ type: 'SW_UPDATED', version: VERSION }); } catch {}
+        });
+      })
   );
 });
 
-/* ═══ استراتيجيات الجلب ═══ */
-
+/* ═══ الاستراتيجيات ═══ */
 function isStaticAsset(url) {
   return /\.(css|js|woff2?|ttf|otf|png|jpg|jpeg|webp|avif|svg|ico)$/i.test(url.pathname) ||
          url.pathname.startsWith('/css/') ||
@@ -53,16 +79,13 @@ function isApiGet(url, method) {
 }
 
 function isPublicApi(url) {
-  // نقاط عامة يمكن تخزينها (البرومبتات، التعليقات، إلخ)
   return /\/(prompts|users|comments|meta)(\?|$|\/)/.test(url.pathname);
 }
 
 function isPrivateApi(url) {
-  // نقاط خاصة (auth, me, notifications) لا تُخزّن طويلًا
   return /\/(auth|me|notifications|admin|favorites)(\?|$|\/)/.test(url.pathname);
 }
 
-/* ─── الاستراتيجية 1: Cache First (للأصول الثابتة) ─── */
 async function cacheFirst(req, cacheName) {
   const cache = await caches.open(cacheName);
   const cached = await cache.match(req);
@@ -76,7 +99,6 @@ async function cacheFirst(req, cacheName) {
   }
 }
 
-/* ─── الاستراتيجية 2: Stale While Revalidate ─── */
 async function staleWhileRevalidate(req, cacheName) {
   const cache = await caches.open(cacheName);
   const cached = await cache.match(req);
@@ -86,21 +108,16 @@ async function staleWhileRevalidate(req, cacheName) {
       return response;
     })
     .catch(() => cached);
-
   return cached || fetchPromise;
 }
 
-/* ─── الاستراتيجية 3: Network First with cache fallback ─── */
 async function networkFirst(req, cacheName, timeout = 3000) {
   const cache = await caches.open(cacheName);
-
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
-
     const response = await fetch(req, { signal: controller.signal });
     clearTimeout(timer);
-
     if (response.ok) cache.put(req, response.clone());
     return response;
   } catch (err) {
@@ -110,46 +127,41 @@ async function networkFirst(req, cacheName, timeout = 3000) {
   }
 }
 
-/* ─── الاستراتيجية 4: Network Only (للطلبات الحساسة) ─── */
-function networkOnly(req) {
-  return fetch(req);
-}
-
-/* ═══ معالج الجلب الرئيسي ═══ */
+/* ═══ معالج الجلب ═══ */
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  // تجاهل الطلبات غير GET والخارجية
   if (req.method !== 'GET') return;
   if (url.origin !== self.location.origin && !url.pathname.startsWith('/')) return;
 
-  // 1. الأصول الثابتة → Cache First
+  // 1. الأصول الثابتة
   if (isStaticAsset(url)) {
     event.respondWith(cacheFirst(req, STATIC_CACHE));
     return;
   }
 
-  // 2. نقاط API العامة → Stale While Revalidate (سرعة فورية)
+  // 2. API عام
   if (isApiGet(url, req.method) && isPublicApi(url)) {
     event.respondWith(staleWhileRevalidate(req, DATA_CACHE));
     return;
   }
 
-  // 3. نقاط API الخاصة → Network First
+  // 3. API خاص
   if (isApiGet(url, req.method) && isPrivateApi(url)) {
     event.respondWith(networkFirst(req, DATA_CACHE, 2500));
     return;
   }
 
-  // 4. التنقل والصفحات → Network First
+  // 4. صفحات HTML — Network First لكن لا تخزّن HTML في الكاش الدائم
   if (req.mode === 'navigate' || req.headers.get('accept')?.includes('text/html')) {
-    event.respondWith(networkFirst(req, STATIC_CACHE, 3000));
+    // ✅ لا تخزّن HTML في SW — دع Vercel يخدمه دائمًا طازجًا
+    event.respondWith(fetch(req).catch(() => caches.match('/index.html')));
     return;
   }
 
-  // 5. الباقي → Network Only
-  event.respondWith(networkOnly(req));
+  // 5. الباقي
+  event.respondWith(fetch(req));
 });
 
 /* ═══ رسائل من الصفحة ═══ */
@@ -157,5 +169,8 @@ self.addEventListener('message', (event) => {
   if (event.data === 'SKIP_WAITING') self.skipWaiting();
   if (event.data === 'CLEAR_CACHE') {
     caches.keys().then((keys) => keys.forEach((k) => caches.delete(k)));
+  }
+  if (event.data === 'GET_VERSION') {
+    event.source?.postMessage({ type: 'VERSION', version: VERSION });
   }
 });
