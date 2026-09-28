@@ -1,17 +1,21 @@
 import { Screens } from './screens.js';
 
-/* ═══════════ الحالة ═══════════ */
+/* ═══════════ المفاتيح ═══════════ */
 const TOKEN_KEY = 'khayal_token';
 const ADMIN_KEY = 'khayal_admin';
 
+/* ═══════════ الحالة العامة ═══════════ */
 export const state = {
   user: null,
   meta: { categories: [], models: [], stats: {} },
   online: navigator.onLine,
-  adminToken: sessionStorage.getItem(ADMIN_KEY) || null
+  adminToken: sessionStorage.getItem(ADMIN_KEY) || null,
+  dbHealth: { ok: null, latencyMs: 0 }
 };
 
-/* ═══════════ طبقة الاتصال بالـ API ═══════════ */
+/* ═══════════════════════════════════════════════
+   طبقة الاتصال بالـ API
+   ═══════════════════════════════════════════════ */
 export async function api(path, { method = 'GET', body, admin = false } = {}) {
   const headers = {};
   if (body) headers['Content-Type'] = 'application/json';
@@ -30,13 +34,23 @@ export async function api(path, { method = 'GET', body, admin = false } = {}) {
     throw new Error('تعذّر الاتصال بالخادم');
   }
 
+  /* قاعدة البيانات معطّلة مؤقتاً */
+  if (res.status === 503) {
+    const data = await res.json().catch(() => ({}));
+    updateDbStatus({ ok: false });
+    throw new Error(data.error || 'قاعدة البيانات غير متاحة مؤقتاً');
+  }
+
   if (!res.ok && res.status >= 500) setOnline(false);
+
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || 'حدث خطأ غير متوقع');
   return data;
 }
 
-/* ═══════════ التنبيهات ═══════════ */
+/* ═══════════════════════════════════════════════
+   التنبيهات (Toasts)
+   ═══════════════════════════════════════════════ */
 export function toast(message, type = 'info') {
   const box = document.getElementById('toasts');
   const el = document.createElement('div');
@@ -51,13 +65,17 @@ export function toast(message, type = 'info') {
   }, 2600);
 }
 
-/* ═══════════ التنقل ═══════════ */
+/* ═══════════════════════════════════════════════
+   التنقل
+   ═══════════════════════════════════════════════ */
 export const navigate = (hash) => {
   if (location.hash === hash) render();
   else location.hash = hash;
 };
 
-/* ═══════════ حالة الاتصال ═══════════ */
+/* ═══════════════════════════════════════════════
+   حالة الاتصال بالإنترنت
+   ═══════════════════════════════════════════════ */
 function setOnline(v) {
   if (state.online === v) return;
   state.online = v;
@@ -66,7 +84,45 @@ function setOnline(v) {
   if (!v && currentScreen() !== 'offline') navigate('#/offline');
 }
 
-/* ═══════════ تحليل المسار ═══════════ */
+/* ═══════════════════════════════════════════════
+   صحة قاعدة البيانات — مؤشر دائم أسفل الشاشة
+   ═══════════════════════════════════════════════ */
+function updateDbStatus(health) {
+  state.dbHealth = { ...state.dbHealth, ...health };
+  const el = document.getElementById('db-status');
+  if (!el) return;
+
+  if (health.ok === false) {
+    el.className = 'db-status err';
+    el.querySelector('.txt').textContent = 'DB ✕';
+    el.title = 'قاعدة البيانات غير متصلة';
+  } else if (health.ok === true) {
+    const ms = health.latencyMs ?? 0;
+    const slow = ms > 400;
+    el.className = 'db-status' + (slow ? ' warn' : '');
+    el.querySelector('.txt').textContent = `DB ${ms}ms`;
+    el.title = slow ? 'قاعدة البيانات بطيئة' : 'قاعدة البيانات متصلة';
+  } else {
+    el.className = 'db-status warn';
+    el.querySelector('.txt').textContent = 'DB …';
+    el.title = 'جارٍ فحص الاتصال';
+  }
+}
+
+/* فحص دوري كل 30 ثانية */
+async function checkDbHealth() {
+  try {
+    const r = await fetch('/api/health');
+    const data = await r.json();
+    updateDbStatus(data.db || { ok: false });
+  } catch {
+    updateDbStatus({ ok: false });
+  }
+}
+
+/* ═══════════════════════════════════════════════
+   تحليل المسار
+   ═══════════════════════════════════════════════ */
 function parseRoute() {
   const raw = location.hash.replace(/^#\/?/, '');
   const [path, qs] = raw.split('?');
@@ -86,7 +142,9 @@ function currentScreen() {
   return SCREEN_NAMES[parts[0] ?? ''] || 'home';
 }
 
-/* ═══════════ الشريط العلوي ═══════════ */
+/* ═══════════════════════════════════════════════
+   الشريط العلوي
+   ═══════════════════════════════════════════════ */
 const FLAME = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
   <path d="M12 2.5c.6 3.6 3 5 4.7 6.9A6.7 6.7 0 0 1 18.6 14a6.6 6.6 0 0 1-13.2 0c0-2.2 1-3.7 2.3-5.1.5 1 1.2 1.7 2 2-.4-3 .8-6 2.3-8.4Z"
     fill="#ff4d00"/>
@@ -128,7 +186,9 @@ function renderTopbar() {
     </div>`;
 }
 
-/* ═══════════ الشريط السفلي ═══════════ */
+/* ═══════════════════════════════════════════════
+   الشريط السفلي (الجوال)
+   ═══════════════════════════════════════════════ */
 const ICONS = {
   home: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/></svg>`,
   explore: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-3.6-3.6"/></svg>`,
@@ -157,12 +217,16 @@ function renderBottomNav() {
     </div>`;
 }
 
-/* ═══════════ أدوات مساعدة عامة ═══════════ */
+/* ═══════════════════════════════════════════════
+   أدوات مساعدة عامة
+   ═══════════════════════════════════════════════ */
 export function initials(name = '') {
   return name.trim().split(/\s+/).slice(0, 2).map((w) => w[0] || '').join('');
 }
 
-/* ═══════════ الموجّه ═══════════ */
+/* ═══════════════════════════════════════════════
+   الموجّه (Router)
+   ═══════════════════════════════════════════════ */
 async function render() {
   renderTopbar();
   renderBottomNav();
@@ -221,9 +285,14 @@ async function render() {
   window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
 }
 
-/* ═══════════ الإقلاع ═══════════ */
+/* ═══════════════════════════════════════════════
+   الإقلاع (Boot)
+   ═══════════════════════════════════════════════ */
 async function boot() {
   document.getElementById('offline-strip').hidden = state.online;
+
+  /* فحص صحة قاعدة البيانات أولاً */
+  await checkDbHealth();
 
   try {
     const meta = await api('/meta');
@@ -239,15 +308,25 @@ async function boot() {
     }
   }
 
+  /* المراقبة */
   window.addEventListener('hashchange', render);
   window.addEventListener('online', () => {
     setOnline(true);
     toast('عاد الاتصال بالإنترنت');
     if (currentScreen() === 'offline') navigate('#/');
+    checkDbHealth();
   });
   window.addEventListener('offline', () => {
     setOnline(false);
     toast('انقطع الاتصال بالإنترنت', 'error');
+  });
+
+  /* فحص دوري لصحة القاعدة كل 30 ثانية */
+  setInterval(checkDbHealth, 30000);
+
+  /* فحص فوري عند عودة التبويب للنشاط */
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) checkDbHealth();
   });
 
   if (!location.hash) location.hash = '#/';
