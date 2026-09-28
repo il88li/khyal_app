@@ -1,4 +1,4 @@
-import { query, queryOne, queryAll, transaction, ensureSchema } from './db.js';
+import { query, queryOne, queryAll, transaction, cacheGet, cacheSet, cacheClear } from './db.js';
 
 export const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'khayal-admin';
 
@@ -12,8 +12,39 @@ export const MODELS = [
   'Gemini 1.5 Pro', 'Llama 3.1 70B', 'Midjourney v6', 'DALL·E 3'
 ];
 
-/* ═══════════ المستخدمون ═══════════ */
+/* ═══════════ توليد slug من العربية ═══════════ */
+const AR_MAP = {
+  'ا':'a','أ':'a','إ':'i','آ':'a','ب':'b','ت':'t','ث':'th','ج':'j','ح':'h','خ':'kh',
+  'د':'d','ذ':'dh','ر':'r','ز':'z','س':'s','ش':'sh','ص':'s','ض':'d','ط':'t','ظ':'z',
+  'ع':'a','غ':'gh','ف':'f','ق':'q','ك':'k','ل':'l','م':'m','ن':'n','ه':'h','و':'w',
+  'ي':'y','ى':'a','ة':'a','ء':'','ؤ':'w','ئ':'y',
+  '٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'
+};
 
+export function slugify(text) {
+  return String(text || '')
+    .toLowerCase()
+    .split('').map((c) => AR_MAP[c] ?? c).join('')
+    .replace(/[^a-z0-9\u0600-\u06FF]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60) || 'prompt';
+}
+
+async function uniqueSlug(base, excludeId = null) {
+  let slug = base;
+  let n = 1;
+  while (true) {
+    const q = excludeId
+      ? `SELECT 1 FROM prompts WHERE slug = $1 AND id <> $2`
+      : `SELECT 1 FROM prompts WHERE slug = $1`;
+    const args = excludeId ? [slug, excludeId] : [slug];
+    const exists = await queryOne(q, args);
+    if (!exists) return slug;
+    slug = `${base}-${++n}`;
+  }
+}
+
+/* ═══════════ المستخدمون ═══════════ */
 const USER_COLS = `id, name, username, email, bio, avatar, verified, role,
   joined::text AS joined, password`;
 
@@ -24,7 +55,7 @@ export const findUserByEmail = (email) =>
   queryOne(`SELECT ${USER_COLS} FROM users WHERE email = $1`, [email]);
 
 export async function createUser({ name, email, password, username }) {
-  const id = 'u' + Date.now().toString(36);
+  const id = 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const uname = username || email.split('@')[0];
   return queryOne(
     `INSERT INTO users (id,name,username,email,password,bio,avatar,verified,role,joined)
@@ -52,9 +83,8 @@ export async function updateUser(id, patch) {
 }
 
 /* ═══════════ البرومبتات ═══════════ */
-
 const PROMPT_SELECT = `
-  SELECT p.id, p.title, p.description, p.body, p.category,
+  SELECT p.id, p.slug, p.title, p.description, p.body, p.category,
          p.tags, p.models, p.cover, p.author_id AS "authorId",
          p.copies, p.created_at AS "createdAt",
          (SELECT COUNT(*)::int FROM likes l WHERE l.prompt_id = p.id) AS likes,
@@ -64,10 +94,10 @@ const PROMPT_SELECT = `
   LEFT JOIN users u ON u.id = p.author_id
 `;
 
-function shapePrompt(row, viewerId, likedSet) {
+function shapePrompt(row, likedSet) {
   if (!row) return null;
   return {
-    id: row.id, title: row.title, description: row.description,
+    id: row.id, slug: row.slug, title: row.title, description: row.description,
     body: row.body, category: row.category,
     tags: row.tags || [], models: row.models || [], cover: row.cover,
     authorId: row.authorId, copies: row.copies, createdAt: row.createdAt,
@@ -81,17 +111,15 @@ function shapePrompt(row, viewerId, likedSet) {
   };
 }
 
-export async function listPrompts({ q, category, sort = 'new', author, limit = 60, viewerId }) {
+export async function listPrompts({ q, sort = 'new', author, limit = 40, viewerId }) {
   const where = [];
   const params = [];
 
   if (q) {
     params.push(`%${q}%`);
-    const i = params.length;
-    where.push(`(p.title ILIKE $${i} OR p.description ILIKE $${i} OR p.body ILIKE $${i} OR p.category ILIKE $${i} OR EXISTS (SELECT 1 FROM unnest(p.tags) t WHERE t ILIKE $${i}))`);
+    where.push(`(p.title ILIKE $1 OR p.description ILIKE $1 OR p.body ILIKE $1 OR EXISTS (SELECT 1 FROM unnest(p.tags) t WHERE t ILIKE $1))`);
   }
-  if (category) { params.push(category); where.push(`p.category = $${params.length}`); }
-  if (author)   { params.push(author);   where.push(`p.author_id = $${params.length}`); }
+  if (author) { params.push(author); where.push(`p.author_id = $${params.length}`); }
 
   const order =
     sort === 'likes'  ? 'likes DESC, p.created_at DESC' :
@@ -106,19 +134,11 @@ export async function listPrompts({ q, category, sort = 'new', author, limit = 6
 
   const rows = await queryAll(sql, params);
   const likedSet = await getLikedSet(viewerId);
-  return rows.map((r) => shapePrompt(r, viewerId, likedSet));
+  return rows.map((r) => shapePrompt(r, likedSet));
 }
 
-export async function countPrompts(filters = {}) {
-  const where = [];
-  const params = [];
-  if (filters.q) {
-    params.push(`%${filters.q}%`);
-    where.push(`(title ILIKE $1 OR description ILIKE $1 OR body ILIKE $1)`);
-  }
-  if (filters.category) { params.push(filters.category); where.push(`category = $${params.length}`); }
-  const sql = `SELECT COUNT(*)::int AS c FROM prompts ${where.length ? 'WHERE ' + where.join(' AND ') : ''}`;
-  const row = await queryOne(sql, params);
+export async function countPrompts() {
+  const row = await queryOne(`SELECT COUNT(*)::int AS c FROM prompts`);
   return row.c;
 }
 
@@ -126,29 +146,40 @@ export async function getPrompt(id, viewerId) {
   const row = await queryOne(`${PROMPT_SELECT} WHERE p.id = $1`, [id]);
   if (!row) return null;
   const likedSet = await getLikedSet(viewerId);
-  return shapePrompt(row, viewerId, likedSet);
+  return shapePrompt(row, likedSet);
+}
+
+/* يقبل id أو slug */
+export async function getPromptByKey(key, viewerId) {
+  if (!key) return null;
+  const row = await queryOne(`${PROMPT_SELECT} WHERE p.id = $1 OR p.slug = $1`, [key]);
+  if (!row) return null;
+  const likedSet = await getLikedSet(viewerId);
+  return shapePrompt(row, likedSet);
 }
 
 export async function getRelated(promptId, category, viewerId, limit = 3) {
   const rows = await queryAll(
-    `${PROMPT_SELECT} WHERE p.id <> $1 AND p.category = $2
+    `${PROMPT_SELECT} WHERE p.id <> $1 AND (p.category = $2 OR $2 = '')
      ORDER BY (SELECT COUNT(*) FROM likes l WHERE l.prompt_id = p.id) DESC
      LIMIT $3`,
     [promptId, category, limit]
   );
   const likedSet = await getLikedSet(viewerId);
-  return rows.map((r) => shapePrompt(r, viewerId, likedSet));
+  return rows.map((r) => shapePrompt(r, likedSet));
 }
 
 export async function createPrompt(data) {
-  const id = 'p' + Date.now().toString(36);
+  const id = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const slug = await uniqueSlug(slugify(data.title));
   const row = await queryOne(
-    `INSERT INTO prompts (id,title,description,body,category,tags,models,cover,author_id,copies)
-     VALUES ($1,$2,$3,$4,$5,$6::text[],$7::text[],$8,$9,0)
+    `INSERT INTO prompts (id,slug,title,description,body,category,tags,models,cover,author_id,copies)
+     VALUES ($1,$2,$3,$4,$5,$6,$7::text[],$8::text[],$9,$10,0)
      RETURNING id`,
-    [id, data.title, data.description || '', data.body, data.category,
+    [id, slug, data.title, data.description || '', data.body, data.category || '',
      data.tags || [], data.models || [], data.cover || '', data.authorId]
   );
+  cacheClear('home:');
   return getPrompt(row.id, data.authorId);
 }
 
@@ -162,8 +193,14 @@ export async function updatePrompt(id, patch) {
       fields.push(`${k} = $${params.length}`);
     }
   }
+  if (patch.title) {
+    const newSlug = await uniqueSlug(slugify(patch.title), id);
+    params.push(newSlug);
+    fields.push(`slug = $${params.length}`);
+  }
   if (!fields.length) return getPrompt(id, null);
   await query(`UPDATE prompts SET ${fields.join(', ')} WHERE id = $1`, params);
+  cacheClear('home:');
   return getPrompt(id, null);
 }
 
@@ -177,10 +214,10 @@ export async function incrementCopies(id) {
 
 export async function deletePrompt(id) {
   await query('DELETE FROM prompts WHERE id = $1', [id]);
+  cacheClear('home:');
 }
 
 /* ═══════════ الإعجابات ═══════════ */
-
 export async function toggleLike(userId, promptId) {
   return transaction(async (client) => {
     const { rows } = await client.query(
@@ -223,11 +260,10 @@ export async function getUserLikes(userId) {
     [userId]
   );
   const likedSet = new Set(rows.map((r) => r.id));
-  return rows.map((r) => shapePrompt(r, userId, likedSet));
+  return rows.map((r) => shapePrompt(r, likedSet));
 }
 
 /* ═══════════ المتابعة ═══════════ */
-
 export async function toggleFollow(followerId, followingId) {
   return transaction(async (client) => {
     const { rows } = await client.query(
@@ -259,26 +295,9 @@ export async function isFollowing(followerId, followingId) {
   return !!row;
 }
 
-export async function countFollowers(userId) {
-  const row = await queryOne(
-    `SELECT COUNT(*)::int AS n FROM follows WHERE following_id = $1`,
-    [userId]
-  );
-  return row?.n || 0;
-}
-
-export async function countFollowing(userId) {
-  const row = await queryOne(
-    `SELECT COUNT(*)::int AS n FROM follows WHERE follower_id = $1`,
-    [userId]
-  );
-  return row?.n || 0;
-}
-
-/* ═══════════ إحصائيات المستخدم ═══════════ */
-
+/* ═══════════ إحصائيات ═══════════ */
 export async function userStats(userId) {
-  const row = await queryOne(
+  return queryOne(
     `SELECT
        (SELECT COUNT(*)::int FROM prompts WHERE author_id = $1) AS "promptCount",
        (SELECT COUNT(*)::int FROM likes l
@@ -288,7 +307,6 @@ export async function userStats(userId) {
        (SELECT COUNT(*)::int FROM follows WHERE follower_id = $1) AS "following"`,
     [userId]
   );
-  return row;
 }
 
 export function publicUser(u, extra = {}) {
@@ -298,7 +316,6 @@ export function publicUser(u, extra = {}) {
 }
 
 /* ═══════════ التوثيق ═══════════ */
-
 export const VERIFY_RULES = [
   { key: 'prompts', label: 'نشر 10 برومبتات على الأقل', target: 10 },
   { key: 'likes',   label: 'الحصول على 100 إعجاب',      target: 100 },
@@ -324,9 +341,10 @@ export async function eligibility(userId) {
   };
 }
 
-/* ═══════════ لوحة الإدارة ═══════════ */
-
+/* ═══════════ الإدارة ═══════════ */
 export async function adminStats() {
+  const cached = cacheGet('admin:stats');
+  if (cached) return cached;
   const row = await queryOne(`
     SELECT
       (SELECT COUNT(*)::int FROM users)              AS users,
@@ -334,6 +352,7 @@ export async function adminStats() {
       (SELECT COUNT(*)::int FROM likes)              AS likes,
       (SELECT COALESCE(SUM(copies),0)::int FROM prompts) AS copies
   `);
+  cacheSet('admin:stats', row, 20000);
   return row;
 }
 
@@ -344,7 +363,7 @@ export async function topPrompts(limit = 5, viewerId = null) {
      LIMIT $1`,
     [limit]
   );
-  return rows.map((r) => shapePrompt(r, viewerId, null));
+  return rows.map((r) => shapePrompt(r, null));
 }
 
 export async function latestUsers(limit = 5) {
@@ -360,14 +379,14 @@ export async function listUsers() {
            u.verified, u.role, u.joined::text AS joined,
            (SELECT COUNT(*)::int FROM prompts WHERE author_id = u.id) AS "promptCount",
            (SELECT COUNT(*)::int FROM likes l JOIN prompts p ON p.id = l.prompt_id
-             WHERE p.author_id = u.id) AS "totalLikes",
-           (SELECT COALESCE(SUM(copies),0)::int FROM prompts WHERE author_id = u.id) AS "totalCopies"
+             WHERE p.author_id = u.id) AS "totalLikes"
     FROM users u
     ORDER BY u.joined DESC
   `);
 }
 
 export async function toggleVerify(userId) {
+  cacheClear('admin:');
   return queryOne(
     `UPDATE users SET verified = NOT verified WHERE id = $1
      RETURNING id, name, username, email, bio, avatar, verified, role,
@@ -377,6 +396,7 @@ export async function toggleVerify(userId) {
 }
 
 export async function deleteUser(id) {
+  cacheClear('admin:');
   await query('DELETE FROM users WHERE id = $1', [id]);
 }
 
@@ -385,8 +405,7 @@ export async function eligibleUsers() {
     SELECT u.id, u.name, u.username, u.verified, u.joined::text AS joined,
            (SELECT COUNT(*)::int FROM prompts WHERE author_id = u.id) AS "promptCount",
            (SELECT COUNT(*)::int FROM likes l JOIN prompts p ON p.id = l.prompt_id
-             WHERE p.author_id = u.id) AS "totalLikes",
-           (SELECT COALESCE(SUM(copies),0)::int FROM prompts WHERE author_id = u.id) AS "totalCopies"
+             WHERE p.author_id = u.id) AS "totalLikes"
     FROM users u WHERE u.verified = FALSE
   `);
   const out = [];
