@@ -4,7 +4,7 @@ import { prefetchPrompt, idbGet, idbSet, idbClear, cleanupOldEntries } from './c
 const TOKEN_KEY = 'khayal_token';
 const ADMIN_KEY = 'khayal_admin';
 
-export const APP_VERSION = '5.1.0';
+export const APP_VERSION = '5.1.1';
 
 export const state = {
   user: null,
@@ -12,7 +12,7 @@ export const state = {
   online: navigator.onLine,
   adminToken: sessionStorage.getItem(ADMIN_KEY) || null,
   unreadCount: 0,
-  // ✅ v5.1: عدّاد لفشل الشبكة الحقيقي (لتجنّب ظهور الشريط بسبب خطأ عابر)
+  // ✅ عدّاد فشل الشبكة — لا نُظهر الشريط إلا بعد 3 فشلات متتالية
   networkFailStreak: 0
 };
 
@@ -24,7 +24,51 @@ export class ApiError extends Error {
   }
 }
 
-/* ═══════════ API ═══════════ */
+/* ═══════════════════════════════════════════════
+   حالة الاتصال — منطق محسّن
+   ═══════════════════════════════════════════════ */
+
+function showOfflineStrip(show) {
+  const strip = document.getElementById('offline-strip');
+  if (!strip) return;
+  strip.hidden = !show;
+}
+
+/* ✅ يُستدعى عند نجاح أي طلب — يُخفي الشريط فورًا */
+function markReachable() {
+  const wasOffline = !state.online;
+  state.networkFailStreak = 0;
+  state.online = true;
+
+  const strip = document.getElementById('offline-strip');
+  if (strip && !strip.hidden) {
+    showOfflineStrip(false);
+  }
+
+  if (wasOffline) {
+    renderTopbar();
+    if (currentScreen() === 'offline') navigate('#/');
+  }
+}
+
+/* ✅ يُستدعى عند فشل شبكة — يحتاج 3 فشلات متتالية */
+function markUnreachable() {
+  state.networkFailStreak++;
+  if (state.networkFailStreak < 3) return;
+
+  const wasOnline = state.online;
+  state.online = false;
+  showOfflineStrip(true);
+
+  if (wasOnline) {
+    renderTopbar();
+    if (currentScreen() !== 'offline') navigate('#/offline');
+  }
+}
+
+/* ═══════════════════════════════════════════════
+   API — مع دعم IndexedDB و markReachable
+   ═══════════════════════════════════════════════ */
 export async function api(path, { method = 'GET', body, admin = false, useCache = true } = {}) {
   const isGet = method === 'GET';
   const cacheKey = isGet ? path : null;
@@ -50,12 +94,11 @@ export async function api(path, { method = 'GET', body, admin = false, useCache 
       method, headers,
       body: body ? JSON.stringify(body) : undefined
     });
-    // ✅ v5.1: نجاح الاتصال يُصفّر العدّاد
-    state.networkFailStreak = 0;
+    // ✅ أي استجابة (حتى 500) تعني أن الخادم متاح
+    markReachable();
   } catch {
-    // ✅ v5.1: لا نُظهر الشريط إلا بعد فشلين متتاليين
-    state.networkFailStreak++;
-    if (state.networkFailStreak >= 2) setOnline(false);
+    // ✅ فشل الشبكة الحقيقي فقط
+    markUnreachable();
     if (isGet && isPublicPath) {
       const cached = await idbGet('api:' + cacheKey);
       if (cached) return cached;
@@ -63,7 +106,6 @@ export async function api(path, { method = 'GET', body, admin = false, useCache 
     throw new ApiError('تعذّر الاتصال بالخادم', 0);
   }
 
-  if (!res.ok && res.status >= 500) setOnline(false);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new ApiError(data.error || 'حدث خطأ غير متوقع', res.status);
 
@@ -81,13 +123,20 @@ async function _bgRefresh(path, admin) {
     if (t) headers['Authorization'] = 'Bearer ' + t;
     if (admin && state.adminToken) headers['x-admin-token'] = state.adminToken;
     const res = await fetch('/api' + path, { headers });
+    // ✅ إذا نجح التجديد في الخلفية، اعتبر الشبكة متاحة
+    markReachable();
     if (res.ok) {
       const data = await res.json();
       idbSet('api:' + path, data);
     }
-  } catch { /* تجاهل */ }
+  } catch {
+    markUnreachable();
+  }
 }
 
+/* ═══════════════════════════════════════════════
+   Toast
+   ═══════════════════════════════════════════════ */
 export function toast(message, type = 'info') {
   const box = document.getElementById('toasts');
   if (!box) return;
@@ -108,19 +157,9 @@ export const navigate = (hash) => {
   else location.hash = hash;
 };
 
-/* ✅ v5.1: منطق أكثر تحفظًا لإظهار شريط عدم الاتصال */
-function setOnline(v) {
-  if (state.online === v) return;
-  state.online = v;
-  const strip = document.getElementById('offline-strip');
-  if (strip) {
-    // نُظهر الشريط فقط عند offline حقيقي (لا على 5xx)
-    strip.hidden = v || state.networkFailStreak < 2;
-  }
-  renderTopbar();
-  if (!v && currentScreen() !== 'offline') navigate('#/offline');
-}
-
+/* ═══════════════════════════════════════════════
+   Route parsing
+   ═══════════════════════════════════════════════ */
 function parseRoute() {
   const raw = location.hash.replace(/^#\/?/, '');
   const [path, qs] = raw.split('?');
@@ -164,6 +203,9 @@ function getScreenMeta() {
   }
 }
 
+/* ═══════════════════════════════════════════════
+   Icons
+   ═══════════════════════════════════════════════ */
 const ICON = {
   home: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/></svg>`,
   explore: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-3.6-3.6"/></svg>`,
@@ -171,7 +213,6 @@ const ICON = {
   user: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c0-3.6 3.1-5.5 7-5.5s7 1.9 7 5.5"/></svg>`,
   plus: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>`,
   bell: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7Z"/><path d="M9.5 17a2.5 2.5 0 0 0 5 0"/></svg>`,
-  // ✅ v5.1: أيقونة "دخول" جديدة (شخص مع سهم داخل، بدل السهم الخارج)
   login: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 12h10M17 8l3 4-3 4"/></svg>`,
   shield: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v6c0 4.4 3 7.5 7 9 4-1.5 7-4.6 7-9V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg>`,
   flame: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -189,7 +230,9 @@ function escHtml(s) {
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-/* ═══════════ Sidebar ═══════════ */
+/* ═══════════════════════════════════════════════
+   Sidebar
+   ═══════════════════════════════════════════════ */
 function renderSidebar() {
   const { parts } = parseRoute();
   const root = parts[0] ?? '';
@@ -240,7 +283,9 @@ function renderSidebar() {
   foot.querySelector('#sidebar-version-btn')?.addEventListener('click', () => navigate('#/admin'));
 }
 
-/* ═══════════ Topbar — أوضح ═══════════ */
+/* ═══════════════════════════════════════════════
+   Topbar
+   ═══════════════════════════════════════════════ */
 function renderTopbar() {
   const meta = getScreenMeta();
   const isHome = (location.hash === '' || location.hash === '#/' || location.hash === '#');
@@ -290,7 +335,9 @@ function renderTopbar() {
     </div>`;
 }
 
-/* ═══════════ Bottom nav ═══════════ */
+/* ═══════════════════════════════════════════════
+   Bottom nav (mobile)
+   ═══════════════════════════════════════════════ */
 function renderBottomNav() {
   const { parts } = parseRoute();
   const root = parts[0] ?? '';
@@ -316,6 +363,9 @@ function renderBottomNav() {
     </div>`;
 }
 
+/* ═══════════════════════════════════════════════
+   Footer
+   ═══════════════════════════════════════════════ */
 function renderFooter() {
   const el = document.getElementById('site-footer');
   if (!el) return;
@@ -332,7 +382,9 @@ function renderFooter() {
   `;
 }
 
-/* ═══════════ Render ═══════════ */
+/* ═══════════════════════════════════════════════
+   Render (router)
+   ═══════════════════════════════════════════════ */
 let _rendering = false;
 async function render() {
   if (_rendering) return;
@@ -347,7 +399,8 @@ async function render() {
     renderBottomNav();
     renderFooter();
 
-    if (!state.online && state.networkFailStreak >= 2 && currentScreen() !== 'offline') {
+    // ✅ ننتقل لشاشة offline فقط إذا فشل الاتصال 3 مرات
+    if (!state.online && state.networkFailStreak >= 3 && currentScreen() !== 'offline') {
       location.hash = '#/offline';
       return;
     }
@@ -428,6 +481,9 @@ async function render() {
   }
 }
 
+/* ═══════════════════════════════════════════════
+   Scroll effect
+   ═══════════════════════════════════════════════ */
 let _scrollTick = false;
 window.addEventListener('scroll', () => {
   if (_scrollTick) return;
@@ -439,21 +495,29 @@ window.addEventListener('scroll', () => {
   });
 }, { passive: true });
 
+/* ═══════════════════════════════════════════════
+   WebView bridge
+   ═══════════════════════════════════════════════ */
 function setupWebViewBridge() {
   window.addEventListener('hashchange', () => {
     if (window.AndroidBack?.onRouteChange) {
       try { window.AndroidBack.onRouteChange(location.hash); } catch {}
     }
   });
+
   let lastTouch = 0;
   document.addEventListener('touchend', (e) => {
     const now = Date.now();
     if (now - lastTouch <= 300) e.preventDefault();
     lastTouch = now;
   }, { passive: false });
+
   document.body.style.overscrollBehaviorY = 'contain';
 }
 
+/* ═══════════════════════════════════════════════
+   Service Worker
+   ═══════════════════════════════════════════════ */
 async function registerSW() {
   if (!('serviceWorker' in navigator)) return;
   try {
@@ -462,6 +526,9 @@ async function registerSW() {
   } catch { /* تجاهل */ }
 }
 
+/* ═══════════════════════════════════════════════
+   Unread notifications
+   ═══════════════════════════════════════════════ */
 async function refreshUnread() {
   if (!localStorage.getItem(TOKEN_KEY) || !state.user) {
     state.unreadCount = 0;
@@ -476,14 +543,18 @@ async function refreshUnread() {
   } catch { /* تجاهل */ }
 }
 
+/* ═══════════════════════════════════════════════
+   Boot
+   ═══════════════════════════════════════════════ */
 async function boot() {
   setupWebViewBridge();
   registerSW();
   cleanupOldEntries();
 
-  // ✅ v5.1: شريط الاتصال يُخفى افتراضيًا (فقط يظهر عند مشكلة حقيقية)
+  // ✅ الشريط يتبع navigator.onLine فقط
   const strip = document.getElementById('offline-strip');
-  if (strip) strip.hidden = true;
+  if (strip) strip.hidden = navigator.onLine;
+  state.online = navigator.onLine;
 
   api('/meta').then(m => state.meta = m).catch(() => {});
 
@@ -498,9 +569,12 @@ async function boot() {
   }
 
   window.addEventListener('hashchange', render);
+
   window.addEventListener('online', () => {
     state.networkFailStreak = 0;
-    setOnline(true);
+    state.online = true;
+    showOfflineStrip(false);
+    renderTopbar();
     toast('عاد الاتصال');
     if (currentScreen() === 'offline') navigate('#/');
     if (localStorage.getItem(TOKEN_KEY) && !state.user) {
@@ -513,19 +587,34 @@ async function boot() {
       refreshUnread();
     }
   });
+
   window.addEventListener('offline', () => {
-    state.networkFailStreak = 2;
-    setOnline(false);
+    state.networkFailStreak = 3;
+    state.online = false;
+    showOfflineStrip(true);
+    renderTopbar();
     toast('انقطع الاتصال', 'error');
+    if (currentScreen() !== 'offline') navigate('#/offline');
   });
+
+  // ✅ كل 30 ثانية — يخفي الشريط إذا رجع الاتصال
+  setInterval(() => {
+    if (navigator.onLine && !state.online) {
+      markReachable();
+    }
+  }, 30000);
 
   refreshUnread();
   setInterval(() => {
     if (state.online && state.user && !document.hidden) refreshUnread();
   }, 45000);
 
+  // ✅ عند رجوع المستخدم للتطبيق، أعد فحص الاتصال فورًا
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && state.user) refreshUnread();
+    if (!document.hidden) {
+      if (navigator.onLine) markReachable();
+      if (state.user) refreshUnread();
+    }
   });
 
   if (!location.hash) location.hash = '#/';
