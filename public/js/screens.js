@@ -1,6 +1,18 @@
 /* ═══════════════════════════════════════════════
    خيال — شاشات المنصة العشر
+   محدّث: Skeletons احترافية لكل شاشة
    ═══════════════════════════════════════════════ */
+
+import {
+  skeletonGrid,
+  skeletonFeatures,
+  skeletonProfile,
+  skeletonPromptDetail,
+  skeletonAdminTab,
+  skeletonSectionHead,
+  skeletonStatCards,
+  skeletonCard
+} from './skeleton.js';
 
 /* ─────────── أدوات ─────────── */
 const esc = (s = '') => String(s).replace(/[&<>"']/g,
@@ -36,7 +48,6 @@ const ICON = {
   heartFill: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.2 10.7 19C5.4 14.4 2 11.5 2 7.9 2 5 4.2 3 7 3c1.6 0 3.1.7 4 1.9C12 3.7 13.5 3 15.1 3 17.9 3 20 5 20 7.9c0 3.6-3.4 6.5-8.7 11.1Z"/></svg>`,
   copy: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>`,
   arrow: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>`,
-  arrowUp: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg>`,
   search: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-3.6-3.6"/></svg>`,
   spark: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.8 2.8M15.2 15.2 18 18M18 6l-2.8 2.8M8.8 15.2 6 18"/></svg>`,
   layers: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 13 9 5 9-5"/></svg>`,
@@ -258,14 +269,9 @@ async function register(root, ctx) {
 }
 
 /* ═══════════════════════════════════════════════
-   3 — الشاشة الرئيسية
+   3 — الشاشة الرئيسية (مع Skeletons)
    ═══════════════════════════════════════════════ */
 async function home(root, ctx) {
-  const [top, latest] = await Promise.all([
-    ctx.api('/prompts?sort=likes&limit=6'),
-    ctx.api('/prompts?sort=new&limit=6')
-  ]);
-
   const features = [
     { icon: ICON.search, t: 'اكتشاف سريع', d: 'ابحث بين آلاف البرومبتات العربية المصنّفة والمجرّبة.' },
     { icon: ICON.layers, t: 'نماذج متعددة', d: 'كل برومبت يوضّح النماذج المتوافقة معه من GPT وClaude وGemini.' },
@@ -273,8 +279,8 @@ async function home(root, ctx) {
     { icon: ICON.bolt, t: 'نسخ بضغطة', d: 'انسخ نص البرومبت كاملاً وجاهزاً للاستخدام مباشرة.' }
   ];
 
+  /* ─── الهيكل الثابت + Skeletons للبيانات ─── */
   root.innerHTML = `
-  <!-- البطل -->
   <section class="hero">
     <div class="grid-bg"></div>
     <div class="hero-badge"><span class="badge">جديد · 12 برومبتاً هذا الشهر</span></div>
@@ -303,7 +309,6 @@ async function home(root, ctx) {
     </form>
   </section>
 
-  <!-- المزايا -->
   <section class="section">
     ${sectionHead('01', 'لماذا خيال', 'أربع مزايا تجعل المشاركة <span class="hl">مجدية</span>')}
     <div class="features">
@@ -316,7 +321,6 @@ async function home(root, ctx) {
     </div>
   </section>
 
-  <!-- الأعلى تفاعلاً -->
   <section class="section">
     <div class="head-row">
       <div>
@@ -325,10 +329,9 @@ async function home(root, ctx) {
       </div>
       <a class="btn btn-ghost btn-sm" href="#/explore?sort=likes">عرض الكل ←</a>
     </div>
-    ${grid(top.items)}
+    <div id="home-top">${skeletonGrid(3)}</div>
   </section>
 
-  <!-- الأحدث -->
   <section class="section">
     <div class="head-row">
       <div>
@@ -337,10 +340,9 @@ async function home(root, ctx) {
       </div>
       <a class="btn btn-ghost btn-sm" href="#/explore?sort=new">عرض الكل ←</a>
     </div>
-    ${grid(latest.items)}
+    <div id="home-latest">${skeletonGrid(6)}</div>
   </section>
 
-  <!-- دعوة -->
   <section class="section">
     <div class="card card-lg" style="text-align:center;background:var(--vellum)">
       <h2 class="section-title" style="font-size:28px">لديك برومبت يعمل جيداً؟</h2>
@@ -351,9 +353,7 @@ async function home(root, ctx) {
     </div>
   </section>`;
 
-  bindCards(root, ctx);
-
-  // البحث في البطل
+  /* ─── البحث ─── */
   const form = root.querySelector('#hero-search');
   let cat = '';
   root.querySelectorAll('.chip[data-cat]').forEach((chip) => {
@@ -368,10 +368,38 @@ async function home(root, ctx) {
     const q = root.querySelector('#hero-q').value.trim();
     ctx.navigate(`#/explore?q=${encodeURIComponent(q)}&cat=${encodeURIComponent(cat)}`);
   });
+
+  /* ─── تحميل البيانات واستبدال الـ skeletons ─── */
+  try {
+    const [top, latest] = await Promise.all([
+      ctx.api('/prompts?sort=likes&limit=3'),
+      ctx.api('/prompts?sort=new&limit=6')
+    ]);
+
+    const topEl = root.querySelector('#home-top');
+    const latestEl = root.querySelector('#home-latest');
+
+    if (top.items.length) {
+      topEl.outerHTML = `<div id="home-top">${grid(top.items)}</div>`;
+    } else {
+      topEl.outerHTML = `<div id="home-top">${emptyState(ICON.empty, 'لا توجد برومبتات بعد', 'كن أول من ينشر.')}</div>`;
+    }
+
+    if (latest.items.length) {
+      latestEl.outerHTML = `<div id="home-latest">${grid(latest.items)}</div>`;
+    } else {
+      latestEl.outerHTML = `<div id="home-latest">${emptyState(ICON.empty, 'لا توجد برومبتات بعد', 'كن أول من ينشر.')}</div>`;
+    }
+
+    bindCards(root, ctx);
+  } catch (e) {
+    root.querySelector('#home-top').outerHTML = `<div id="home-top">${emptyState(ICON.empty, 'تعذّر التحميل', e.message)}</div>`;
+    root.querySelector('#home-latest').outerHTML = `<div id="home-latest"></div>`;
+  }
 }
 
 /* ═══════════════════════════════════════════════
-   4 — شاشة الاستكشاف
+   4 — شاشة الاستكشاف (مع Skeletons)
    ═══════════════════════════════════════════════ */
 async function explore(root, ctx) {
   const q = ctx.params.q || '';
@@ -422,10 +450,8 @@ async function explore(root, ctx) {
   const countEl = root.querySelector('#result-count');
 
   async function load() {
-    results.innerHTML = `<div class="grid-cards">
-      ${Array.from({ length: 6 }).map(() =>
-        `<div class="skeleton" style="height:290px"></div>`).join('')}
-    </div>`;
+    /* ─── Skeleton للشبكة ─── */
+    results.innerHTML = skeletonGrid(6);
 
     const params = new URLSearchParams();
     if (q) params.set('q', q);
@@ -457,7 +483,6 @@ async function explore(root, ctx) {
     }
   }
 
-  // ربط الفلاتر
   let timer;
   const input = root.querySelector('#x-q');
 
@@ -478,8 +503,13 @@ async function explore(root, ctx) {
 
   root.querySelectorAll('.chip[data-c]').forEach((chip) => {
     chip.addEventListener('click', () => {
-      cat = chip.dataset.c;
-      sync();
+      // cat هو const هنا، لذا نستخدم sync مع قيمة جديدة
+      const newCat = chip.dataset.c;
+      const p = new URLSearchParams();
+      if (input.value.trim()) p.set('q', input.value.trim());
+      if (newCat) p.set('cat', newCat);
+      if (sort && sort !== 'new') p.set('sort', sort);
+      ctx.navigate('#/explore' + (p.toString() ? '?' + p.toString() : ''));
     });
   });
   root.querySelectorAll('.chip[data-s]').forEach((chip) => {
@@ -492,9 +522,19 @@ async function explore(root, ctx) {
 }
 
 /* ═══════════════════════════════════════════════
-   5 — تفاصيل البرومبت
+   5 — تفاصيل البرومبت (مع Skeletons)
    ═══════════════════════════════════════════════ */
 async function prompt(root, ctx) {
+  /* ─── Skeleton التفاصيل الكامل ─── */
+  root.innerHTML = `
+    <div style="padding:20px 0">
+      <button class="btn btn-ghost btn-sm" onclick="history.back()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        رجوع
+      </button>
+    </div>
+    ${skeletonPromptDetail()}`;
+
   const { prompt: p, related } = await ctx.api('/prompts/' + ctx.id);
   const mark = (p.category || 'خ').charAt(0);
 
@@ -568,7 +608,6 @@ async function prompt(root, ctx) {
   root.querySelector('#back').addEventListener('click', () => history.back());
   bindCards(root, ctx);
 
-  /* ─── النسخ ─── */
   async function doCopy(btn) {
     try {
       await navigator.clipboard.writeText(p.body);
@@ -597,7 +636,6 @@ async function prompt(root, ctx) {
     el?.addEventListener('click', () => doCopy(el));
   });
 
-  /* ─── الإعجاب ─── */
   const likeBtn = root.querySelector('#like-btn');
   likeBtn.addEventListener('click', async () => {
     if (!ctx.state.user) {
@@ -640,8 +678,6 @@ async function newPrompt(root, ctx) {
     <form id="np-form" class="stack gap-24">
       <div class="card card-white" style="padding:28px">
         <div class="stack gap-20">
-
-          <!-- الغلاف -->
           <div class="field">
             <label class="label">صورة الغلاف <span class="opt">(اختياري)</span></label>
             <div class="row gap-12" style="flex-wrap:wrap">
@@ -659,21 +695,18 @@ async function newPrompt(root, ctx) {
             </div>
           </div>
 
-          <!-- العنوان -->
           <div class="field">
             <label class="label" for="title">عنوان البرومبت</label>
             <input class="input" id="title" placeholder="مثال: محرر نصوص عربي احترافي" required maxlength="90">
             <span class="hint">اجعله واضحاً ومباشراً — أقل من 90 حرفاً</span>
           </div>
 
-          <!-- الوصف -->
           <div class="field">
             <label class="label" for="description">الوصف</label>
             <textarea class="textarea" id="description" rows="3"
               placeholder="ماذا يفعل هذا البرومبت؟ ولمن؟" maxlength="220"></textarea>
           </div>
 
-          <!-- التصنيف -->
           <div class="field">
             <label class="label" for="category">التصنيف</label>
             <select class="select" id="category" required>
@@ -682,7 +715,6 @@ async function newPrompt(root, ctx) {
             </select>
           </div>
 
-          <!-- الوسوم -->
           <div class="field">
             <label class="label" for="tags">الوسوم <span class="opt">(اختياري)</span></label>
             <input class="input" id="tags" placeholder="تحرير، لغة عربية، صياغة">
@@ -691,7 +723,6 @@ async function newPrompt(root, ctx) {
         </div>
       </div>
 
-      <!-- نص البرومبت -->
       <div class="card card-white" style="padding:28px">
         <div class="stack gap-20">
           <div class="field">
@@ -724,7 +755,6 @@ async function newPrompt(root, ctx) {
     </form>
   </div>`;
 
-  /* ─── الغلاف ─── */
   let cover = '';
   const preview = root.querySelector('#cover-preview');
   const urlInput = root.querySelector('#cover-url');
@@ -752,7 +782,6 @@ async function newPrompt(root, ctx) {
     r.readAsDataURL(f);
   });
 
-  /* ─── النماذج ─── */
   const chosenModels = new Set();
   root.querySelectorAll('[data-model]').forEach((chip) => {
     chip.addEventListener('click', () => {
@@ -762,19 +791,16 @@ async function newPrompt(root, ctx) {
     });
   });
 
-  /* ─── العدّاد ─── */
   const bodyEl = root.querySelector('#body');
   const countEl = root.querySelector('#body-count');
   bodyEl.addEventListener('input', () => {
     countEl.textContent = `${bodyEl.value.length} حرف`;
   });
 
-  /* ─── الإلغاء ─── */
   root.querySelector('#cancel').addEventListener('click', () => {
     if (confirm('هل تريد إلغاء النشر؟ سيُفقد ما كتبته.')) history.back();
   });
 
-  /* ─── النشر ─── */
   const form = root.querySelector('#np-form');
   const err = root.querySelector('#np-err');
   const btn = root.querySelector('#publish');
@@ -822,7 +848,7 @@ async function newPrompt(root, ctx) {
 }
 
 /* ═══════════════════════════════════════════════
-   7 — البروفايل
+   7 — البروفايل (مع Skeletons)
    ═══════════════════════════════════════════════ */
 async function profile(root, ctx) {
   if (!ctx.id && !ctx.state.user) {
@@ -831,6 +857,10 @@ async function profile(root, ctx) {
   }
 
   const userId = ctx.id || ctx.state.user.id;
+
+  /* ─── Skeleton البروفايل ─── */
+  root.innerHTML = skeletonProfile();
+
   const { user: u, prompts, eligibility } = await ctx.api('/users/' + userId);
 
   const membershipMonths = Math.max(0, Math.floor(
@@ -862,9 +892,9 @@ async function profile(root, ctx) {
   </div>
 
   <div class="stats-row">
-    <div class="stat"><div class="v">${u.promptCount}</div><div class="k">برومبت</div></div>
-    <div class="stat"><div class="v">${fmt(u.totalLikes)}</div><div class="k">إعجاب</div></div>
-    <div class="stat"><div class="v">${fmt(u.totalCopies)}</div><div class="k">نسخة</div></div>
+    <div class="stat"><div class="v">${u.promptCount || 0}</div><div class="k">برومبت</div></div>
+    <div class="stat"><div class="v">${fmt(u.totalLikes || 0)}</div><div class="k">إعجاب</div></div>
+    <div class="stat"><div class="v">${fmt(u.totalCopies || 0)}</div><div class="k">نسخة</div></div>
   </div>
 
   ${u.isSelf && eligibility ? `
@@ -911,7 +941,7 @@ async function profile(root, ctx) {
 }
 
 /* ═══════════════════════════════════════════════
-   8 — تفضيلاتي
+   8 — تفضيلاتي (مع Skeletons)
    ═══════════════════════════════════════════════ */
 async function favorites(root, ctx) {
   if (!ctx.state.user) {
@@ -919,26 +949,30 @@ async function favorites(root, ctx) {
     return ctx.navigate('#/login');
   }
 
-  const { items } = await ctx.api('/favorites');
-
+  /* ─── Skeleton أولي ─── */
   root.innerHTML = `
   <div class="section" style="margin-top:24px">
-    ${sectionHead('08', 'تفضيلاتي', 'البرومبتات التي <span class="hl">أعجبتك</span>',
-      items.length ? `${items.length} برومبت محفوظ` : '')}
+    ${sectionHead('08', 'تفضيلاتي', 'البرومبتات التي <span class="hl">أعجبتك</span>')}
   </div>
+  <div id="fav-results">${skeletonGrid(3)}</div>`;
 
-  ${items.length
-    ? grid(items)
-    : emptyState(ICON.heart,
-        'لا توجد إعجابات بعد',
-        'اضغط على زر الإعجاب في أي برومبت ليظهر هنا.',
-        `<a class="btn btn-primary" href="#/explore">استكشف البرومبتات</a>`)}`;
+  const { items } = await ctx.api('/favorites');
+  const container = root.querySelector('#fav-results');
 
-  bindCards(root, ctx);
+  if (!items.length) {
+    container.innerHTML = emptyState(ICON.heart,
+      'لا توجد إعجابات بعد',
+      'اضغط على زر الإعجاب في أي برومبت ليظهر هنا.',
+      `<a class="btn btn-primary" href="#/explore">استكشف البرومبتات</a>`);
+    return;
+  }
+
+  container.innerHTML = grid(items);
+  bindCards(container, ctx);
 }
 
 /* ═══════════════════════════════════════════════
-   9 — لوحة الإدارة
+   9 — لوحة الإدارة (مع Skeletons)
    ═══════════════════════════════════════════════ */
 async function admin(root, ctx) {
   /* ─── المرحلة الأولى: شاشة القفل ─── */
@@ -1023,11 +1057,9 @@ async function admin(root, ctx) {
     });
   });
 
-  const loading = () => { body.innerHTML = `<div style="padding:64px 0"><div class="spinner"></div></div>`; };
-
   /* ─── نظرة عامة ─── */
   async function loadOverview() {
-    loading();
+    body.innerHTML = skeletonAdminTab('overview');
     const { stats, topPrompts, latestUsers } = await ctx.api('/admin/overview', { admin: true });
 
     body.innerHTML = `
@@ -1063,7 +1095,7 @@ async function admin(root, ctx) {
                   <div class="t">${esc(u.name)}</div>
                   <div class="s">@${esc(u.username)}</div>
                 </div>
-                <span class="v">${u.promptCount}</span>
+                <span class="v">${u.promptCount || 0}</span>
               </div>`).join('')}
           </div>
         </div>
@@ -1072,7 +1104,7 @@ async function admin(root, ctx) {
 
   /* ─── المستخدمون ─── */
   async function loadUsers() {
-    loading();
+    body.innerHTML = skeletonAdminTab('users');
     const { items } = await ctx.api('/admin/users', { admin: true });
 
     body.innerHTML = `
@@ -1097,7 +1129,7 @@ async function admin(root, ctx) {
                 <td class="mono" style="font-size:12px;color:var(--slate)" dir="ltr">${esc(u.email)}</td>
                 <td><span class="tag mono">${u.role === 'admin' ? 'إدارة' : 'عضو'}</span></td>
                 <td>${u.verified ? '<span class="badge">موثّق</span>' : '<span class="tag">غير موثّق</span>'}</td>
-                <td class="mono">${u.promptCount}</td>
+                <td class="mono">${u.promptCount || 0}</td>
                 <td>
                   <div class="td-actions">
                     <button class="btn btn-outline btn-sm" data-verify="${u.id}">
@@ -1135,7 +1167,7 @@ async function admin(root, ctx) {
 
   /* ─── البرومبتات ─── */
   async function loadPrompts() {
-    loading();
+    body.innerHTML = skeletonAdminTab('prompts');
     const { items } = await ctx.api('/admin/prompts', { admin: true });
 
     body.innerHTML = `
@@ -1177,7 +1209,7 @@ async function admin(root, ctx) {
 
   /* ─── التوثيق ─── */
   async function loadVerify() {
-    loading();
+    body.innerHTML = skeletonAdminTab('users');
     const { items } = await ctx.api('/admin/eligible', { admin: true });
 
     if (!items.length) {
@@ -1201,9 +1233,9 @@ async function admin(root, ctx) {
               <div class="mono" style="font-size:12px;color:var(--ash)">@${esc(u.username)}</div>
             </div>
             <div class="pc-stats" style="gap:16px">
-              <span>${u.promptCount} برومبت</span>
-              <span>♥ ${fmt(u.totalLikes)}</span>
-              <span>⧉ ${fmt(u.totalCopies)}</span>
+              <span>${e.values.prompts || 0} برومبت</span>
+              <span>♥ ${fmt(e.values.likes || 0)}</span>
+              <span>⧉ ${fmt(e.values.copies || 0)}</span>
             </div>
             <div class="row gap-8">
               <a class="btn btn-outline btn-sm" href="#/u/${u.id}">عرض البروفايل</a>
