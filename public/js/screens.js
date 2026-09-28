@@ -42,26 +42,32 @@ const ICON = {
   wifiOff: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M8.5 16.4a5 5 0 0 1 7 0M5 12.8a10 10 0 0 1 3-1.9M16 10.9a10 10 0 0 1 3 1.9M2 9.2A15 15 0 0 1 8 6.1M16 6.1a15 15 0 0 1 6 3.1"/><circle cx="12" cy="20" r=".6" fill="currentColor"/></svg>`,
   edit: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10-4-4L4 16v4ZM14 6l4 4"/></svg>`,
   share: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5M5 15v5h14v-5"/></svg>`,
+  link: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>`,
   userPlus: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8.5" r="3.5"/><path d="M3 20c0-3.6 3.1-5.5 7-5.5s7 1.9 7 5.5"/><path d="M18 8v6M15 11h6"/></svg>`,
   userCheck: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8.5" r="3.5"/><path d="M3 20c0-3.6 3.1-5.5 7-5.5s7 1.9 7 5.5"/><path d="m16 11 2 2 4-4"/></svg>`
 };
 
 /* ═══════════ بطاقة برومبت ═══════════ */
 function promptCard(p, idx = 0) {
-  const mark = (p.category || 'خ').charAt(0);
-  const excerpt = p.description || p.body.replace(/\s+/g, ' ').slice(0, 90);
+  const mark = (p.category || p.title || 'خ').charAt(0);
+  const excerpt = p.description || p.body.replace(/\s+/g, ' ').slice(0, 110);
+  const slugPath = p.slug || p.id;
   return `
-  <article class="prompt-card" data-prompt="${p.id}">
-    <div class="cover">
+  <article class="prompt-card" data-prompt="${esc(p.id)}" data-slug="${esc(slugPath)}">
+    ${p.slug ? `
+    <a class="pc-slug" href="#/p/${esc(p.slug)}" data-stop="1">
+      ${ICON.link}
+      <span>/p/${esc(p.slug)}</span>
+    </a>` : ''}
+    <div class="pc-cover">
       ${p.cover
         ? `<img src="${esc(p.cover)}" alt="" loading="lazy">`
         : `<span class="cover-mark">${esc(mark)}</span>`}
-      <span class="cover-idx">#${String(idx + 1).padStart(3, '0')}</span>
     </div>
     <div class="pc-body">
-      <span class="pc-cat">${esc(p.category)}</span>
+      ${p.category ? `<span class="pc-cat">${esc(p.category)}</span>` : ''}
       <h3 class="pc-title">${esc(p.title)}</h3>
-      ${excerpt ? `<p class="pc-excerpt">${esc(excerpt)}</p>` : ''}
+      ${excerpt ? `<p class="pc-desc">${esc(excerpt)}</p>` : ''}
       <div class="pc-tags">
         ${(p.tags || []).slice(0, 2).map((t) => `<span class="tag">${esc(t)}</span>`).join('')}
       </div>
@@ -83,7 +89,11 @@ const grid = (items) => `<div class="grid-cards">${items.map((p, i) => promptCar
 
 function bindCards(root, ctx) {
   root.querySelectorAll('[data-prompt]').forEach((el) => {
-    el.addEventListener('click', () => ctx.navigate('#/prompt/' + el.dataset.prompt));
+    el.addEventListener('click', (e) => {
+      if (e.target.closest('[data-stop]')) return;
+      const slug = el.dataset.slug || el.dataset.prompt;
+      ctx.navigate('#/p/' + slug);
+    });
   });
 }
 
@@ -297,9 +307,7 @@ async function home(root, ctx) {
 /* ═══════════ 4 — الاستكشاف ═══════════ */
 async function explore(root, ctx) {
   const q = ctx.params.q || '';
-  const cat = ctx.params.cat || '';
   const sort = ctx.params.sort || 'new';
-  const cats = ctx.state.meta.categories || [];
   const sortOptions = [['new', 'الأحدث'], ['likes', 'الأعلى إعجاباً'], ['copies', 'الأكثر نسخاً']];
 
   root.innerHTML = `
@@ -320,10 +328,6 @@ async function explore(root, ctx) {
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
       </button>
     </div>
-    <div class="cats">
-      <button class="chip ${!cat ? 'active' : ''}" data-c="">الكل</button>
-      ${cats.map((c) => `<button class="chip ${cat === c ? 'active' : ''}" data-c="${esc(c)}">${esc(c)}</button>`).join('')}
-    </div>
     <div class="sortbar">
       <span class="lbl">الترتيب</span>
       ${sortOptions.map(([k, l]) => `<button class="chip ${sort === k ? 'active' : ''}" data-s="${k}">${l}</button>`).join('')}
@@ -339,14 +343,12 @@ async function explore(root, ctx) {
     results.innerHTML = skeletonGrid(4);
     const params = new URLSearchParams();
     if (q) params.set('q', q);
-    if (cat) params.set('category', cat);
     params.set('sort', sort);
     try {
       const { items, total } = await ctx.api('/prompts?' + params.toString());
       countEl.textContent = `${total} نتيجة`;
       if (!items.length) {
-        results.innerHTML = emptyState(ICON.empty, 'لا توجد نتائج',
-          'جرّب كلمات مختلفة.',
+        results.innerHTML = emptyState(ICON.empty, 'لا توجد نتائج', 'جرّب كلمات مختلفة.',
           `<button class="btn btn-outline" id="x-reset">إعادة تعيين</button>`);
         results.querySelector('#x-reset')?.addEventListener('click', () => ctx.navigate('#/explore'));
         return;
@@ -361,26 +363,14 @@ async function explore(root, ctx) {
   let timer;
   const input = root.querySelector('#x-q');
   const sync = (patch = {}) => {
-    const next = { q: input.value.trim(), cat, sort, ...patch };
+    const next = { q: input.value.trim(), sort, ...patch };
     const p = new URLSearchParams();
     if (next.q) p.set('q', next.q);
-    if (next.cat) p.set('cat', next.cat);
     if (next.sort && next.sort !== 'new') p.set('sort', next.sort);
     ctx.navigate('#/explore' + (p.toString() ? '?' + p.toString() : ''));
   };
   input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => sync(), 400); });
   root.querySelector('#x-go').addEventListener('click', () => sync());
-
-  root.querySelectorAll('.chip[data-c]').forEach((chip) => {
-    chip.addEventListener('click', () => {
-      const newCat = chip.dataset.c;
-      const p = new URLSearchParams();
-      if (input.value.trim()) p.set('q', input.value.trim());
-      if (newCat) p.set('cat', newCat);
-      if (sort && sort !== 'new') p.set('sort', sort);
-      ctx.navigate('#/explore' + (p.toString() ? '?' + p.toString() : ''));
-    });
-  });
   root.querySelectorAll('.chip[data-s]').forEach((chip) => {
     chip.addEventListener('click', () => sync({ sort: chip.dataset.s }));
   });
@@ -388,7 +378,7 @@ async function explore(root, ctx) {
   await load();
 }
 
-/* ═══════════ 5 — تفاصيل البرومبت ═══════════ */
+/* ═══════════ 5 — تفاصيل البرومبت (Optimistic) ═══════════ */
 async function prompt(root, ctx) {
   root.innerHTML = `
     <div style="padding:14px 0">
@@ -400,10 +390,11 @@ async function prompt(root, ctx) {
     ${skeletonPromptDetail()}`;
 
   const { prompt: p, related } = await ctx.api('/prompts/' + ctx.id);
-  const mark = (p.category || 'خ').charAt(0);
+  const mark = (p.category || p.title || 'خ').charAt(0);
   const description = p.description || p.body.replace(/\s+/g, ' ').slice(0, 150);
   const isLong = p.body.length > 400;
   const isOwner = ctx.state.user?.id === p.authorId;
+  const slugPath = p.slug || p.id;
 
   root.innerHTML = `
   <div style="padding:14px 0">
@@ -419,14 +410,17 @@ async function prompt(root, ctx) {
                 : `<span class="cover-mark" style="font-size:56px">${esc(mark)}</span>`}
     </div>
     <div class="detail-body">
-      <div class="meta-row">
-        <span class="badge badge-soft mono">${esc(p.category)}</span>
-        ${(p.models || []).slice(0, 3).map((m) => `<span class="tag">${esc(m)}</span>`).join('')}
-        <span class="tag mono" style="margin-inline-start:auto">${timeAgo(p.createdAt)}</span>
-      </div>
+      ${p.slug ? `
+      <button class="detail-slug" id="copy-slug" title="انسخ الرابط">
+        ${ICON.link} /p/${esc(p.slug)}
+      </button>` : ''}
 
       <h1 class="detail-title">${esc(p.title)}</h1>
       <p style="color:var(--slate);line-height:1.75;font-size:14px">${esc(description)}</p>
+
+      <div class="meta-row" style="margin-top:12px">
+        <span class="tag mono">${timeAgo(p.createdAt)}</span>
+      </div>
 
       <div class="author-bar">
         ${avatar(p.author, 40)}
@@ -439,7 +433,7 @@ async function prompt(root, ctx) {
             <a class="btn btn-outline btn-sm" href="#/edit/${p.id}">${ICON.edit} تعديل</a>
             <button class="btn btn-danger btn-sm" id="delete-btn">${ICON.trash}</button>
           </div>` : `
-          <button class="btn btn-outline btn-sm" id="follow-btn" data-author="${p.authorId}">
+          <button class="btn btn-outline btn-sm" id="follow-btn">
             ${ICON.userPlus} متابعة
           </button>`}
       </div>
@@ -456,7 +450,7 @@ async function prompt(root, ctx) {
 
       <div class="row gap-10" style="flex-wrap:wrap;justify-content:space-between;margin-top:14px">
         <div class="row gap-8" style="flex-wrap:wrap">
-          <button class="btn btn-outline btn-sm" id="like-btn">
+          <button class="btn btn-outline btn-sm" id="like-btn" data-liked="${p.liked ? '1' : '0'}">
             <span id="like-ic">${p.liked ? ICON.heartFill : ICON.heart}</span>
             <span id="like-n">${p.likes}</span>
           </button>
@@ -481,7 +475,16 @@ async function prompt(root, ctx) {
   root.querySelector('#back').addEventListener('click', () => history.back());
   bindCards(root, ctx);
 
-  /* طيّ النص */
+  /* نسخ الرابط المخصص */
+  root.querySelector('#copy-slug')?.addEventListener('click', async () => {
+    const url = location.origin + '/#/p/' + slugPath;
+    try {
+      await navigator.clipboard.writeText(url);
+      ctx.toast('تم نسخ الرابط');
+    } catch { ctx.toast('تعذّر النسخ', 'error'); }
+  });
+
+  /* طيّ */
   const toggleBtn = root.querySelector('#toggle-body');
   const bodyEl = root.querySelector('#prompt-body');
   toggleBtn?.addEventListener('click', () => {
@@ -489,7 +492,7 @@ async function prompt(root, ctx) {
     toggleBtn.textContent = clamped ? 'عرض النص كاملاً ↓' : 'إخفاء ↑';
   });
 
-  /* النسخ */
+  /* نسخ النص — مع جعل العملية في الخلفية */
   async function doCopy(btn) {
     try { await navigator.clipboard.writeText(p.body); }
     catch {
@@ -501,35 +504,55 @@ async function prompt(root, ctx) {
       document.execCommand('copy');
       ta.remove();
     }
-    try { await ctx.api(`/prompts/${p.id}/copy`, { method: 'POST' }); } catch {}
     ctx.toast('تم النسخ');
+    // زيادة العداد في الخلفية (بلا انتظار)
+    ctx.api(`/prompts/${p.id}/copy`, { method: 'POST' }).catch(() => {});
     if (btn) {
       const old = btn.innerHTML;
       btn.innerHTML = '✓ تم';
-      setTimeout(() => { btn.innerHTML = old; }, 1500);
+      setTimeout(() => { btn.innerHTML = old; }, 1400);
     }
   }
   ['copy-head', 'copy-bottom'].forEach((id) => {
     root.querySelector('#' + id)?.addEventListener('click', (e) => doCopy(e.currentTarget));
   });
 
-  /* الإعجاب */
-  root.querySelector('#like-btn').addEventListener('click', async () => {
+  /* إعجاب — Optimistic */
+  const likeBtn = root.querySelector('#like-btn');
+  likeBtn.addEventListener('click', () => {
     if (!ctx.state.user) {
       ctx.toast('سجّل الدخول للإعجاب', 'error');
       return ctx.navigate('#/login');
     }
-    try {
-      const { liked, likes } = await ctx.api(`/prompts/${p.id}/like`, { method: 'POST' });
-      root.querySelector('#like-ic').innerHTML = liked ? ICON.heartFill : ICON.heart;
-      root.querySelector('#like-n').textContent = likes;
-      ctx.toast(liked ? 'أُضيف' : 'أُزيل');
-    } catch (e) { ctx.toast(e.message, 'error'); }
+    const wasLiked = likeBtn.dataset.liked === '1';
+    const wasCount = parseInt(root.querySelector('#like-n').textContent) || 0;
+    const newLiked = !wasLiked;
+    const newCount = wasCount + (newLiked ? 1 : -1);
+
+    // تحديث فوري
+    likeBtn.dataset.liked = newLiked ? '1' : '0';
+    root.querySelector('#like-ic').innerHTML = newLiked ? ICON.heartFill : ICON.heart;
+    root.querySelector('#like-n').textContent = newCount;
+
+    // مزامنة في الخلفية
+    ctx.api(`/prompts/${p.id}/like`, { method: 'POST' })
+      .then((real) => {
+        likeBtn.dataset.liked = real.liked ? '1' : '0';
+        root.querySelector('#like-ic').innerHTML = real.liked ? ICON.heartFill : ICON.heart;
+        root.querySelector('#like-n').textContent = real.likes;
+      })
+      .catch((e) => {
+        // استرجاع
+        likeBtn.dataset.liked = wasLiked ? '1' : '0';
+        root.querySelector('#like-ic').innerHTML = wasLiked ? ICON.heartFill : ICON.heart;
+        root.querySelector('#like-n').textContent = wasCount;
+        ctx.toast(e.message, 'error');
+      });
   });
 
-  /* المشاركة */
+  /* مشاركة */
   root.querySelector('#share-btn').addEventListener('click', async () => {
-    const url = location.origin + '/#/prompt/' + p.id;
+    const url = location.origin + '/#/p/' + slugPath;
     if (navigator.share) {
       try { await navigator.share({ title: p.title, text: description, url }); return; } catch {}
     }
@@ -539,34 +562,40 @@ async function prompt(root, ctx) {
     } catch { ctx.toast('تعذّر النسخ', 'error'); }
   });
 
-  /* المتابعة */
+  /* متابعة — Optimistic */
   const followBtn = root.querySelector('#follow-btn');
-  followBtn?.addEventListener('click', async () => {
+  followBtn?.addEventListener('click', () => {
     if (!ctx.state.user) {
       ctx.toast('سجّل الدخول للمتابعة', 'error');
       return ctx.navigate('#/login');
     }
-    try {
-      const { following } = await ctx.api(`/users/${p.authorId}/follow`, { method: 'POST' });
-      followBtn.innerHTML = following
-        ? `${ICON.userCheck} متابَع`
-        : `${ICON.userPlus} متابعة`;
-      ctx.toast(following ? 'تتابع الآن' : 'ألغيت المتابعة');
-    } catch (e) { ctx.toast(e.message, 'error'); }
+    const isNow = followBtn.dataset.following === '1';
+    const newState = !isNow;
+    // فوري
+    followBtn.dataset.following = newState ? '1' : '0';
+    followBtn.innerHTML = newState ? `${ICON.userCheck} متابَع` : `${ICON.userPlus} متابعة`;
+    // خلفية
+    ctx.api(`/users/${p.authorId}/follow`, { method: 'POST' })
+      .then((r) => ctx.toast(r.following ? 'تتابع الآن' : 'ألغيت المتابعة'))
+      .catch((e) => {
+        followBtn.dataset.following = isNow ? '1' : '0';
+        followBtn.innerHTML = isNow ? `${ICON.userCheck} متابَع` : `${ICON.userPlus} متابعة`;
+        ctx.toast(e.message, 'error');
+      });
   });
 
-  /* الحذف */
+  /* حذف */
   root.querySelector('#delete-btn')?.addEventListener('click', async () => {
     if (!confirm('سيُحذف البرومبت نهائياً. متابعة؟')) return;
-    try {
-      await ctx.api(`/prompts/${p.id}`, { method: 'DELETE' });
-      ctx.toast('تم الحذف');
-      ctx.navigate('#/profile');
-    } catch (e) { ctx.toast(e.message, 'error'); }
+    ctx.toast('جارٍ الحذف…');
+    ctx.navigate('#/profile');
+    ctx.api(`/prompts/${p.id}`, { method: 'DELETE' })
+      .then(() => ctx.toast('تم الحذف'))
+      .catch((e) => ctx.toast(e.message, 'error'));
   });
 }
 
-/* ═══════════ 6 — نشر برومبت ═══════════ */
+/* ═══════════ 6 — نشر برومبت (بلا حقول التصنيف والنماذج) ═══════════ */
 async function newPrompt(root, ctx) {
   if (!ctx.state.user) {
     ctx.toast('سجّل الدخول للنشر', 'error');
@@ -575,22 +604,18 @@ async function newPrompt(root, ctx) {
   return promptForm(root, ctx, null);
 }
 
-/* ═══════════ 7 — تعديل برومبت ═══════════ */
 async function editPrompt(root, ctx) {
   if (!ctx.state.user) return ctx.navigate('#/login');
   const { prompt: existing } = await ctx.api('/prompts/' + ctx.id);
   if (existing.authorId !== ctx.state.user.id) {
-    ctx.toast('لا تملك صلاحية التعديل', 'error');
-    return ctx.navigate('#/prompt/' + ctx.id);
+    ctx.toast('لا تملك الصلاحية', 'error');
+    return ctx.navigate('#/p/' + (existing.slug || existing.id));
   }
   return promptForm(root, ctx, existing);
 }
 
-/* نموذج موحّد للنشر/التعديل */
 async function promptForm(root, ctx, existing) {
   const isEdit = !!existing;
-  const cats = ctx.state.meta.categories || [];
-  const models = ctx.state.meta.models || [];
 
   root.innerHTML = `
   <div class="section" style="margin-top:16px">
@@ -607,7 +632,7 @@ async function promptForm(root, ctx, existing) {
           <div class="field">
             <label class="label">صورة الغلاف <span class="opt">(اختياري)</span></label>
             <div class="row gap-12" style="flex-wrap:wrap">
-              <div id="cover-preview" style="width:100px;height:64px;border:1px solid var(--grid);border-radius:8px;background:var(--vellum);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">
+              <div id="cover-preview" style="width:100px;height:64px;border:1px solid var(--grid);border-radius:10px;background:var(--vellum);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">
                 <span class="cover-mark" style="font-size:22px">؟</span>
               </div>
               <div class="stack gap-8 grow">
@@ -627,17 +652,9 @@ async function promptForm(root, ctx, existing) {
           </div>
 
           <div class="field">
-            <label class="label">التصنيف</label>
-            <select class="select" id="category" required>
-              <option value="">اختر…</option>
-              ${cats.map((c) => `<option value="${esc(c)}" ${existing?.category === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}
-            </select>
-          </div>
-
-          <div class="field">
             <label class="label">الوسوم <span class="opt">(اختياري)</span></label>
             <input class="input" id="tags" value="${esc((existing?.tags || []).join(', '))}" placeholder="تحرير، لغة عربية">
-            <span class="hint">افصل بينها بفاصلة — 8 وسوم كحد أقصى</span>
+            <span class="hint">افصل بفاصلة — 8 وسوم كحد أقصى</span>
           </div>
         </div>
       </div>
@@ -653,15 +670,6 @@ async function promptForm(root, ctx, existing) {
               <span class="hint mono" id="body-count">${(existing?.body || '').length} حرف</span>
             </div>
           </div>
-
-          <div class="field">
-            <label class="label">النماذج المتوافقة</label>
-            <div class="row gap-6" style="flex-wrap:wrap" id="models-box">
-              ${models.map((m) => `
-                <button type="button" class="chip ${(existing?.models || []).includes(m) ? 'active' : ''}" data-model="${esc(m)}">${esc(m)}</button>
-              `).join('')}
-            </div>
-          </div>
         </div>
       </div>
 
@@ -669,12 +677,11 @@ async function promptForm(root, ctx, existing) {
 
       <div class="row gap-10" style="flex-wrap:wrap;justify-content:flex-end">
         <button type="button" class="btn btn-ghost" id="cancel">إلغاء</button>
-        <button type="submit" class="btn btn-primary" id="publish">${isEdit ? 'حفظ التعديلات' : 'نشر البرومبت'}</button>
+        <button type="submit" class="btn btn-primary" id="publish">${isEdit ? 'حفظ' : 'نشر البرومبت'}</button>
       </div>
     </form>
   </div>`;
 
-  /* الغلاف */
   let cover = existing?.cover || '';
   const preview = root.querySelector('#cover-preview');
   const urlInput = root.querySelector('#cover-url');
@@ -700,16 +707,6 @@ async function promptForm(root, ctx, existing) {
     r.readAsDataURL(f);
   });
 
-  /* النماذج */
-  const chosen = new Set(existing?.models || []);
-  root.querySelectorAll('[data-model]').forEach((chip) => {
-    chip.addEventListener('click', () => {
-      const m = chip.dataset.model;
-      if (chosen.has(m)) { chosen.delete(m); chip.classList.remove('active'); }
-      else { chosen.add(m); chip.classList.add('active'); }
-    });
-  });
-
   const bodyEl = root.querySelector('#body');
   bodyEl.addEventListener('input', () => {
     root.querySelector('#body-count').textContent = `${bodyEl.value.length} حرف`;
@@ -725,39 +722,36 @@ async function promptForm(root, ctx, existing) {
     e.preventDefault();
     err.hidden = true;
     const title = root.querySelector('#title').value.trim();
-    const category = root.querySelector('#category').value;
     const tags = root.querySelector('#tags').value.split(',').map((t) => t.trim()).filter(Boolean);
     const body = bodyEl.value.trim();
 
-    if (!title || !category || !body) {
-      err.textContent = 'العنوان والتصنيف والنص مطلوبة'; err.hidden = false; return;
+    if (!title || !body) {
+      err.textContent = 'العنوان والنص مطلوبان'; err.hidden = false; return;
     }
     if (body.length < 40) {
       err.textContent = 'النص قصير جداً'; err.hidden = false; return;
     }
 
-    btn.disabled = true; btn.textContent = isEdit ? 'جارٍ الحفظ…' : 'جارٍ النشر…';
+    btn.disabled = true; btn.textContent = isEdit ? '…' : '…';
     try {
-      const payload = { title, category, tags, body, cover, models: [...chosen], description: '' };
-      let id;
+      const payload = { title, tags, body, cover, description: '', category: '', models: [] };
       if (isEdit) {
-        await ctx.api('/prompts/' + existing.id, { method: 'PATCH', body: payload });
-        id = existing.id;
+        const { prompt: updated } = await ctx.api('/prompts/' + existing.id, { method: 'PATCH', body: payload });
         ctx.toast('تم الحفظ');
+        ctx.navigate('#/p/' + (updated.slug || updated.id));
       } else {
         const { prompt: created } = await ctx.api('/prompts', { method: 'POST', body: payload });
-        id = created.id;
         ctx.toast('تم النشر');
+        ctx.navigate('#/p/' + (created.slug || created.id));
       }
-      ctx.navigate('#/prompt/' + id);
     } catch (ex) {
       err.textContent = ex.message; err.hidden = false;
-      btn.disabled = false; btn.textContent = isEdit ? 'حفظ' : 'نشر';
+      btn.disabled = false; btn.textContent = isEdit ? 'حفظ' : 'نشر البرومبت';
     }
   });
 }
 
-/* ═══════════ 8 — البروفايل بتبويبات ═══════════ */
+/* ═══════════ 7 — البروفايل ═══════════ */
 async function profile(root, ctx) {
   const userId = ctx.id || ctx.state?.user?.id;
   if (!userId) {
@@ -797,14 +791,14 @@ async function profile(root, ctx) {
       <button class="btn btn-ghost btn-sm" id="logout">خروج</button>
     </div>` : `
     <div class="profile-actions">
-      <button class="btn ${u.isFollowing ? 'btn-outline' : 'btn-primary'} btn-sm" id="follow-btn">
+      <button class="btn ${u.isFollowing ? 'btn-outline' : 'btn-primary'} btn-sm" id="follow-btn" data-following="${u.isFollowing ? '1' : '0'}">
         ${u.isFollowing ? ICON.userCheck + ' متابَع' : ICON.userPlus + ' متابعة'}
       </button>
     </div>`}
   </div>
 
   ${u.isSelf ? `
-  <form class="edit-panel hidden" id="edit-form" style="background:var(--vellum);border:1px solid var(--grid);border-radius:14px;padding:18px;margin-bottom:20px">
+  <form class="edit-panel hidden" id="edit-form" style="background:var(--vellum);border:1px solid var(--grid);border-radius:16px;padding:18px;margin-bottom:20px">
     <div class="stack gap-14">
       <div class="row gap-12" style="flex-wrap:wrap;align-items:flex-start">
         <div id="avatar-preview" class="profile-avatar" style="width:60px;height:60px;font-size:20px;flex-shrink:0">${avatarInner}</div>
@@ -839,7 +833,7 @@ async function profile(root, ctx) {
   <div class="stat-strip">
     <div class="stat-pill"><div class="v">${u.promptCount || 0}</div><div class="k">برومبت</div></div>
     <div class="stat-pill"><div class="v">${fmt(u.totalLikes || 0)}</div><div class="k">إعجاب</div></div>
-    <div class="stat-pill"><div class="v">${fmt(u.totalCopies || 0)}</div><div class="k">نسخة</div></div>
+    <div class="stat-pill"><div class="v">${fmt(u.followers || 0)}</div><div class="k">متابع</div></div>
   </div>
 
   ${u.isSelf && eligibility ? `
@@ -914,7 +908,6 @@ async function profile(root, ctx) {
   });
 
   await showPrompts();
-  // اجلب عدد الإعجابات في الخلفية
   if (u.isSelf) {
     ctx.api('/favorites').then(({ items }) => {
       const el = root.querySelector('#likes-count');
@@ -956,37 +949,43 @@ async function profile(root, ctx) {
     const err = root.querySelector('#edit-err');
     err.hidden = true;
     const saveBtn = root.querySelector('#edit-save');
+    const payload = {
+      name: root.querySelector('#edit-name').value.trim(),
+      username: root.querySelector('#edit-username').value.trim(),
+      bio: root.querySelector('#edit-bio').value.trim(),
+      avatar: editAvatar
+    };
+    // فوري
+    ctx.state.user = { ...ctx.state.user, ...payload };
+    ctx.toast('جارٍ الحفظ…');
     saveBtn.disabled = true; saveBtn.textContent = '…';
-    try {
-      const { user: updated } = await ctx.api('/me', {
-        method: 'PATCH',
-        body: {
-          name: root.querySelector('#edit-name').value.trim(),
-          username: root.querySelector('#edit-username').value.trim(),
-          bio: root.querySelector('#edit-bio').value.trim(),
-          avatar: editAvatar
-        }
-      });
-      ctx.state.user = updated;
-      ctx.toast('تم التحديث');
-      profile(root, ctx);
-    } catch (ex) {
-      err.textContent = ex.message; err.hidden = false;
-      saveBtn.disabled = false; saveBtn.textContent = 'حفظ';
-    }
+    profile(root, ctx);
+    // خلفية
+    ctx.api('/me', { method: 'PATCH', body: payload })
+      .then(({ user }) => { ctx.state.user = user; ctx.toast('تم التحديث'); })
+      .catch((ex) => ctx.toast(ex.message, 'error'));
   });
 
-  /* المتابعة */
-  root.querySelector('#follow-btn')?.addEventListener('click', async () => {
+  /* متابعة — Optimistic */
+  const followBtn = root.querySelector('#follow-btn');
+  followBtn?.addEventListener('click', () => {
     if (!ctx.state.user) {
       ctx.toast('سجّل الدخول', 'error');
       return ctx.navigate('#/login');
     }
-    try {
-      const { following } = await ctx.api(`/users/${u.id}/follow`, { method: 'POST' });
-      ctx.toast(following ? 'تتابع الآن' : 'ألغيت المتابعة');
-      profile(root, ctx);
-    } catch (e) { ctx.toast(e.message, 'error'); }
+    const isNow = followBtn.dataset.following === '1';
+    const newState = !isNow;
+    followBtn.dataset.following = newState ? '1' : '0';
+    followBtn.className = 'btn ' + (newState ? 'btn-outline' : 'btn-primary') + ' btn-sm';
+    followBtn.innerHTML = newState ? `${ICON.userCheck} متابَع` : `${ICON.userPlus} متابعة`;
+    ctx.api(`/users/${u.id}/follow`, { method: 'POST' })
+      .then((r) => ctx.toast(r.following ? 'تتابع الآن' : 'ألغيت المتابعة'))
+      .catch((e) => {
+        followBtn.dataset.following = isNow ? '1' : '0';
+        followBtn.className = 'btn ' + (isNow ? 'btn-outline' : 'btn-primary') + ' btn-sm';
+        followBtn.innerHTML = isNow ? `${ICON.userCheck} متابَع` : `${ICON.userPlus} متابعة`;
+        ctx.toast(e.message, 'error');
+      });
   });
 
   root.querySelector('#logout')?.addEventListener('click', async () => {
@@ -998,7 +997,7 @@ async function profile(root, ctx) {
   });
 }
 
-/* ═══════════ 9 — تفضيلاتي ═══════════ */
+/* ═══════════ 8 — تفضيلاتي ═══════════ */
 async function favorites(root, ctx) {
   if (!ctx.state.user) {
     ctx.toast('سجّل الدخول', 'error');
@@ -1023,7 +1022,7 @@ async function favorites(root, ctx) {
   bindCards(container, ctx);
 }
 
-/* ═══════════ 10 — لوحة الإدارة ═══════════ */
+/* ═══════════ 9 — لوحة الإدارة ═══════════ */
 async function admin(root, ctx) {
   if (!ctx.state.adminToken) {
     root.innerHTML = `
@@ -1110,7 +1109,7 @@ async function admin(root, ctx) {
           <div class="list-mini">
             ${topPrompts.map((p) => `
               <div class="item">
-                <div class="grow"><div class="t">${esc(p.title)}</div><div class="s">${esc(p.category)}</div></div>
+                <div class="grow"><div class="t">${esc(p.title)}</div><div class="s">${esc(p.category || '—')}</div></div>
                 <span class="v">♥ ${fmt(p.likes)}</span>
               </div>`).join('') || '<p class="hint">لا يوجد</p>'}
           </div>
@@ -1169,12 +1168,12 @@ async function admin(root, ctx) {
     body.innerHTML = `
       <div class="table-wrap">
         <table>
-          <thead><tr><th>العنوان</th><th>التصنيف</th><th>الكاتب</th><th>♥</th><th>نسخ</th><th></th></tr></thead>
+          <thead><tr><th>العنوان</th><th>الرابط</th><th>الكاتب</th><th>♥</th><th>نسخ</th><th></th></tr></thead>
           <tbody>
             ${items.map((p) => `
               <tr>
-                <td><a href="#/prompt/${p.id}" style="font-weight:500">${esc(p.title)}</a></td>
-                <td><span class="tag mono">${esc(p.category)}</span></td>
+                <td><a href="#/p/${esc(p.slug || p.id)}" style="font-weight:500">${esc(p.title)}</a></td>
+                <td class="mono" style="font-size:11px;color:var(--ash)">${p.slug ? '/' + esc(p.slug) : '—'}</td>
                 <td>${esc(p.author?.name || '—')}</td>
                 <td class="mono">${fmt(p.likes)}</td>
                 <td class="mono">${fmt(p.copies)}</td>
@@ -1226,7 +1225,7 @@ async function admin(root, ctx) {
   await loadOverview();
 }
 
-/* ═══════════ 11 — انقطاع الاتصال ═══════════ */
+/* ═══════════ 10 — انقطاع الاتصال ═══════════ */
 async function offline(root, ctx) {
   root.innerHTML = `
   <div class="state" style="margin:60px auto;max-width:460px;border-style:solid">
