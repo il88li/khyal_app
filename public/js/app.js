@@ -7,8 +7,18 @@ export const state = {
   user: null,
   meta: { categories: [], models: [], stats: {} },
   online: navigator.onLine,
-  adminToken: sessionStorage.getItem(ADMIN_KEY) || null
+  adminToken: sessionStorage.getItem(ADMIN_KEY) || null,
+  unreadCount: 0
 };
+
+/* ═══════════ خطأ مخصّص يحمل رمز الحالة ═══════════ */
+export class ApiError extends Error {
+  constructor(message, status) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
 
 export async function api(path, { method = 'GET', body, admin = false } = {}) {
   const headers = {};
@@ -25,11 +35,12 @@ export async function api(path, { method = 'GET', body, admin = false } = {}) {
     });
   } catch {
     setOnline(false);
-    throw new Error('تعذّر الاتصال بالخادم');
+    throw new ApiError('تعذّر الاتصال بالخادم', 0);
   }
+
   if (!res.ok && res.status >= 500) setOnline(false);
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || 'حدث خطأ غير متوقع');
+  if (!res.ok) throw new ApiError(data.error || 'حدث خطأ غير متوقع', res.status);
   return data;
 }
 
@@ -75,7 +86,8 @@ const SCREEN_NAMES = {
   prompt: 'prompt', p: 'prompt',
   new: 'newPrompt', edit: 'editPrompt',
   profile: 'profile', u: 'profile',
-  favorites: 'favorites', admin: 'admin', offline: 'offline'
+  favorites: 'favorites', admin: 'admin', offline: 'offline',
+  notifications: 'notifications'
 };
 
 function currentScreen() {
@@ -89,6 +101,8 @@ const FLAME = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-
   <path d="M12 2.5c.6 3.6 3 5 4.7 6.9A6.7 6.7 0 0 1 18.6 14a6.6 6.6 0 0 1-13.2 0c0-2.2 1-3.7 2.3-5.1.5 1 1.2 1.7 2 2-.4-3 .8-6 2.3-8.4Z" fill="#ff4d00"/>
   <path d="M12 21a3 3 0 0 0 3-3c0-1.6-1.2-2.6-3-4.4-1.8 1.8-3 2.8-3 4.4a3 3 0 0 0 3 3Z" fill="#fcddcc"/>
 </svg>`;
+
+const BELL_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7Z"/><path d="M9.5 17a2.5 2.5 0 0 0 5 0"/></svg>`;
 
 function initials(name = '') {
   return String(name).trim().split(/\s+/).slice(0, 2).map((w) => w[0] || '').join('');
@@ -114,13 +128,19 @@ function renderTopbar() {
             <span class="dot"></span>
             <span class="lbl">${state.online ? 'متصل' : 'غير متصل'}</span>
           </span>
-          ${state.user
-            ? `<a href="#/profile" title="${state.user.name}">
-                 <span class="avatar ${state.user.verified ? 'verified' : ''}" style="--s:32px">
-                   ${state.user.avatar ? `<img src="${state.user.avatar}" alt="">` : initials(state.user.name)}
-                 </span>
-               </a>`
-            : `<a class="btn btn-ghost btn-sm" href="#/login">دخول</a>`}
+          ${state.user ? `
+            <a href="#/notifications" class="bell-wrap" title="الإشعارات">
+              ${BELL_ICON}
+              ${state.unreadCount > 0
+                ? `<span class="bell-badge">${state.unreadCount > 99 ? '99+' : state.unreadCount}</span>`
+                : ''}
+            </a>
+            <a href="#/profile" title="${state.user.name}">
+               <span class="avatar ${state.user.verified ? 'verified' : ''}" style="--s:32px">
+                 ${state.user.avatar ? `<img src="${state.user.avatar}" alt="">` : initials(state.user.name)}
+               </span>
+             </a>
+          ` : `<a class="btn btn-ghost btn-sm" href="#/login">دخول</a>`}
           <a class="btn btn-primary btn-sm" href="#/new">انشر</a>
         </div>
       </div>`;
@@ -177,19 +197,38 @@ async function render() {
     root.innerHTML = `<div style="padding:110px 0"><div class="spinner"></div></div>`;
 
     const ctx = {
-      api, navigate, toast, state,
+      api, navigate, toast, state, ApiError,
       params: query,
       id: parts[1] || null,
+      requireOnline() {
+        if (!state.online) {
+          toast('تحقّق من اتصالك بالإنترنت', 'error');
+          return false;
+        }
+        return true;
+      },
+      async refreshUnread() { await refreshUnread(); },
+      decrementUnread(n = 1) {
+        state.unreadCount = Math.max(0, state.unreadCount - n);
+        renderTopbar();
+      },
       async refreshMe() {
         try {
           const { user } = await api('/me');
           state.user = user;
           renderTopbar(); renderBottomNav();
-        } catch {}
+        } catch (e) {
+          if (e instanceof ApiError && e.status === 401) {
+            localStorage.removeItem(TOKEN_KEY);
+            state.user = null;
+            renderTopbar(); renderBottomNav();
+          }
+        }
       },
       logout() {
         localStorage.removeItem(TOKEN_KEY);
         state.user = null;
+        state.unreadCount = 0;
         renderTopbar(); renderBottomNav();
       },
       setToken(t) { localStorage.setItem(TOKEN_KEY, t); },
@@ -221,7 +260,7 @@ async function render() {
   }
 }
 
-/* ═══════════ Scroll effect على الشريط العلوي ═══════════ */
+/* ═══════════ scroll effect ═══════════ */
 let _scrollTick = false;
 window.addEventListener('scroll', () => {
   if (_scrollTick) return;
@@ -233,7 +272,7 @@ window.addEventListener('scroll', () => {
   });
 }, { passive: true });
 
-/* ═══════════ Android WebView bridge ═══════════ */
+/* ═══════════ WebView bridge ═══════════ */
 function setupWebViewBridge() {
   window.addEventListener('hashchange', () => {
     if (window.AndroidBack?.onRouteChange) {
@@ -249,30 +288,67 @@ function setupWebViewBridge() {
   document.body.style.overscrollBehaviorY = 'contain';
 }
 
+/* ═══════════ الإشعارات — جلب + استقصاء ═══════════ */
+async function refreshUnread() {
+  if (!localStorage.getItem(TOKEN_KEY) || !state.user) {
+    state.unreadCount = 0;
+    return;
+  }
+  try {
+    const { unread } = await api('/notifications/unread-count');
+    if (state.unreadCount !== unread) {
+      state.unreadCount = unread;
+      renderTopbar();
+    }
+  } catch { /* تجاهل */ }
+}
+
 async function boot() {
   setupWebViewBridge();
   const strip = document.getElementById('offline-strip');
   if (strip) strip.hidden = state.online;
 
-  // جلب meta و /me بالتوازي لتقليل زمن التحميل
-  const promises = [api('/meta').then(m => state.meta = m).catch(() => {})];
+  api('/meta').then(m => state.meta = m).catch(() => {});
+
   if (localStorage.getItem(TOKEN_KEY)) {
-    promises.push(
-      api('/me').then(r => state.user = r.user)
-        .catch(() => localStorage.removeItem(TOKEN_KEY))
-    );
+    try {
+      const { user } = await api('/me');
+      state.user = user;
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) {
+        localStorage.removeItem(TOKEN_KEY);
+      }
+    }
   }
-  await Promise.all(promises);
 
   window.addEventListener('hashchange', render);
   window.addEventListener('online', () => {
     setOnline(true);
     toast('عاد الاتصال');
     if (currentScreen() === 'offline') navigate('#/');
+    if (localStorage.getItem(TOKEN_KEY) && !state.user) {
+      api('/me').then(r => {
+        state.user = r.user;
+        renderTopbar(); renderBottomNav();
+        refreshUnread();
+      }).catch(() => {});
+    } else {
+      refreshUnread();
+    }
   });
   window.addEventListener('offline', () => {
     setOnline(false);
     toast('انقطع الاتصال', 'error');
+  });
+
+  // استقصاء الإشعارات كل 30 ثانية
+  refreshUnread();
+  setInterval(() => {
+    if (state.online && state.user && !document.hidden) refreshUnread();
+  }, 30000);
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && state.user) refreshUnread();
   });
 
   if (!location.hash) location.hash = '#/';
