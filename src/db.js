@@ -3,17 +3,8 @@ import 'dotenv/config';
 
 const { Pool } = pg;
 
-/* ═══════════════════════════════════════════════
-   إعداد الاتصال — يدعم Aiven SSL
-   ─────────────────────────────────────────────
-   ملاحظة: عندما يحتوي DATABASE_URL على ?sslmode=require،
-   تتجاهل pg كائن ssl المخصص. لذا نزيل sslmode من الرابط
-   وتمرير ssl بشكل صريح.
-   ═══════════════════════════════════════════════ */
-
 function buildConfig() {
   let connectionString = process.env.DATABASE_URL;
-
   if (connectionString) {
     try {
       const u = new URL(connectionString);
@@ -22,14 +13,9 @@ function buildConfig() {
       connectionString = u.toString();
     } catch { /* تجاهل */ }
   }
-
   if (connectionString) {
-    return {
-      connectionString,
-      ssl: { rejectUnauthorized: false }
-    };
+    return { connectionString, ssl: { rejectUnauthorized: false } };
   }
-
   return {
     host: process.env.DB_HOST,
     port: Number(process.env.DB_PORT) || 5432,
@@ -40,10 +26,6 @@ function buildConfig() {
   };
 }
 
-/* ═══════════════════════════════════════════════
-   Pool عالمي يُعاد استخدامه بين invocations
-   ═══════════════════════════════════════════════ */
-
 const POOL_KEY = '__khayal_pg_pool__';
 
 function getPool() {
@@ -51,9 +33,9 @@ function getPool() {
     console.log('[db] إنشاء pool جديد');
     const pool = new Pool({
       ...buildConfig(),
-      max: 3,
+      max: Number(process.env.PG_POOL_MAX) || 5,
       min: 0,
-      idleTimeoutMillis: 10000,
+      idleTimeoutMillis: 8000,
       connectionTimeoutMillis: 8000,
       keepAlive: true,
       application_name: 'khayal',
@@ -68,22 +50,18 @@ function getPool() {
 
 export const pool = getPool();
 
-/* ═══════════════════════════════════════════════
-   إعادة المحاولة للأخطاء العابرة
-   ═══════════════════════════════════════════════ */
-
+/* ═══════════ إعادة المحاولة للأخطاء العابرة ═══════════ */
 const TRANSIENT_PATTERNS = [
   'ECONNRESET', 'EPIPE', 'ETIMEDOUT', 'ECONNREFUSED',
   'socket hang up', 'Connection terminated',
   'connect timeout', 'connection timeout',
   'server closed', 'terminating connection'
 ];
-
 const isTransient = (err) =>
   TRANSIENT_PATTERNS.some((p) =>
     (err?.message || '').toLowerCase().includes(p.toLowerCase()));
 
-const RETRY_DELAYS = [0, 300, 1200, 3000];
+const RETRY_DELAYS = [0, 250, 800];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export async function query(sql, params = []) {
@@ -95,7 +73,6 @@ export async function query(sql, params = []) {
     } catch (err) {
       lastErr = err;
       if (!isTransient(err)) throw err;
-      console.warn(`[db] محاولة ${i + 1} فشلت: ${err.message}`);
     }
   }
   throw lastErr;
@@ -122,10 +99,38 @@ export async function transaction(fn) {
   }
 }
 
-/* ═══════════════════════════════════════════════
-   المخطط مضمّن + Auto-migrate
-   ═══════════════════════════════════════════════ */
+/* ═══════════ ذاكرة تخزين مؤقت (per-instance) ═══════════ */
+const CACHE_KEY = '__khayal_cache__';
+function getCache() {
+  if (!globalThis[CACHE_KEY]) globalThis[CACHE_KEY] = new Map();
+  return globalThis[CACHE_KEY];
+}
 
+export function cacheGet(key) {
+  const c = getCache();
+  const hit = c.get(key);
+  if (!hit) return null;
+  if (hit.expires < Date.now()) { c.delete(key); return null; }
+  return hit.value;
+}
+
+export function cacheSet(key, value, ttlMs = 30000) {
+  const c = getCache();
+  c.set(key, { value, expires: Date.now() + ttlMs });
+  // حد أقصى 500 مدخل
+  if (c.size > 500) {
+    const firstKey = c.keys().next().value;
+    c.delete(firstKey);
+  }
+}
+
+export function cacheClear(prefix = '') {
+  const c = getCache();
+  if (!prefix) return c.clear();
+  for (const k of c.keys()) if (k.startsWith(prefix)) c.delete(k);
+}
+
+/* ═══════════ المخطط ═══════════ */
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS users (
   id           TEXT PRIMARY KEY,
@@ -145,10 +150,11 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar TEXT DEFAULT '';
 
 CREATE TABLE IF NOT EXISTS prompts (
   id           TEXT PRIMARY KEY,
+  slug         TEXT UNIQUE,
   title        TEXT NOT NULL,
   description  TEXT DEFAULT '',
   body         TEXT NOT NULL,
-  category     TEXT NOT NULL,
+  category     TEXT DEFAULT '',
   tags         TEXT[] DEFAULT '{}',
   models       TEXT[] DEFAULT '{}',
   cover        TEXT DEFAULT '',
@@ -156,6 +162,9 @@ CREATE TABLE IF NOT EXISTS prompts (
   copies       INTEGER DEFAULT 0,
   created_at   TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE prompts ADD COLUMN IF NOT EXISTS slug TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_prompts_slug ON prompts(slug) WHERE slug IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS likes (
   user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -179,11 +188,9 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_prompts_author     ON prompts(author_id);
-CREATE INDEX IF NOT EXISTS idx_prompts_category   ON prompts(category);
 CREATE INDEX IF NOT EXISTS idx_prompts_created    ON prompts(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_prompts_copies     ON prompts(copies DESC);
 CREATE INDEX IF NOT EXISTS idx_prompts_tags       ON prompts USING GIN(tags);
-CREATE INDEX IF NOT EXISTS idx_prompts_models     ON prompts USING GIN(models);
 CREATE INDEX IF NOT EXISTS idx_likes_prompt       ON likes(prompt_id);
 CREATE INDEX IF NOT EXISTS idx_likes_user         ON likes(user_id);
 CREATE INDEX IF NOT EXISTS idx_follows_follower   ON follows(follower_id);
@@ -207,14 +214,10 @@ export async function ensureSchema() {
   }
 }
 
-/* ═══════════════════════════════════════════════
-   فحص الصحة
-   ═══════════════════════════════════════════════ */
-
 export async function healthCheck() {
   const start = Date.now();
   try {
-    const { rows } = await pool.query('SELECT version() AS v, now() AS t');
+    const { rows } = await pool.query('SELECT version() AS v');
     return {
       ok: true,
       latencyMs: Date.now() - start,
@@ -238,5 +241,6 @@ export async function closePool() {
 
 export default {
   pool, query, queryOne, queryAll, transaction,
-  ensureSchema, healthCheck, closePool
+  ensureSchema, healthCheck, closePool,
+  cacheGet, cacheSet, cacheClear
 };
