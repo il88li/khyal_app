@@ -22,7 +22,9 @@ function timeAgo(iso) {
 }
 
 const avatar = (u, size = 32) => {
-  const inner = u?.avatar ? `<img src="${esc(u.avatar)}" alt="">` : esc(initials(u?.name || '؟'));
+  const inner = u?.avatar
+    ? `<img src="${esc(u.avatar)}" alt="" loading="lazy" decoding="async">`
+    : esc(initials(u?.name || '؟'));
   return `<span class="avatar ${u?.verified ? 'verified' : ''}" style="--s:${size}px">${inner}</span>`;
 };
 
@@ -50,104 +52,94 @@ const ICON = {
   userCheck: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8.5" r="3.5"/><path d="M3 20c0-3.6 3.1-5.5 7-5.5s7 1.9 7 5.5"/><path d="m16 11 2 2 4-4"/></svg>`,
   bell: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7Z"/><path d="M9.5 17a2.5 2.5 0 0 0 5 0"/></svg>`,
   settings: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>`,
-  lock: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>`,
-  info: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>`
+  lock: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>`
 };
 
 /* ═══════════════════════════════════════════════
-   بطاقة البرومبت الجديدة
+   ⭐ بطاقة البرومبت v4
    ═══════════════════════════════════════════════ */
 function promptCard(p, idx = 0) {
   const mark = (p.category || p.title || 'خ').charAt(0);
   const slugPath = p.slug || p.id;
   const isOwner = (window.__khayal_user_id === p.authorId);
   const isFollowing = !!p.isFollowingAuthor;
+  const tags = (p.tags || []).slice(0, 4);
+
   const coverContent = p.cover
-    ? `<img class="pc-cover-img" src="${esc(p.cover)}" alt="" loading="lazy">`
-    : `<span class="cover-mark">${esc(mark)}</span>`;
+    ? `<img class="pc-media-img" src="${esc(p.cover)}" alt="" loading="lazy" decoding="async">`
+    : `<span class="pc-media-mark">${esc(mark)}</span>`;
 
   return `
   <article class="prompt-card" data-prompt="${esc(p.id)}" data-slug="${esc(slugPath)}" data-author="${esc(p.authorId)}">
-    <!-- شريط الناشر -->
-    <header class="pc-author-bar">
-      <span class="av ${p.author?.verified ? 'verified' : ''}" data-nav-author="${esc(p.authorId)}">
-        ${p.author?.avatar ? `<img src="${esc(p.author.avatar)}" alt="">` : esc(initials(p.author?.name || '؟'))}
-      </span>
-      <div class="pc-author-info" data-nav-author="${esc(p.authorId)}">
-        <span class="pc-author-name">
-          ${esc(p.author?.name || 'مجهول')}
+
+    <header class="pc-author">
+      <a class="pc-av ${p.author?.verified ? 'verified' : ''}" href="#/u/${esc(p.authorId)}">
+        ${p.author?.avatar
+          ? `<img src="${esc(p.author.avatar)}" alt="" loading="lazy" decoding="async">`
+          : esc(initials(p.author?.name || '؟'))}
+      </a>
+      <div class="pc-author-info">
+        <a class="pc-name" href="#/u/${esc(p.authorId)}">
+          <span>${esc(p.author?.name || 'مجهول')}</span>
           ${p.author?.verified ? VCHECK : ''}
-        </span>
-        <span class="pc-author-handle">@${esc(p.author?.username || 'unknown')}</span>
+        </a>
+        <span class="pc-handle">@${esc(p.author?.username || 'unknown')} · ${timeAgo(p.createdAt)}</span>
       </div>
       ${isOwner
-        ? `<span class="pc-follow-btn self">أنت</span>`
-        : `<button class="pc-follow-btn ${isFollowing ? 'following' : ''}" data-follow="${esc(p.authorId)}" data-following="${isFollowing ? '1' : '0'}">
-             ${isFollowing ? ICON.userCheck + ' متابَع' : ICON.userPlus + ' متابعة'}
+        ? `<span class="pc-self">أنت</span>`
+        : `<button class="pc-follow ${isFollowing ? 'following' : ''}" data-follow="${esc(p.authorId)}" data-following="${isFollowing ? '1' : '0'}">
+             ${isFollowing ? 'متابَع' : 'متابعة'}
            </button>`}
     </header>
 
-    <!-- الغلاف -->
-    <div class="pc-cover-wrap">
-      <div class="pc-cover" data-nav-prompt="${esc(slugPath)}">
-        ${coverContent}
-        ${p.category ? `<span class="pc-cover-badge">${esc(p.category)}</span>` : ''}
-        <span class="pc-cover-time">${timeAgo(p.createdAt)}</span>
-      </div>
+    <div class="pc-media">
+      ${coverContent}
+      ${p.category ? `<span class="pc-badge">${esc(p.category)}</span>` : ''}
     </div>
 
-    <!-- العنوان والوسوم -->
     <div class="pc-info">
-      <h3 class="pc-title">${esc(p.title)}</h3>
-      ${(p.tags || []).length ? `
+      <a class="pc-title" href="#/p/${esc(slugPath)}">${esc(p.title)}</a>
+      ${tags.length ? `
       <div class="pc-tags">
-        ${(p.tags || []).slice(0, 4).map((t) => `<span class="pc-tag">${esc(t)}</span>`).join('')}
+        ${tags.map((t) => `<span class="pc-tag">${esc(t)}</span>`).join('')}
       </div>` : ''}
     </div>
 
-    <!-- شريط الأزرار -->
-    <div class="pc-actions-bar">
-      <button class="pc-action-btn pc-like-btn ${p.liked ? 'liked' : ''}" data-like="${esc(p.id)}" data-liked="${p.liked ? '1' : '0'}">
+    <div class="pc-bar">
+      <button class="pc-btn ${p.liked ? 'liked' : ''}" data-like="${esc(p.id)}" data-liked="${p.liked ? '1' : '0'}">
         <span class="ic">${p.liked ? ICON.heartFill : ICON.heart}</span>
-        <span class="n">${fmt(p.likes)}</span>
+        <span class="pc-num">${fmt(p.likes)}</span>
       </button>
-      <button class="pc-action-btn pc-comment-btn" data-expand="${esc(p.id)}">
+      <button class="pc-btn" data-expand="${esc(p.id)}">
         ${ICON.chat}
-        <span class="n">${fmt(p.commentsCount || 0)}</span>
+        <span class="pc-num">${fmt(p.commentsCount || 0)}</span>
       </button>
-      <button class="pc-action-btn pc-copy-btn" data-copy="${esc(p.id)}">
-        ${ICON.copy}
-        <span>نسخ</span>
+      <button class="pc-icon-btn" data-share="${esc(p.id)}" title="مشاركة" aria-label="مشاركة">
+        ${ICON.share}
       </button>
-      <button class="pc-action-btn pc-view-btn" data-expand="${esc(p.id)}">
-        عرض
-        ${ICON.chev}
+      <button class="pc-view" data-expand="${esc(p.id)}">
+        <span class="pc-view-text">عرض</span>
+        <span class="pc-chev">${ICON.chev}</span>
       </button>
     </div>
 
-    <!-- القسم الموسّع -->
-    <div class="pc-expand" data-expand-body="${esc(p.id)}">
-      <div class="pc-expand-inner">
-        <div class="pc-expand-body">
-          <div class="pc-prompt-box">
+    <div class="pc-panel" data-panel="${esc(p.id)}">
+      <div class="pc-panel-inner">
+        <div class="pc-panel-body">
+          <div class="pc-prompt">
             <div class="pc-prompt-head">
-              <span class="dots"><i></i><i></i><i></i></span>
-              <span class="lbl">prompt.txt</span>
+              <span class="pc-dots"><i></i><i></i><i></i></span>
+              <span class="pc-prompt-name">prompt.txt</span>
+              <button class="pc-mini-btn" data-copy="${esc(p.id)}" title="نسخ" aria-label="نسخ">
+                ${ICON.copy}
+              </button>
             </div>
-            <pre class="pc-prompt-body">${esc(p.body)}</pre>
+            <div class="pc-prompt-scroll">
+              <pre class="pc-prompt-text">${esc(p.body)}</pre>
+            </div>
           </div>
 
-          <div class="pc-expand-actions">
-            <button class="btn btn-outline btn-sm" data-share="${esc(p.id)}">
-              ${ICON.share} مشاركة
-            </button>
-            <button class="btn btn-primary btn-sm" data-copy="${esc(p.id)}">
-              ${ICON.copy} نسخ النص
-            </button>
-          </div>
-
-          <!-- التعليقات المصغّرة -->
-          <div class="pc-comments-mini" data-comments="${esc(p.id)}">
+          <div class="pc-comments" data-comments="${esc(p.id)}">
             <div class="pc-comments-loading">…</div>
           </div>
         </div>
@@ -159,28 +151,9 @@ function promptCard(p, idx = 0) {
 const grid = (items) => `<div class="grid-cards">${items.map((p, i) => promptCard(p, i)).join('')}</div>`;
 
 function bindCards(root, ctx) {
-  // اجعل معرّف المستخدم الحالي متاحًا للبطاقات
   window.__khayal_user_id = ctx.state.user?.id || null;
 
-  // النقر على البطاقة (خارج الأزرار) → فتح التفاصيل
-  root.querySelectorAll('.prompt-card').forEach((card) => {
-    card.addEventListener('click', (e) => {
-      // لو النقر داخل زر، لا نفتح التفاصيل
-      if (e.target.closest('button, .pc-follow-btn, .pc-action-btn')) return;
-      const navTarget = e.target.closest('[data-nav-prompt]');
-      if (navTarget) {
-        ctx.navigate('#/p/' + navTarget.dataset.navPrompt);
-        return;
-      }
-      const authorTarget = e.target.closest('[data-nav-author]');
-      if (authorTarget) {
-        ctx.navigate('#/u/' + authorTarget.dataset.navAuthor);
-        return;
-      }
-    });
-  });
-
-  // زر الإعجاب — Optimistic
+  /* ─── إعجاب (Optimistic) ─── */
   root.querySelectorAll('[data-like]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -190,13 +163,12 @@ function bindCards(root, ctx) {
       }
       const id = btn.dataset.like;
       const wasLiked = btn.dataset.liked === '1';
-      const nEl = btn.querySelector('.n');
+      const nEl = btn.querySelector('.pc-num');
       const icEl = btn.querySelector('.ic');
       const wasCount = parseInt(nEl.textContent.replace(/[^\d]/g, '')) || 0;
       const newLiked = !wasLiked;
       const newCount = Math.max(0, wasCount + (newLiked ? 1 : -1));
 
-      // فوري
       btn.dataset.liked = newLiked ? '1' : '0';
       btn.classList.toggle('liked', newLiked);
       if (newLiked) {
@@ -206,8 +178,7 @@ function bindCards(root, ctx) {
       icEl.innerHTML = newLiked ? ICON.heartFill : ICON.heart;
       nEl.textContent = fmt(newCount);
 
-      // مزامنة
-      ctx.api(`/prompts/${id}/like`, { method: 'POST' })
+      ctx.api(`/prompts/${id}/like`, { method: 'POST', useCache: false })
         .then((r) => {
           btn.dataset.liked = r.liked ? '1' : '0';
           btn.classList.toggle('liked', r.liked);
@@ -224,7 +195,7 @@ function bindCards(root, ctx) {
     });
   });
 
-  // زر المتابعة
+  /* ─── متابعة ─── */
   root.querySelectorAll('[data-follow]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -238,32 +209,32 @@ function bindCards(root, ctx) {
 
       btn.dataset.following = newState ? '1' : '0';
       btn.classList.toggle('following', newState);
-      btn.innerHTML = newState ? `${ICON.userCheck} متابَع` : `${ICON.userPlus} متابعة`;
+      btn.textContent = newState ? 'متابَع' : 'متابعة';
 
-      ctx.api(`/users/${authorId}/follow`, { method: 'POST' })
+      ctx.api(`/users/${authorId}/follow`, { method: 'POST', useCache: false })
         .then((r) => {
           const actual = !!r.following;
           btn.dataset.following = actual ? '1' : '0';
           btn.classList.toggle('following', actual);
-          btn.innerHTML = actual ? `${ICON.userCheck} متابَع` : `${ICON.userPlus} متابعة`;
+          btn.textContent = actual ? 'متابَع' : 'متابعة';
           ctx.toast(actual ? 'تتابع الآن' : 'ألغيت المتابعة');
         })
         .catch((ex) => {
           btn.dataset.following = isNow ? '1' : '0';
           btn.classList.toggle('following', isNow);
-          btn.innerHTML = isNow ? `${ICON.userCheck} متابَع` : `${ICON.userPlus} متابعة`;
+          btn.textContent = isNow ? 'متابَع' : 'متابعة';
           ctx.toast(ex.message, 'error');
         });
     });
   });
 
-  // زر النسخ
+  /* ─── نسخ (زر صغير داخل prompt box) ─── */
   root.querySelectorAll('[data-copy]').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const id = btn.dataset.copy;
       const card = btn.closest('.prompt-card');
-      const pre = card?.querySelector('.pc-prompt-body');
+      const pre = card?.querySelector('.pc-prompt-text');
       const text = pre?.textContent || '';
       if (!text) return;
 
@@ -277,11 +248,11 @@ function bindCards(root, ctx) {
         document.execCommand('copy');
         ta.remove();
       }
-      ctx.api(`/prompts/${id}/copy`, { method: 'POST' }).catch(() => {});
+      ctx.api(`/prompts/${id}/copy`, { method: 'POST', useCache: false }).catch(() => {});
 
-      const old = btn.innerHTML;
       btn.classList.add('copied');
-      btn.innerHTML = `${ICON.check} <span>تم</span>`;
+      const old = btn.innerHTML;
+      btn.innerHTML = ICON.check;
       ctx.toast('تم النسخ');
       setTimeout(() => {
         btn.classList.remove('copied');
@@ -290,16 +261,18 @@ function bindCards(root, ctx) {
     });
   });
 
-  // زر المشاركة
+  /* ─── مشاركة (زر أيقونة صغير) ─── */
   root.querySelectorAll('[data-share]').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const id = btn.dataset.share;
       const card = btn.closest('.prompt-card');
       const slug = card?.dataset.slug || id;
+      const title = card?.querySelector('.pc-title')?.textContent || '';
       const url = location.origin + '/#/p/' + slug;
+
       if (navigator.share) {
-        try { await navigator.share({ url }); return; } catch {}
+        try { await navigator.share({ title, url }); return; } catch { /* تجاهل */ }
       }
       try {
         await navigator.clipboard.writeText(url);
@@ -308,44 +281,62 @@ function bindCards(root, ctx) {
     });
   });
 
-  // زر التوسيع (عرض + تعليق)
+  /* ─── توسيع/إغلاق ─── */
   root.querySelectorAll('[data-expand]').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const id = btn.dataset.expand;
       const card = btn.closest('.prompt-card');
-      const expand = card.querySelector(`[data-expand-body="${id}"]`);
-      const viewBtn = card.querySelector('.pc-view-btn');
-      const isOpen = expand.classList.toggle('open');
+      const panel = card.querySelector(`[data-panel="${id}"]`);
+      const viewBtn = card.querySelector('.pc-view');
+      const isOpen = panel.classList.toggle('open');
       card.classList.toggle('expanded', isOpen);
       viewBtn.classList.toggle('open', isOpen);
+      viewBtn.querySelector('.pc-view-text').textContent = isOpen ? 'إغلاق' : 'عرض';
 
       if (isOpen) {
-        viewBtn.innerHTML = `إغلاق ${ICON.chev}`;
-        // حمّل التعليقات عند أول فتح
         const box = card.querySelector(`[data-comments="${id}"]`);
         if (box && box.dataset.loaded !== '1') {
           box.dataset.loaded = '1';
           await loadInlineComments(box, id, ctx);
         }
-      } else {
-        viewBtn.innerHTML = `عرض ${ICON.chev}`;
       }
     });
+  });
+
+  /* ─── Prefetch على hover/touch ─── */
+  root.querySelectorAll('.prompt-card').forEach((card) => {
+    let hoverTimer;
+    const startPrefetch = () => {
+      hoverTimer = setTimeout(() => {
+        const slug = card.dataset.slug;
+        if (slug && ctx.prefetchPrompt) {
+          ctx.prefetchPrompt(slug, ctx.getToken());
+        }
+      }, 200);
+    };
+    const cancelPrefetch = () => { if (hoverTimer) clearTimeout(hoverTimer); };
+    card.addEventListener('mouseenter', startPrefetch);
+    card.addEventListener('mouseleave', cancelPrefetch);
+    card.addEventListener('touchstart', startPrefetch, { passive: true });
+    card.addEventListener('touchend', cancelPrefetch, { passive: true });
+    card.addEventListener('touchcancel', cancelPrefetch, { passive: true });
   });
 }
 
 /* ═══════════════════════════════════════════════
-   تحميل التعليقات داخل البطاقة
+   التعليقات داخل البطاقة
    ═══════════════════════════════════════════════ */
 async function loadInlineComments(box, promptId, ctx) {
   try {
     const { items, total } = await ctx.api(`/prompts/${promptId}/comments?limit=3&offset=0`);
 
     const renderItem = (c) => `
-      <div class="pc-comment-item">
+      <div class="pc-comment">
         <span class="pc-comment-av">
-          ${c.author?.avatar ? `<img src="${esc(c.author.avatar)}" alt="">` : esc(initials(c.author?.name || '؟'))}
+          ${c.author?.avatar
+            ? `<img src="${esc(c.author.avatar)}" alt="" loading="lazy" decoding="async">`
+            : esc(initials(c.author?.name || '؟'))}
         </span>
         <div class="pc-comment-body">
           <div class="pc-comment-name">
@@ -360,8 +351,8 @@ async function loadInlineComments(box, promptId, ctx) {
     box.innerHTML = `
       ${ctx.state.user ? `
       <div class="pc-comment-form">
-        <input type="text" placeholder="اكتب تعليقاً…" maxlength="500" data-comment-input>
-        <button data-comment-send disabled>${ICON.send}</button>
+        <input class="pc-comment-input" type="text" placeholder="اكتب تعليقاً…" maxlength="500" data-comment-input>
+        <button class="pc-comment-send" data-comment-send disabled>${ICON.send}</button>
       </div>` : `
       <div class="pc-comments-empty">
         <a href="#/login" style="color:var(--orange);font-weight:500">سجّل الدخول</a> للتعليق
@@ -372,7 +363,7 @@ async function loadInlineComments(box, promptId, ctx) {
         : `<div class="pc-comments-empty">لا تعليقات بعد — كن أول من يعلّق</div>`}
 
       ${total > items.length ? `
-      <div class="pc-comment-more">
+      <div class="pc-comments-more">
         <button data-comment-all>عرض الكل (${total})</button>
       </div>` : ''}`;
 
@@ -391,10 +382,10 @@ async function loadInlineComments(box, promptId, ctx) {
         const body = input.value.trim();
         if (!body) return;
         sendBtn.disabled = true;
-        sendBtn.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px"></span>';
+        sendBtn.innerHTML = '<span class="spinner" style="width:13px;height:13px;border-width:2px"></span>';
         try {
           await ctx.api(`/prompts/${promptId}/comments`, {
-            method: 'POST', body: { body }
+            method: 'POST', body: { body }, useCache: false
           });
           input.value = '';
           box.dataset.loaded = '0';
@@ -473,7 +464,8 @@ async function login(root, ctx) {
     try {
       const { token, user } = await ctx.api('/auth/login', {
         method: 'POST',
-        body: { email: form.email.value.trim(), password: form.password.value }
+        body: { email: form.email.value.trim(), password: form.password.value },
+        useCache: false
       });
       ctx.setToken(token);
       ctx.state.user = user;
@@ -538,7 +530,8 @@ async function register(root, ctx) {
           username: form.username.value.trim(),
           email: form.email.value.trim(),
           password: form.password.value
-        }
+        },
+        useCache: false
       });
       ctx.setToken(token);
       ctx.state.user = user;
@@ -746,7 +739,7 @@ async function prompt(root, ctx) {
 
   <div class="detail-hero">
     <div class="detail-cover">
-      ${p.cover ? `<img src="${esc(p.cover)}" alt="">`
+      ${p.cover ? `<img src="${esc(p.cover)}" alt="" decoding="async">`
                 : `<span class="cover-mark" style="font-size:64px">${esc(mark)}</span>`}
     </div>
     <div class="detail-body">
@@ -866,7 +859,7 @@ async function prompt(root, ctx) {
       ta.remove();
     }
     ctx.toast('تم النسخ');
-    ctx.api(`/prompts/${p.id}/copy`, { method: 'POST' }).catch(() => {});
+    ctx.api(`/prompts/${p.id}/copy`, { method: 'POST', useCache: false }).catch(() => {});
     if (btn) {
       const old = btn.innerHTML;
       btn.innerHTML = `${ICON.check} تم`;
@@ -890,7 +883,7 @@ async function prompt(root, ctx) {
     likeBtn.dataset.liked = newLiked ? '1' : '0';
     root.querySelector('#like-ic').innerHTML = newLiked ? ICON.heartFill : ICON.heart;
     root.querySelector('#like-n').textContent = newCount;
-    ctx.api(`/prompts/${p.id}/like`, { method: 'POST' })
+    ctx.api(`/prompts/${p.id}/like`, { method: 'POST', useCache: false })
       .then((real) => {
         likeBtn.dataset.liked = real.liked ? '1' : '0';
         root.querySelector('#like-ic').innerHTML = real.liked ? ICON.heartFill : ICON.heart;
@@ -926,7 +919,7 @@ async function prompt(root, ctx) {
     followBtn.dataset.following = newState ? '1' : '0';
     followBtn.className = 'btn ' + (newState ? 'btn-outline' : 'btn-primary') + ' btn-sm';
     followBtn.innerHTML = newState ? `${ICON.userCheck} متابَع` : `${ICON.userPlus} متابعة`;
-    ctx.api(`/users/${p.authorId}/follow`, { method: 'POST' })
+    ctx.api(`/users/${p.authorId}/follow`, { method: 'POST', useCache: false })
       .then((r) => {
         const actual = !!r.following;
         followBtn.dataset.following = actual ? '1' : '0';
@@ -948,7 +941,7 @@ async function prompt(root, ctx) {
     btn.disabled = true;
     btn.style.opacity = '.5';
     try {
-      await ctx.api(`/prompts/${p.id}`, { method: 'DELETE' });
+      await ctx.api(`/prompts/${p.id}`, { method: 'DELETE', useCache: false });
       ctx.toast('تم الحذف');
       ctx.navigate('#/profile');
     } catch (e) {
@@ -958,7 +951,7 @@ async function prompt(root, ctx) {
     }
   });
 
-  /* التعليقات في صفحة التفاصيل */
+  /* ═══════════ التعليقات ═══════════ */
   const cmList = root.querySelector('#cm-list');
   const cmMore = root.querySelector('#cm-more');
   const cmCount = root.querySelector('#cm-count');
@@ -1063,7 +1056,7 @@ async function prompt(root, ctx) {
       if (!newBody) return ctx.toast('النص مطلوب', 'error');
       try {
         const { comment } = await ctx.api(`/comments/${cid}`, {
-          method: 'PATCH', body: { body: newBody }
+          method: 'PATCH', body: { body: newBody }, useCache: false
         });
         const idx = cmAll.findIndex((x) => x.id === cid);
         if (idx >= 0) cmAll[idx] = comment;
@@ -1077,7 +1070,7 @@ async function prompt(root, ctx) {
   async function deleteComment(cid) {
     if (!confirm('حذف هذا التعليق؟')) return;
     try {
-      await ctx.api(`/comments/${cid}`, { method: 'DELETE' });
+      await ctx.api(`/comments/${cid}`, { method: 'DELETE', useCache: false });
       cmAll = cmAll.filter((x) => x.id !== cid);
       cmOffset = cmAll.length;
       cmCount.textContent = Math.max(0, parseInt(cmCount.textContent || '0') - 1);
@@ -1107,7 +1100,7 @@ async function prompt(root, ctx) {
       cmSubmit.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px;margin:0"></span>';
       try {
         const { comment } = await ctx.api(`/prompts/${p.id}/comments`, {
-          method: 'POST', body: { body }
+          method: 'POST', body: { body }, useCache: false
         });
         cmAll.unshift(comment);
         cmOffset = cmAll.length;
@@ -1266,11 +1259,11 @@ async function promptForm(root, ctx, existing) {
     try {
       const payload = { title, tags, body, cover, description: '', category: '', models: [] };
       if (isEdit) {
-        const { prompt: updated } = await ctx.api('/prompts/' + existing.id, { method: 'PATCH', body: payload });
+        const { prompt: updated } = await ctx.api('/prompts/' + existing.id, { method: 'PATCH', body: payload, useCache: false });
         ctx.toast('تم الحفظ');
         ctx.navigate('#/p/' + (updated.slug || updated.id));
       } else {
-        const { prompt: created } = await ctx.api('/prompts', { method: 'POST', body: payload });
+        const { prompt: created } = await ctx.api('/prompts', { method: 'POST', body: payload, useCache: false });
         ctx.toast('تم النشر');
         ctx.navigate('#/p/' + (created.slug || created.id));
       }
@@ -1281,7 +1274,7 @@ async function promptForm(root, ctx, existing) {
   });
 }
 
-/* ═══════════ 7 — البروفايل (مع زر الإعدادات + الإصدار) ═══════════ */
+/* ═══════════ 7 — البروفايل ═══════════ */
 async function profile(root, ctx) {
   const userId = ctx.id || ctx.state?.user?.id;
   if (!userId) {
@@ -1295,7 +1288,9 @@ async function profile(root, ctx) {
   const months = Math.max(0, Math.floor(
     (Date.now() - new Date(u.joined).getTime()) / (1000 * 60 * 60 * 24 * 30)
   ));
-  const avatarInner = u.avatar ? `<img src="${esc(u.avatar)}" alt="">` : esc(initials(u.name));
+  const avatarInner = u.avatar
+    ? `<img src="${esc(u.avatar)}" alt="" decoding="async">`
+    : esc(initials(u.name));
   const metCount = eligibility ? eligibility.rules.filter((r) => r.met).length : 0;
   const totalRules = eligibility ? eligibility.rules.length : 0;
 
@@ -1326,7 +1321,7 @@ async function profile(root, ctx) {
   </div>
 
   ${u.isSelf ? `
-  <div class="edit-panel hidden" id="settings-panel" style="background:#fff;border:1px solid var(--grid);border-radius:24px;padding:22px;margin-bottom:20px;box-shadow:var(--shadow-card)">
+  <div class="edit-panel hidden" id="settings-panel" style="background:#fff;border:1px solid var(--grid);border-radius:20px;padding:22px;margin-bottom:20px;box-shadow:var(--shadow-card)">
     <div class="stack gap-16">
 
       <h3 style="font-size:15px;display:flex;align-items:center;gap:8px;margin-bottom:4px">
@@ -1399,7 +1394,6 @@ async function profile(root, ctx) {
         </div>
       </div>
 
-      <!-- رقم الإصدار يفتح لوحة الإدارة -->
       <div style="text-align:center;padding-top:6px">
         <button type="button" id="version-btn" style="font-family:var(--font-mono);font-size:11px;color:var(--ash);padding:8px 14px;border-radius:999px;transition:all .2s var(--ease)">
           خيال · الإصدار ${ctx.appVersion}
@@ -1479,7 +1473,7 @@ async function profile(root, ctx) {
   async function showLikes() {
     content.innerHTML = skeletonGrid(3);
     try {
-      const { items } = await ctx.api('/favorites');
+      const { items } = await ctx.api('/favorites', { useCache: false });
       const el = root.querySelector('#likes-count');
       if (el) el.textContent = items.length;
       if (!items.length) {
@@ -1566,13 +1560,12 @@ async function profile(root, ctx) {
 
   await showPrompts();
   if (u.isSelf) {
-    ctx.api('/favorites').then(({ items }) => {
+    ctx.api('/favorites', { useCache: false }).then(({ items }) => {
       const el = root.querySelector('#likes-count');
       if (el) el.textContent = items.length;
     }).catch(() => {});
   }
 
-  /* الإعدادات */
   const panel = root.querySelector('#settings-panel');
   root.querySelector('#settings-btn')?.addEventListener('click', () => {
     if (!panel) return;
@@ -1615,7 +1608,7 @@ async function profile(root, ctx) {
     };
     saveBtn.disabled = true; saveBtn.textContent = 'جارٍ الحفظ…';
     try {
-      const { user: updated } = await ctx.api('/me', { method: 'PATCH', body: payload });
+      const { user: updated } = await ctx.api('/me', { method: 'PATCH', body: payload, useCache: false });
       ctx.state.user = updated;
       ctx.toast('تم التحديث');
       await profile(root, ctx);
@@ -1638,7 +1631,7 @@ async function profile(root, ctx) {
     const btn = root.querySelector('#pw-save');
     btn.disabled = true; btn.textContent = 'جارٍ التحديث…';
     try {
-      await ctx.api('/auth/password', { method: 'PATCH', body: { current: cur, next: newP } });
+      await ctx.api('/auth/password', { method: 'PATCH', body: { current: cur, next: newP }, useCache: false });
       ctx.toast('تم تحديث كلمة المرور');
       root.querySelector('#pw-current').value = '';
       root.querySelector('#pw-new').value = '';
@@ -1654,20 +1647,19 @@ async function profile(root, ctx) {
     if (!ctx.requireOnline()) return;
     if (!confirm('سيتم إبطال جميع الجلسات على الأجهزة الأخرى. متابعة؟')) return;
     try {
-      const { revoked } = await ctx.api('/auth/logout-all', { method: 'POST' });
+      const { revoked } = await ctx.api('/auth/logout-all', { method: 'POST', useCache: false });
       ctx.toast(`تم إبطال ${revoked} جلسة`);
     } catch (e) { ctx.toast(e.message, 'error'); }
   });
 
   root.querySelector('#logout')?.addEventListener('click', async () => {
     if (!confirm('تسجيل الخروج؟')) return;
-    try { await ctx.api('/auth/logout', { method: 'POST' }); } catch {}
+    try { await ctx.api('/auth/logout', { method: 'POST', useCache: false }); } catch {}
     ctx.logout();
     ctx.toast('تم الخروج');
     ctx.navigate('#/');
   });
 
-  /* رقم الإصدار → لوحة الإدارة */
   root.querySelector('#version-btn')?.addEventListener('click', () => {
     ctx.navigate('#/admin');
   });
@@ -1683,7 +1675,7 @@ async function profile(root, ctx) {
     followBtn.dataset.following = newState ? '1' : '0';
     followBtn.className = 'btn ' + (newState ? 'btn-outline' : 'btn-primary') + ' btn-sm';
     followBtn.innerHTML = newState ? `${ICON.userCheck} متابَع` : `${ICON.userPlus} متابعة`;
-    ctx.api(`/users/${u.id}/follow`, { method: 'POST' })
+    ctx.api(`/users/${u.id}/follow`, { method: 'POST', useCache: false })
       .then((r) => {
         const actual = !!r.following;
         followBtn.dataset.following = actual ? '1' : '0';
@@ -1711,7 +1703,7 @@ async function favorites(root, ctx) {
       ${sectionHead('04', 'تفضيلاتي', 'البرومبتات التي <span class="hl">أعجبتك</span>')}
     </div>
     <div id="fav-results">${skeletonGrid(3)}</div>`;
-  const { items } = await ctx.api('/favorites');
+  const { items } = await ctx.api('/favorites', { useCache: false });
   const container = root.querySelector('#fav-results');
   if (!items.length) {
     container.innerHTML = emptyState(ICON.heart, 'لا توجد إعجابات بعد',
@@ -1782,7 +1774,7 @@ async function notifications(root, ctx) {
       more.innerHTML = '';
     }
     try {
-      const { items, hasMore: hm } = await ctx.api(`/notifications?limit=${PAGE}&offset=${offset}`);
+      const { items, hasMore: hm } = await ctx.api(`/notifications?limit=${PAGE}&offset=${offset}`, { useCache: false });
       all = reset ? items : all.concat(items);
       offset = all.length;
       hasMore = hm;
@@ -1815,7 +1807,7 @@ async function notifications(root, ctx) {
           el.classList.remove('unread');
           el.dataset.read = '1';
           ctx.decrementUnread(1);
-          ctx.api(`/notifications/${nid}/read`, { method: 'POST' }).catch(() => {});
+          ctx.api(`/notifications/${nid}/read`, { method: 'POST', useCache: false }).catch(() => {});
         }
       });
     });
@@ -1824,7 +1816,7 @@ async function notifications(root, ctx) {
   root.querySelector('#mark-all').addEventListener('click', async () => {
     if (!ctx.requireOnline()) return;
     try {
-      const { updated } = await ctx.api('/notifications/read-all', { method: 'POST' });
+      const { updated } = await ctx.api('/notifications/read-all', { method: 'POST', useCache: false });
       list.querySelectorAll('.notif-item').forEach((el) => {
         el.classList.remove('unread');
         el.dataset.read = '1';
@@ -1862,7 +1854,7 @@ async function admin(root, ctx) {
       err.hidden = true; btn.disabled = true; btn.textContent = '…';
       try {
         const { token } = await ctx.api('/admin/unlock', {
-          method: 'POST', body: { password: root.querySelector('#lock-pass').value }
+          method: 'POST', body: { password: root.querySelector('#lock-pass').value }, useCache: false
         });
         ctx.setAdminToken(token);
         ctx.toast('تم الفتح');
@@ -1910,7 +1902,7 @@ async function admin(root, ctx) {
 
   async function loadOverview() {
     body.innerHTML = skeletonAdminTab('overview');
-    const { stats, topPrompts, latestUsers } = await ctx.api('/admin/overview', { admin: true });
+    const { stats, topPrompts, latestUsers } = await ctx.api('/admin/overview', { admin: true, useCache: false });
     body.innerHTML = `
       <div class="stat-cards">
         <div class="stat-card"><div class="k">المستخدمون</div><div class="v">${fmt(stats.users)}</div></div>
@@ -1945,7 +1937,7 @@ async function admin(root, ctx) {
 
   async function loadUsers() {
     body.innerHTML = skeletonAdminTab('users');
-    const { items } = await ctx.api('/admin/users', { admin: true });
+    const { items } = await ctx.api('/admin/users', { admin: true, useCache: false });
     body.innerHTML = `
       <div class="table-wrap">
         <table>
@@ -1967,19 +1959,19 @@ async function admin(root, ctx) {
         </table>
       </div>`;
     body.querySelectorAll('[data-verify]').forEach((b) => b.addEventListener('click', async () => {
-      try { await ctx.api(`/admin/users/${b.dataset.verify}/verify`, { method: 'POST', admin: true }); loadUsers(); }
+      try { await ctx.api(`/admin/users/${b.dataset.verify}/verify`, { method: 'POST', admin: true, useCache: false }); loadUsers(); }
       catch (e) { ctx.toast(e.message, 'error'); }
     }));
     body.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', async () => {
       if (!confirm('حذف المستخدم وكل برومبتاته؟')) return;
-      try { await ctx.api(`/admin/users/${b.dataset.del}`, { method: 'DELETE', admin: true }); ctx.toast('تم'); loadUsers(); }
+      try { await ctx.api(`/admin/users/${b.dataset.del}`, { method: 'DELETE', admin: true, useCache: false }); ctx.toast('تم'); loadUsers(); }
       catch (e) { ctx.toast(e.message, 'error'); }
     }));
   }
 
   async function loadPrompts() {
     body.innerHTML = skeletonAdminTab('prompts');
-    const { items } = await ctx.api('/admin/prompts', { admin: true });
+    const { items } = await ctx.api('/admin/prompts', { admin: true, useCache: false });
     body.innerHTML = `
       <div class="table-wrap">
         <table>
@@ -2000,14 +1992,14 @@ async function admin(root, ctx) {
       </div>`;
     body.querySelectorAll('[data-delp]').forEach((b) => b.addEventListener('click', async () => {
       if (!confirm('حذف نهائياً؟')) return;
-      try { await ctx.api(`/admin/prompts/${b.dataset.delp}`, { method: 'DELETE', admin: true }); ctx.toast('تم'); loadPrompts(); }
+      try { await ctx.api(`/admin/prompts/${b.dataset.delp}`, { method: 'DELETE', admin: true, useCache: false }); ctx.toast('تم'); loadPrompts(); }
       catch (e) { ctx.toast(e.message, 'error'); }
     }));
   }
 
   async function loadVerify() {
     body.innerHTML = skeletonAdminTab('users');
-    const { items } = await ctx.api('/admin/eligible', { admin: true });
+    const { items } = await ctx.api('/admin/eligible', { admin: true, useCache: false });
     if (!items.length) {
       body.innerHTML = emptyState(ICON.shield, 'لا يوجد مؤهّلون', 'سيظهر هنا من استوفى الشروط.');
       return;
@@ -2033,7 +2025,7 @@ async function admin(root, ctx) {
           </div>`).join('')}
       </div>`;
     body.querySelectorAll('[data-v]').forEach((b) => b.addEventListener('click', async () => {
-      try { await ctx.api(`/admin/users/${b.dataset.v}/verify`, { method: 'POST', admin: true }); ctx.toast('تم'); loadVerify(); }
+      try { await ctx.api(`/admin/users/${b.dataset.v}/verify`, { method: 'POST', admin: true, useCache: false }); ctx.toast('تم'); loadVerify(); }
       catch (e) { ctx.toast(e.message, 'error'); }
     }));
   }
@@ -2052,7 +2044,7 @@ async function offline(root, ctx) {
   </div>`;
   root.querySelector('#retry').addEventListener('click', async () => {
     try {
-      await ctx.api('/meta');
+      await ctx.api('/meta', { useCache: false });
       ctx.state.online = true;
       const strip = document.getElementById('offline-strip');
       if (strip) strip.hidden = true;
