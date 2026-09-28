@@ -21,9 +21,7 @@ function timeAgo(iso) {
 }
 
 const avatar = (u, size = 32) => {
-  const inner = u?.avatar
-    ? `<img src="${esc(u.avatar)}" alt="">`
-    : esc(initials(u?.name || '؟'));
+  const inner = u?.avatar ? `<img src="${esc(u.avatar)}" alt="">` : esc(initials(u?.name || '؟'));
   return `<span class="avatar ${u?.verified ? 'verified' : ''}" style="--s:${size}px">${inner}</span>`;
 };
 
@@ -42,12 +40,16 @@ const ICON = {
   trash: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg>`,
   empty: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5 12 4l8 4.5v7L12 20l-8-4.5v-7Z"/><path d="M12 12v8M4 8.5 12 12l8-3.5"/></svg>`,
   wifiOff: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M8.5 16.4a5 5 0 0 1 7 0M5 12.8a10 10 0 0 1 3-1.9M16 10.9a10 10 0 0 1 3 1.9M2 9.2A15 15 0 0 1 8 6.1M16 6.1a15 15 0 0 1 6 3.1"/><circle cx="12" cy="20" r=".6" fill="currentColor"/></svg>`,
-  edit: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10-4-4L4 16v4ZM14 6l4 4"/></svg>`
+  edit: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10-4-4L4 16v4ZM14 6l4 4"/></svg>`,
+  share: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5M5 15v5h14v-5"/></svg>`,
+  userPlus: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8.5" r="3.5"/><path d="M3 20c0-3.6 3.1-5.5 7-5.5s7 1.9 7 5.5"/><path d="M18 8v6M15 11h6"/></svg>`,
+  userCheck: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8.5" r="3.5"/><path d="M3 20c0-3.6 3.1-5.5 7-5.5s7 1.9 7 5.5"/><path d="m16 11 2 2 4-4"/></svg>`
 };
 
+/* ═══════════ بطاقة برومبت ═══════════ */
 function promptCard(p, idx = 0) {
   const mark = (p.category || 'خ').charAt(0);
-  const excerpt = p.description || p.body.replace(/\s+/g, ' ').slice(0, 80);
+  const excerpt = p.description || p.body.replace(/\s+/g, ' ').slice(0, 90);
   return `
   <article class="prompt-card" data-prompt="${p.id}">
     <div class="cover">
@@ -59,7 +61,7 @@ function promptCard(p, idx = 0) {
     <div class="pc-body">
       <span class="pc-cat">${esc(p.category)}</span>
       <h3 class="pc-title">${esc(p.title)}</h3>
-      ${excerpt ? `<p style="font-size:12px;color:var(--slate);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:8px">${esc(excerpt)}</p>` : ''}
+      ${excerpt ? `<p class="pc-excerpt">${esc(excerpt)}</p>` : ''}
       <div class="pc-tags">
         ${(p.tags || []).slice(0, 2).map((t) => `<span class="tag">${esc(t)}</span>`).join('')}
       </div>
@@ -100,18 +102,17 @@ const sectionHead = (index, label, title, sub = '') => `
     ${sub ? `<p class="section-sub">${sub}</p>` : ''}
   </div>`;
 
-/* ══════════ 1 — الدخول ══════════ */
+/* ═══════════ 1 — الدخول ═══════════ */
 async function login(root, ctx) {
   if (ctx.state.user) return ctx.navigate('#/');
-
   root.innerHTML = `
-  <div style="max-width:420px;margin:56px auto">
-    <div style="text-align:center;margin-bottom:28px">
-      <h1 class="section-title" style="font-size:26px">مرحباً بعودتك</h1>
-      <p class="section-sub">سجّل دخولك لمتابعة برومبتاتك المفضلة</p>
+  <div style="max-width:400px;margin:48px auto">
+    <div style="text-align:center;margin-bottom:24px">
+      <h1 class="section-title" style="font-size:24px">مرحباً بعودتك</h1>
+      <p class="section-sub">سجّل دخولك لمتابعة برومبتاتك</p>
     </div>
-    <form class="card card-white card-lg" id="login-form" style="box-shadow:var(--shadow-card)">
-      <div class="stack gap-16">
+    <form class="card card-white card-lg" id="login-form">
+      <div class="stack gap-14">
         <div class="field">
           <label class="label" for="email">البريد الإلكتروني</label>
           <input class="input" id="email" type="email" dir="ltr" placeholder="you@example.com" autocomplete="email" required>
@@ -124,16 +125,15 @@ async function login(root, ctx) {
         <button class="btn btn-primary btn-block" type="submit" id="login-btn">دخول</button>
       </div>
     </form>
-    <p style="text-align:center;margin-top:18px;font-size:14px;color:var(--slate)">
-      ليس لديك حساب؟ <a href="#/register" style="color:var(--orange);font-weight:500">أنشئ حساباً جديداً</a>
+    <p style="text-align:center;margin-top:16px;font-size:13px;color:var(--slate)">
+      ليس لديك حساب؟ <a href="#/register" style="color:var(--orange);font-weight:500">أنشئ حساباً</a>
     </p>
-    <div class="lock-note" style="text-align:center">حساب تجريبي: sara@khayal.app / 123456</div>
+    <div class="lock-note" style="text-align:center">تجريبي: sara@khayal.app / 123456</div>
   </div>`;
 
   const form = root.querySelector('#login-form');
   const err = root.querySelector('#login-err');
   const btn = root.querySelector('#login-btn');
-
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     err.hidden = true; btn.disabled = true; btn.textContent = 'جارٍ الدخول…';
@@ -144,7 +144,7 @@ async function login(root, ctx) {
       });
       ctx.setToken(token);
       ctx.state.user = user;
-      ctx.toast('تم تسجيل الدخول');
+      ctx.toast('مرحباً بك');
       ctx.navigate('#/');
     } catch (ex) {
       err.textContent = ex.message; err.hidden = false;
@@ -154,47 +154,45 @@ async function login(root, ctx) {
   });
 }
 
-/* ══════════ 2 — إنشاء حساب ══════════ */
+/* ═══════════ 2 — تسجيل ═══════════ */
 async function register(root, ctx) {
   if (ctx.state.user) return ctx.navigate('#/');
-
   root.innerHTML = `
-  <div style="max-width:420px;margin:56px auto">
-    <div style="text-align:center;margin-bottom:28px">
-      <h1 class="section-title" style="font-size:26px">انضم إلى خيال</h1>
-      <p class="section-sub">شارك برومبتاتك مع مجتمع عربي متنامٍ</p>
+  <div style="max-width:400px;margin:48px auto">
+    <div style="text-align:center;margin-bottom:24px">
+      <h1 class="section-title" style="font-size:24px">انضم إلى خيال</h1>
+      <p class="section-sub">شارك برومبتاتك مع المجتمع</p>
     </div>
-    <form class="card card-white card-lg" id="reg-form" style="box-shadow:var(--shadow-card)">
-      <div class="stack gap-16">
+    <form class="card card-white card-lg" id="reg-form">
+      <div class="stack gap-14">
         <div class="field">
-          <label class="label" for="name">الاسم الكامل</label>
-          <input class="input" id="name" placeholder="مثال: سارة الشمري" required>
+          <label class="label">الاسم الكامل</label>
+          <input class="input" id="name" placeholder="سارة الشمري" required>
         </div>
         <div class="field">
-          <label class="label" for="username">اسم المستخدم <span class="opt">(اختياري)</span></label>
+          <label class="label">اسم المستخدم <span class="opt">(اختياري)</span></label>
           <input class="input" id="username" dir="ltr" placeholder="sara">
         </div>
         <div class="field">
-          <label class="label" for="email">البريد الإلكتروني</label>
+          <label class="label">البريد الإلكتروني</label>
           <input class="input" id="email" type="email" dir="ltr" placeholder="you@example.com" required>
         </div>
         <div class="field">
-          <label class="label" for="password">كلمة المرور</label>
+          <label class="label">كلمة المرور</label>
           <input class="input" id="password" type="password" dir="ltr" placeholder="6 أحرف على الأقل" required>
         </div>
         <p class="err-text" id="reg-err" hidden></p>
         <button class="btn btn-primary btn-block" type="submit" id="reg-btn">إنشاء الحساب</button>
       </div>
     </form>
-    <p style="text-align:center;margin-top:18px;font-size:14px;color:var(--slate)">
-      لديك حساب بالفعل؟ <a href="#/login" style="color:var(--orange);font-weight:500">سجّل الدخول</a>
+    <p style="text-align:center;margin-top:16px;font-size:13px;color:var(--slate)">
+      لديك حساب؟ <a href="#/login" style="color:var(--orange);font-weight:500">سجّل الدخول</a>
     </p>
   </div>`;
 
   const form = root.querySelector('#reg-form');
   const err = root.querySelector('#reg-err');
   const btn = root.querySelector('#reg-btn');
-
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     err.hidden = true; btn.disabled = true; btn.textContent = 'جارٍ الإنشاء…';
@@ -210,7 +208,7 @@ async function register(root, ctx) {
       });
       ctx.setToken(token);
       ctx.state.user = user;
-      ctx.toast('تم إنشاء حسابك، أهلاً بك');
+      ctx.toast('أهلاً بك في خيال');
       ctx.navigate('#/');
     } catch (ex) {
       err.textContent = ex.message; err.hidden = false;
@@ -220,33 +218,27 @@ async function register(root, ctx) {
   });
 }
 
-/* ══════════ 3 — الرئيسية ══════════ */
+/* ═══════════ 3 — الرئيسية ═══════════ */
 async function home(root, ctx) {
   const features = [
-    { icon: ICON.search, t: 'اكتشاف سريع', d: 'ابحث بين آلاف البرومبتات العربية المصنّفة والمجرّبة.' },
-    { icon: ICON.layers, t: 'نماذج متعددة', d: 'كل برومبت يوضّح النماذج المتوافقة معه من GPT وClaude وGemini.' },
-    { icon: ICON.shield, t: 'مبدعون موثّقون', d: 'شارة التوثيق تُمنح لمن يثبت جودة ما ينشره باستمرار.' },
-    { icon: ICON.bolt, t: 'نسخ بضغطة', d: 'انسخ نص البرومبت كاملاً وجاهزاً للاستخدام مباشرة.' }
+    { icon: ICON.search, t: 'اكتشاف سريع', d: 'ابحث بين آلاف البرومبتات العربية المصنّفة.' },
+    { icon: ICON.layers, t: 'نماذج متعددة', d: 'كل برومبت يوضّح النماذج المتوافقة معه.' },
+    { icon: ICON.shield, t: 'مبدعون موثّقون', d: 'شارة التوثيق لمن يثبت جودة ما ينشره.' },
+    { icon: ICON.bolt, t: 'نسخ بضغطة', d: 'انسخ نص البرومبت جاهزاً للاستخدام.' }
   ];
 
   root.innerHTML = `
   <section class="hero">
     <div class="grid-bg"></div>
-    <div class="hero-badge"><span class="badge">جديد · 12 برومبتاً هذا الشهر</span></div>
+    <div class="hero-badge"><span class="badge">جديد · 12 برومبتاً</span></div>
     <h1>برومبتات عربية <span class="hl">مكتوبة بإتقان</span> لأدوات الذكاء الاصطناعي</h1>
-    <p class="hero-sub">خيال مكتبة مفتوحة لمشاركة أوامر الذكاء الاصطناعي بالعربية — اكتشف، انسخ، وانشر ما ينجح معك.</p>
+    <p class="hero-sub">خيال مكتبة مفتوحة لمشاركة أوامر الذكاء الاصطناعي بالعربية.</p>
     <div class="hero-actions">
       <a class="btn btn-primary" href="#/explore">استكشف البرومبتات</a>
       <a class="btn btn-outline" href="#/new">شارك برومبتك</a>
     </div>
     <form class="searchbar" id="hero-search">
       <input id="hero-q" placeholder="ابحث عن برومبت…" autocomplete="off">
-      <div class="chips">
-        <button type="button" class="chip active" data-cat="">الكل</button>
-        <button type="button" class="chip" data-cat="كتابة">كتابة</button>
-        <button type="button" class="chip" data-cat="برمجة">برمجة</button>
-        <button type="button" class="chip" data-cat="تصميم">تصميم</button>
-      </div>
       <button class="go" type="submit" aria-label="ابحث">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
       </button>
@@ -254,7 +246,7 @@ async function home(root, ctx) {
   </section>
 
   <section class="section">
-    ${sectionHead('01', 'لماذا خيال', 'أربع مزايا تجعل المشاركة <span class="hl">مجدية</span>')}
+    ${sectionHead('01', 'لماذا خيال', 'أربع مزايا <span class="hl">مجدية</span>')}
     <div class="features">
       ${features.map((f) => `
         <div class="feature">
@@ -273,30 +265,21 @@ async function home(root, ctx) {
       </div>
       <a class="btn btn-ghost btn-sm" href="#/explore?sort=new">عرض الكل ←</a>
     </div>
-    <div id="home-latest">${skeletonGrid(6)}</div>
+    <div id="home-latest">${skeletonGrid(4)}</div>
   </section>
 
   <section class="section">
-    <div class="card card-lg" style="text-align:center;background:var(--vellum)">
-      <h2 class="section-title" style="font-size:26px">لديك برومبت يعمل جيداً؟</h2>
-      <p class="section-sub" style="max-width:44ch;margin:8px auto 20px">شاركه مع المجتمع وساهم في رفع جودة المحتوى العربي.</p>
+    <div class="card card-lg" style="text-align:center">
+      <h2 class="section-title" style="font-size:22px">لديك برومبت يعمل جيداً؟</h2>
+      <p class="section-sub" style="max-width:42ch;margin:8px auto 18px">شاركه مع المجتمع.</p>
       <a class="btn btn-primary" href="#/new">انشر برومبتاً</a>
     </div>
   </section>`;
 
-  const form = root.querySelector('#hero-search');
-  let cat = '';
-  root.querySelectorAll('.chip[data-cat]').forEach((chip) => {
-    chip.addEventListener('click', () => {
-      root.querySelectorAll('.chip[data-cat]').forEach((c) => c.classList.remove('active'));
-      chip.classList.add('active');
-      cat = chip.dataset.cat;
-    });
-  });
-  form.addEventListener('submit', (e) => {
+  root.querySelector('#hero-search').addEventListener('submit', (e) => {
     e.preventDefault();
     const q = root.querySelector('#hero-q').value.trim();
-    ctx.navigate(`#/explore?q=${encodeURIComponent(q)}&cat=${encodeURIComponent(cat)}`);
+    ctx.navigate(`#/explore?q=${encodeURIComponent(q)}`);
   });
 
   try {
@@ -307,22 +290,20 @@ async function home(root, ctx) {
       : emptyState(ICON.empty, 'لا توجد برومبتات بعد', 'كن أول من ينشر.');
     bindCards(root, ctx);
   } catch (e) {
-    root.querySelector('#home-latest').innerHTML =
-      emptyState(ICON.empty, 'تعذّر التحميل', e.message);
+    root.querySelector('#home-latest').innerHTML = emptyState(ICON.empty, 'تعذّر التحميل', e.message);
   }
 }
 
-/* ══════════ 4 — الاستكشاف ══════════ */
+/* ═══════════ 4 — الاستكشاف ═══════════ */
 async function explore(root, ctx) {
   const q = ctx.params.q || '';
   const cat = ctx.params.cat || '';
   const sort = ctx.params.sort || 'new';
   const cats = ctx.state.meta.categories || [];
-
   const sortOptions = [['new', 'الأحدث'], ['likes', 'الأعلى إعجاباً'], ['copies', 'الأكثر نسخاً']];
 
   root.innerHTML = `
-  <div class="section" style="margin-top:20px">
+  <div class="section" style="margin-top:16px">
     <div class="head-row">
       <div>
         <div class="eyebrow"><span class="dot"></span>03 / الاستكشاف</div>
@@ -333,8 +314,8 @@ async function explore(root, ctx) {
   </div>
 
   <div class="filter-bar">
-    <div class="searchbar" style="max-width:100%;box-shadow:none;margin:0">
-      <input id="x-q" value="${esc(q)}" placeholder="ابحث بالعنوان أو الوسم…" autocomplete="off">
+    <div class="searchbar" style="max-width:100%;margin:0">
+      <input id="x-q" value="${esc(q)}" placeholder="ابحث…" autocomplete="off">
       <button class="go" id="x-go" aria-label="ابحث">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
       </button>
@@ -355,7 +336,7 @@ async function explore(root, ctx) {
   const countEl = root.querySelector('#result-count');
 
   async function load() {
-    results.innerHTML = skeletonGrid(6);
+    results.innerHTML = skeletonGrid(4);
     const params = new URLSearchParams();
     if (q) params.set('q', q);
     if (cat) params.set('category', cat);
@@ -365,7 +346,7 @@ async function explore(root, ctx) {
       countEl.textContent = `${total} نتيجة`;
       if (!items.length) {
         results.innerHTML = emptyState(ICON.empty, 'لا توجد نتائج',
-          'جرّب كلمات مفتاحية مختلفة.',
+          'جرّب كلمات مختلفة.',
           `<button class="btn btn-outline" id="x-reset">إعادة تعيين</button>`);
         results.querySelector('#x-reset')?.addEventListener('click', () => ctx.navigate('#/explore'));
         return;
@@ -407,12 +388,12 @@ async function explore(root, ctx) {
   await load();
 }
 
-/* ══════════ 5 — تفاصيل البرومبت ══════════ */
+/* ═══════════ 5 — تفاصيل البرومبت ═══════════ */
 async function prompt(root, ctx) {
   root.innerHTML = `
-    <div style="padding:16px 0">
+    <div style="padding:14px 0">
       <button class="btn btn-ghost btn-sm" onclick="history.back()">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
         رجوع
       </button>
     </div>
@@ -420,62 +401,74 @@ async function prompt(root, ctx) {
 
   const { prompt: p, related } = await ctx.api('/prompts/' + ctx.id);
   const mark = (p.category || 'خ').charAt(0);
-  const description = p.description || p.body.replace(/\s+/g, ' ').slice(0, 140);
+  const description = p.description || p.body.replace(/\s+/g, ' ').slice(0, 150);
+  const isLong = p.body.length > 400;
+  const isOwner = ctx.state.user?.id === p.authorId;
 
   root.innerHTML = `
-  <div style="padding:16px 0">
+  <div style="padding:14px 0">
     <button class="btn btn-ghost btn-sm" id="back">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
       رجوع
     </button>
   </div>
 
   <div class="detail-hero">
     <div class="detail-cover">
-      ${p.cover
-        ? `<img src="${esc(p.cover)}" alt="">`
-        : `<span class="cover-mark" style="font-size:64px">${esc(mark)}</span>`}
+      ${p.cover ? `<img src="${esc(p.cover)}" alt="">`
+                : `<span class="cover-mark" style="font-size:56px">${esc(mark)}</span>`}
     </div>
     <div class="detail-body">
       <div class="meta-row">
         <span class="badge badge-soft mono">${esc(p.category)}</span>
-        ${(p.models || []).map((m) => `<span class="tag">${esc(m)}</span>`).join('')}
+        ${(p.models || []).slice(0, 3).map((m) => `<span class="tag">${esc(m)}</span>`).join('')}
         <span class="tag mono" style="margin-inline-start:auto">${timeAgo(p.createdAt)}</span>
       </div>
 
       <h1 class="detail-title">${esc(p.title)}</h1>
-      <p style="color:var(--slate);line-height:1.75;margin-bottom:0">${esc(description)}</p>
+      <p style="color:var(--slate);line-height:1.75;font-size:14px">${esc(description)}</p>
 
       <div class="author-bar">
         ${avatar(p.author, 40)}
-        <div class="info">
+        <div class="info grow">
           <span class="name">${esc(p.author?.name || 'مجهول')}${p.author?.verified ? VCHECK : ''}</span>
           <span class="handle">@${esc(p.author?.username || 'unknown')}</span>
         </div>
-        <div class="acts">
-          <button class="btn btn-outline btn-sm" id="like-btn">
-            <span id="like-ic">${p.liked ? ICON.heartFill : ICON.heart}</span>
-            <span id="like-n">${p.likes}</span>
-          </button>
-          <button class="btn btn-primary btn-sm" id="copy-top">${ICON.copy} نسخ البرومبت</button>
-        </div>
+        ${isOwner ? `
+          <div class="row gap-6">
+            <a class="btn btn-outline btn-sm" href="#/edit/${p.id}">${ICON.edit} تعديل</a>
+            <button class="btn btn-danger btn-sm" id="delete-btn">${ICON.trash}</button>
+          </div>` : `
+          <button class="btn btn-outline btn-sm" id="follow-btn" data-author="${p.authorId}">
+            ${ICON.userPlus} متابعة
+          </button>`}
       </div>
 
       <div class="code-window">
         <div class="code-head">
           <span class="traffic"><i></i><i></i><i></i></span>
           <span class="code-name">prompt.txt</span>
-          <button class="btn btn-ghost btn-sm" id="copy-head" style="font-size:12px">نسخ</button>
+          <button class="btn btn-ghost btn-xs" id="copy-head">نسخ</button>
         </div>
-        <pre class="code-body" id="prompt-body">${esc(p.body)}</pre>
+        <pre class="code-body ${isLong ? 'clamped' : ''}" id="prompt-body">${esc(p.body)}</pre>
+        ${isLong ? `<button class="collapse-toggle" id="toggle-body">عرض النص كاملاً ↓</button>` : ''}
       </div>
 
-      <div class="row gap-12" style="flex-wrap:wrap;justify-content:space-between">
-        <div class="pc-tags">
-          ${(p.tags || []).map((t) => `<a class="tag tag-orange" href="#/explore?q=${encodeURIComponent(t)}">#${esc(t)}</a>`).join('')}
+      <div class="row gap-10" style="flex-wrap:wrap;justify-content:space-between;margin-top:14px">
+        <div class="row gap-8" style="flex-wrap:wrap">
+          <button class="btn btn-outline btn-sm" id="like-btn">
+            <span id="like-ic">${p.liked ? ICON.heartFill : ICON.heart}</span>
+            <span id="like-n">${p.likes}</span>
+          </button>
+          <button class="btn btn-outline btn-sm" id="share-btn">${ICON.share} مشاركة</button>
         </div>
-        <button class="btn btn-dark" id="copy-bottom">${ICON.copy} نسخ النص كاملاً</button>
+        <button class="btn btn-primary btn-sm" id="copy-bottom">${ICON.copy} نسخ النص</button>
       </div>
+
+      ${(p.tags || []).length ? `
+      <div class="pc-tags" style="margin-top:16px">
+        ${(p.tags || []).map((t) => `<a class="tag tag-orange" href="#/explore?q=${encodeURIComponent(t)}">#${esc(t)}</a>`).join('')}
+      </div>` : ''}
     </div>
   </div>
 
@@ -488,29 +481,39 @@ async function prompt(root, ctx) {
   root.querySelector('#back').addEventListener('click', () => history.back());
   bindCards(root, ctx);
 
+  /* طيّ النص */
+  const toggleBtn = root.querySelector('#toggle-body');
+  const bodyEl = root.querySelector('#prompt-body');
+  toggleBtn?.addEventListener('click', () => {
+    const clamped = bodyEl.classList.toggle('clamped');
+    toggleBtn.textContent = clamped ? 'عرض النص كاملاً ↓' : 'إخفاء ↑';
+  });
+
+  /* النسخ */
   async function doCopy(btn) {
     try { await navigator.clipboard.writeText(p.body); }
     catch {
       const ta = document.createElement('textarea');
       ta.value = p.body;
+      ta.style.position = 'fixed'; ta.style.opacity = '0';
       document.body.appendChild(ta);
       ta.select();
       document.execCommand('copy');
       ta.remove();
     }
     try { await ctx.api(`/prompts/${p.id}/copy`, { method: 'POST' }); } catch {}
-    ctx.toast('تم نسخ البرومبت');
+    ctx.toast('تم النسخ');
     if (btn) {
       const old = btn.innerHTML;
-      btn.innerHTML = '✓ تم النسخ';
-      setTimeout(() => { btn.innerHTML = old; }, 1600);
+      btn.innerHTML = '✓ تم';
+      setTimeout(() => { btn.innerHTML = old; }, 1500);
     }
   }
-  ['copy-top', 'copy-head', 'copy-bottom'].forEach((id) => {
-    const el = root.querySelector('#' + id);
-    el?.addEventListener('click', () => doCopy(el));
+  ['copy-head', 'copy-bottom'].forEach((id) => {
+    root.querySelector('#' + id)?.addEventListener('click', (e) => doCopy(e.currentTarget));
   });
 
+  /* الإعجاب */
   root.querySelector('#like-btn').addEventListener('click', async () => {
     if (!ctx.state.user) {
       ctx.toast('سجّل الدخول للإعجاب', 'error');
@@ -520,87 +523,143 @@ async function prompt(root, ctx) {
       const { liked, likes } = await ctx.api(`/prompts/${p.id}/like`, { method: 'POST' });
       root.querySelector('#like-ic').innerHTML = liked ? ICON.heartFill : ICON.heart;
       root.querySelector('#like-n').textContent = likes;
-      ctx.toast(liked ? 'أُضيف إلى تفضيلاتك' : 'أُزيل من تفضيلاتك');
+      ctx.toast(liked ? 'أُضيف' : 'أُزيل');
+    } catch (e) { ctx.toast(e.message, 'error'); }
+  });
+
+  /* المشاركة */
+  root.querySelector('#share-btn').addEventListener('click', async () => {
+    const url = location.origin + '/#/prompt/' + p.id;
+    if (navigator.share) {
+      try { await navigator.share({ title: p.title, text: description, url }); return; } catch {}
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      ctx.toast('تم نسخ الرابط');
+    } catch { ctx.toast('تعذّر النسخ', 'error'); }
+  });
+
+  /* المتابعة */
+  const followBtn = root.querySelector('#follow-btn');
+  followBtn?.addEventListener('click', async () => {
+    if (!ctx.state.user) {
+      ctx.toast('سجّل الدخول للمتابعة', 'error');
+      return ctx.navigate('#/login');
+    }
+    try {
+      const { following } = await ctx.api(`/users/${p.authorId}/follow`, { method: 'POST' });
+      followBtn.innerHTML = following
+        ? `${ICON.userCheck} متابَع`
+        : `${ICON.userPlus} متابعة`;
+      ctx.toast(following ? 'تتابع الآن' : 'ألغيت المتابعة');
+    } catch (e) { ctx.toast(e.message, 'error'); }
+  });
+
+  /* الحذف */
+  root.querySelector('#delete-btn')?.addEventListener('click', async () => {
+    if (!confirm('سيُحذف البرومبت نهائياً. متابعة؟')) return;
+    try {
+      await ctx.api(`/prompts/${p.id}`, { method: 'DELETE' });
+      ctx.toast('تم الحذف');
+      ctx.navigate('#/profile');
     } catch (e) { ctx.toast(e.message, 'error'); }
   });
 }
 
-/* ══════════ 6 — نشر برومبت (بدون حقل الوصف) ══════════ */
+/* ═══════════ 6 — نشر برومبت ═══════════ */
 async function newPrompt(root, ctx) {
   if (!ctx.state.user) {
     ctx.toast('سجّل الدخول للنشر', 'error');
     return ctx.navigate('#/login');
   }
+  return promptForm(root, ctx, null);
+}
+
+/* ═══════════ 7 — تعديل برومبت ═══════════ */
+async function editPrompt(root, ctx) {
+  if (!ctx.state.user) return ctx.navigate('#/login');
+  const { prompt: existing } = await ctx.api('/prompts/' + ctx.id);
+  if (existing.authorId !== ctx.state.user.id) {
+    ctx.toast('لا تملك صلاحية التعديل', 'error');
+    return ctx.navigate('#/prompt/' + ctx.id);
+  }
+  return promptForm(root, ctx, existing);
+}
+
+/* نموذج موحّد للنشر/التعديل */
+async function promptForm(root, ctx, existing) {
+  const isEdit = !!existing;
   const cats = ctx.state.meta.categories || [];
   const models = ctx.state.meta.models || [];
 
   root.innerHTML = `
-  <div class="section" style="margin-top:20px">
+  <div class="section" style="margin-top:16px">
     <div class="head-row">
       <div>
-        <div class="eyebrow"><span class="dot"></span>05 / نشر جديد</div>
-        <h2 class="section-title">شارك <span class="hl">برومبتاً</span></h2>
-        <p class="section-sub">كلما كان النص أوضح، زادت فائدة الآخرين منه.</p>
+        <div class="eyebrow"><span class="dot"></span>${isEdit ? 'تعديل' : '05 / نشر'} / برومبت</div>
+        <h2 class="section-title">${isEdit ? 'تعديل' : 'شارك'} <span class="hl">برومبت</span></h2>
       </div>
     </div>
 
-    <form id="np-form" class="stack gap-20">
-      <div class="card card-white" style="padding:22px">
-        <div class="stack gap-18">
+    <form id="np-form" class="stack gap-16">
+      <div class="card card-white">
+        <div class="stack gap-16">
           <div class="field">
             <label class="label">صورة الغلاف <span class="opt">(اختياري)</span></label>
             <div class="row gap-12" style="flex-wrap:wrap">
-              <div id="cover-preview" style="width:110px;height:70px;border:1px solid var(--grid);border-radius:8px;background:var(--vellum);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">
-                <span class="cover-mark" style="font-size:26px">؟</span>
+              <div id="cover-preview" style="width:100px;height:64px;border:1px solid var(--grid);border-radius:8px;background:var(--vellum);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">
+                <span class="cover-mark" style="font-size:22px">؟</span>
               </div>
-              <div class="stack gap-8" style="flex:1;min-width:200px">
-                <input class="input" id="cover-url" dir="ltr" placeholder="https://… رابط الصورة">
+              <div class="stack gap-8 grow">
+                <input class="input" id="cover-url" dir="ltr" placeholder="https://…" value="${esc(existing?.cover || '')}">
                 <div class="row gap-8">
                   <input type="file" id="cover-file" accept="image/*" hidden>
-                  <button type="button" class="btn btn-outline btn-sm" id="cover-pick">رفع صورة</button>
-                  <button type="button" class="btn btn-ghost btn-sm" id="cover-clear">إزالة</button>
+                  <button type="button" class="btn btn-outline btn-xs" id="cover-pick">رفع</button>
+                  <button type="button" class="btn btn-ghost btn-xs" id="cover-clear">إزالة</button>
                 </div>
               </div>
             </div>
           </div>
 
           <div class="field">
-            <label class="label" for="title">العنوان</label>
-            <input class="input" id="title" placeholder="مثال: محرر نصوص عربي احترافي" required maxlength="90">
+            <label class="label">العنوان</label>
+            <input class="input" id="title" value="${esc(existing?.title || '')}" placeholder="محرر نصوص عربي" required maxlength="90">
           </div>
 
           <div class="field">
-            <label class="label" for="category">التصنيف</label>
+            <label class="label">التصنيف</label>
             <select class="select" id="category" required>
-              <option value="">اختر تصنيفاً…</option>
-              ${cats.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join('')}
+              <option value="">اختر…</option>
+              ${cats.map((c) => `<option value="${esc(c)}" ${existing?.category === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}
             </select>
           </div>
 
           <div class="field">
-            <label class="label" for="tags">الوسوم <span class="opt">(اختياري)</span></label>
-            <input class="input" id="tags" placeholder="تحرير، لغة عربية، صياغة">
+            <label class="label">الوسوم <span class="opt">(اختياري)</span></label>
+            <input class="input" id="tags" value="${esc((existing?.tags || []).join(', '))}" placeholder="تحرير، لغة عربية">
             <span class="hint">افصل بينها بفاصلة — 8 وسوم كحد أقصى</span>
           </div>
         </div>
       </div>
 
-      <div class="card card-white" style="padding:22px">
-        <div class="stack gap-18">
+      <div class="card card-white">
+        <div class="stack gap-16">
           <div class="field">
-            <label class="label" for="body">نص البرومبت</label>
-            <textarea class="textarea code" id="body" rows="14" required
-              placeholder="اكتب البرومبت كاملاً… استخدم {{المتغيرات}} للقيم التي تُملأ لاحقاً"></textarea>
+            <label class="label">نص البرومبت</label>
+            <textarea class="textarea code" id="body" rows="12" required
+              placeholder="اكتب البرومبت…">${esc(existing?.body || '')}</textarea>
             <div class="row" style="justify-content:space-between">
               <span class="hint">استخدم <span class="mono">{{ }}</span> للمتغيرات</span>
-              <span class="hint mono" id="body-count">0 حرف</span>
+              <span class="hint mono" id="body-count">${(existing?.body || '').length} حرف</span>
             </div>
           </div>
 
           <div class="field">
             <label class="label">النماذج المتوافقة</label>
-            <div class="row gap-8" style="flex-wrap:wrap" id="models-box">
-              ${models.map((m) => `<button type="button" class="chip" data-model="${esc(m)}">${esc(m)}</button>`).join('')}
+            <div class="row gap-6" style="flex-wrap:wrap" id="models-box">
+              ${models.map((m) => `
+                <button type="button" class="chip ${(existing?.models || []).includes(m) ? 'active' : ''}" data-model="${esc(m)}">${esc(m)}</button>
+              `).join('')}
             </div>
           </div>
         </div>
@@ -608,24 +667,25 @@ async function newPrompt(root, ctx) {
 
       <p class="err-text" id="np-err" hidden></p>
 
-      <div class="row gap-12" style="flex-wrap:wrap;justify-content:flex-end">
+      <div class="row gap-10" style="flex-wrap:wrap;justify-content:flex-end">
         <button type="button" class="btn btn-ghost" id="cancel">إلغاء</button>
-        <button type="submit" class="btn btn-primary" id="publish">نشر البرومبت</button>
+        <button type="submit" class="btn btn-primary" id="publish">${isEdit ? 'حفظ التعديلات' : 'نشر البرومبت'}</button>
       </div>
     </form>
   </div>`;
 
-  let cover = '';
+  /* الغلاف */
+  let cover = existing?.cover || '';
   const preview = root.querySelector('#cover-preview');
   const urlInput = root.querySelector('#cover-url');
   const fileInput = root.querySelector('#cover-file');
-
   const setCover = (v) => {
     cover = v;
     preview.innerHTML = v
       ? `<img src="${esc(v)}" style="max-width:100%;max-height:100%;object-fit:contain" alt="">`
-      : `<span class="cover-mark" style="font-size:26px">؟</span>`;
+      : `<span class="cover-mark" style="font-size:22px">؟</span>`;
   };
+  if (cover) setCover(cover);
   urlInput.addEventListener('input', () => setCover(urlInput.value.trim()));
   root.querySelector('#cover-pick').addEventListener('click', () => fileInput.click());
   root.querySelector('#cover-clear').addEventListener('click', () => {
@@ -634,13 +694,14 @@ async function newPrompt(root, ctx) {
   fileInput.addEventListener('change', () => {
     const f = fileInput.files?.[0];
     if (!f) return;
-    if (f.size > 2 * 1024 * 1024) return ctx.toast('حجم الصورة يتجاوز 2MB', 'error');
+    if (f.size > 2 * 1024 * 1024) return ctx.toast('حجم الصورة > 2MB', 'error');
     const r = new FileReader();
     r.onload = () => { urlInput.value = ''; setCover(r.result); };
     r.readAsDataURL(f);
   });
 
-  const chosen = new Set();
+  /* النماذج */
+  const chosen = new Set(existing?.models || []);
   root.querySelectorAll('[data-model]').forEach((chip) => {
     chip.addEventListener('click', () => {
       const m = chip.dataset.model;
@@ -654,9 +715,7 @@ async function newPrompt(root, ctx) {
     root.querySelector('#body-count').textContent = `${bodyEl.value.length} حرف`;
   });
 
-  root.querySelector('#cancel').addEventListener('click', () => {
-    if (confirm('هل تريد إلغاء النشر؟')) history.back();
-  });
+  root.querySelector('#cancel').addEventListener('click', () => history.back());
 
   const form = root.querySelector('#np-form');
   const err = root.querySelector('#np-err');
@@ -677,26 +736,32 @@ async function newPrompt(root, ctx) {
       err.textContent = 'النص قصير جداً'; err.hidden = false; return;
     }
 
-    btn.disabled = true; btn.textContent = 'جارٍ النشر…';
+    btn.disabled = true; btn.textContent = isEdit ? 'جارٍ الحفظ…' : 'جارٍ النشر…';
     try {
-      const { prompt: created } = await ctx.api('/prompts', {
-        method: 'POST',
-        body: { title, category, tags, body, cover, models: [...chosen], description: '' }
-      });
-      ctx.toast('تم النشر');
-      ctx.navigate('#/prompt/' + created.id);
+      const payload = { title, category, tags, body, cover, models: [...chosen], description: '' };
+      let id;
+      if (isEdit) {
+        await ctx.api('/prompts/' + existing.id, { method: 'PATCH', body: payload });
+        id = existing.id;
+        ctx.toast('تم الحفظ');
+      } else {
+        const { prompt: created } = await ctx.api('/prompts', { method: 'POST', body: payload });
+        id = created.id;
+        ctx.toast('تم النشر');
+      }
+      ctx.navigate('#/prompt/' + id);
     } catch (ex) {
       err.textContent = ex.message; err.hidden = false;
-      btn.disabled = false; btn.textContent = 'نشر البرومبت';
+      btn.disabled = false; btn.textContent = isEdit ? 'حفظ' : 'نشر';
     }
   });
 }
 
-/* ══════════ 7 — البروفايل مع التخصيص ══════════ */
+/* ═══════════ 8 — البروفايل بتبويبات ═══════════ */
 async function profile(root, ctx) {
   const userId = ctx.id || ctx.state?.user?.id;
   if (!userId) {
-    ctx.toast('سجّل الدخول لعرض ملفك', 'error');
+    ctx.toast('سجّل الدخول', 'error');
     return ctx.navigate('#/login');
   }
 
@@ -707,18 +772,15 @@ async function profile(root, ctx) {
   const months = Math.max(0, Math.floor(
     (Date.now() - new Date(u.joined).getTime()) / (1000 * 60 * 60 * 24 * 30)
   ));
-  const avatarInner = u.avatar
-    ? `<img src="${esc(u.avatar)}" alt="">`
-    : esc(initials(u.name));
+  const avatarInner = u.avatar ? `<img src="${esc(u.avatar)}" alt="">` : esc(initials(u.name));
+  const metCount = eligibility ? eligibility.rules.filter((r) => r.met).length : 0;
+  const totalRules = eligibility ? eligibility.rules.length : 0;
 
   root.innerHTML = `
   <div class="profile-head">
     <div class="profile-avatar ${u.verified ? 'verified' : ''}">${avatarInner}</div>
     <div class="who">
-      <h1 class="profile-name">
-        ${esc(u.name)}
-        ${u.verified ? VCHECK : ''}
-      </h1>
+      <h1 class="profile-name">${esc(u.name)}${u.verified ? VCHECK : ''}</h1>
       <div class="profile-handle">@${esc(u.username)}</div>
       ${u.bio ? `<p class="profile-bio">${esc(u.bio)}</p>` : ''}
       <div class="profile-badges">
@@ -733,19 +795,24 @@ async function profile(root, ctx) {
     <div class="profile-actions">
       <button class="btn btn-outline btn-sm" id="edit-toggle">${ICON.edit} تعديل</button>
       <button class="btn btn-ghost btn-sm" id="logout">خروج</button>
-    </div>` : ''}
+    </div>` : `
+    <div class="profile-actions">
+      <button class="btn ${u.isFollowing ? 'btn-outline' : 'btn-primary'} btn-sm" id="follow-btn">
+        ${u.isFollowing ? ICON.userCheck + ' متابَع' : ICON.userPlus + ' متابعة'}
+      </button>
+    </div>`}
   </div>
 
   ${u.isSelf ? `
-  <form class="edit-panel hidden" id="edit-form">
+  <form class="edit-panel hidden" id="edit-form" style="background:var(--vellum);border:1px solid var(--grid);border-radius:14px;padding:18px;margin-bottom:20px">
     <div class="stack gap-14">
       <div class="row gap-12" style="flex-wrap:wrap;align-items:flex-start">
-        <div id="avatar-preview" class="profile-avatar" style="width:64px;height:64px;font-size:22px;flex-shrink:0">${avatarInner}</div>
-        <div class="stack gap-8" style="flex:1;min-width:200px">
-          <input class="input" id="edit-avatar" dir="ltr" placeholder="رابط الصورة الشخصية" value="${esc(u.avatar || '')}">
+        <div id="avatar-preview" class="profile-avatar" style="width:60px;height:60px;font-size:20px;flex-shrink:0">${avatarInner}</div>
+        <div class="stack gap-8 grow">
+          <input class="input" id="edit-avatar" dir="ltr" placeholder="رابط الصورة" value="${esc(u.avatar || '')}">
           <div class="row gap-8">
             <input type="file" id="edit-avatar-file" accept="image/*" hidden>
-            <button type="button" class="btn btn-outline btn-sm" id="edit-avatar-pick">رفع صورة</button>
+            <button type="button" class="btn btn-outline btn-xs" id="edit-avatar-pick">رفع صورة</button>
           </div>
         </div>
       </div>
@@ -764,87 +831,121 @@ async function profile(root, ctx) {
       <p class="err-text" id="edit-err" hidden></p>
       <div class="row gap-8" style="justify-content:flex-end">
         <button type="button" class="btn btn-ghost btn-sm" id="edit-cancel">إلغاء</button>
-        <button type="submit" class="btn btn-primary btn-sm" id="edit-save">حفظ التعديلات</button>
+        <button type="submit" class="btn btn-primary btn-sm" id="edit-save">حفظ</button>
       </div>
     </div>
   </form>` : ''}
 
-  <div class="stats-row">
-    <div class="stat"><div class="v">${u.promptCount || 0}</div><div class="k">برومبت</div></div>
-    <div class="stat"><div class="v">${fmt(u.totalLikes || 0)}</div><div class="k">إعجاب</div></div>
-    <div class="stat"><div class="v">${fmt(u.totalCopies || 0)}</div><div class="k">نسخة</div></div>
+  <div class="stat-strip">
+    <div class="stat-pill"><div class="v">${u.promptCount || 0}</div><div class="k">برومبت</div></div>
+    <div class="stat-pill"><div class="v">${fmt(u.totalLikes || 0)}</div><div class="k">إعجاب</div></div>
+    <div class="stat-pill"><div class="v">${fmt(u.totalCopies || 0)}</div><div class="k">نسخة</div></div>
   </div>
 
   ${u.isSelf && eligibility ? `
-  <section class="card" style="margin-bottom:28px">
-    <div class="row" style="justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
-      <h3 style="font-size:15px">شروط الحصول على شارة التوثيق</h3>
-      ${eligibility.verified ? `<span class="badge">مستوفية</span>`
-        : eligibility.eligible ? `<span class="badge">مؤهّل — بانتظار المراجعة</span>`
-        : `<span class="tag mono">${eligibility.rules.filter((r) => r.met).length}/${eligibility.rules.length}</span>`}
+  <details class="accordion">
+    <summary>
+      <span>${ICON.shield}</span>
+      <span>شروط التوثيق</span>
+      <span class="progress">${metCount}/${totalRules}</span>
+    </summary>
+    <div class="accordion-body">
+      <ul class="checks">
+        ${eligibility.rules.map((r) => `
+          <li class="${r.met ? 'ok' : ''}">
+            <span class="mark">${r.met ? '✓' : ''}</span>
+            <span>${esc(r.label)}</span>
+            <span class="val">${fmt(r.value)} / ${fmt(r.target)}</span>
+          </li>`).join('')}
+      </ul>
     </div>
-    <ul class="checks">
-      ${eligibility.rules.map((r) => `
-        <li class="${r.met ? 'ok' : ''}">
-          <span class="mark">${r.met ? '✓' : ''}</span>
-          <span>${esc(r.label)}</span>
-          <span class="val">${fmt(r.value)} / ${fmt(r.target)}</span>
-        </li>`).join('')}
-    </ul>
-  </section>` : ''}
+  </details>` : ''}
 
-  <section class="section" style="margin-top:0">
-    <div class="eyebrow"><span class="dot"></span>06 / الأعمال</div>
-    <h2 class="section-title" style="font-size:22px;margin-bottom:16px">
-      برومبتات ${u.isSelf ? 'الخاصة بك' : esc(u.name.split(' ')[0])}
-    </h2>
-    ${prompts.length
-      ? grid(prompts)
-      : emptyState(ICON.empty, 'لا توجد برومبتات بعد',
-          u.isSelf ? 'ابدأ بمشاركة أول برومبت لك.' : 'لم ينشر هذا المستخدم أي برومبت.',
-          u.isSelf ? `<a class="btn btn-primary" href="#/new">انشر برومبتاً</a>` : '')}
-  </section>`;
+  <div class="profile-tabs" id="profile-tabs">
+    <button class="profile-tab active" data-tab="prompts">
+      البرومبتات <span class="count">${prompts.length}</span>
+    </button>
+    ${u.isSelf ? `
+    <button class="profile-tab" data-tab="likes">
+      الإعجابات <span class="count" id="likes-count">…</span>
+    </button>` : ''}
+  </div>
 
-  bindCards(root, ctx);
+  <div id="profile-content"></div>`;
 
-  root.querySelector('#logout')?.addEventListener('click', async () => {
-    if (!confirm('هل تريد تسجيل الخروج؟')) return;
-    try { await ctx.api('/auth/logout', { method: 'POST' }); } catch {}
-    ctx.logout();
-    ctx.toast('تم تسجيل الخروج');
-    ctx.navigate('#/');
+  const content = root.querySelector('#profile-content');
+
+  async function showPrompts() {
+    if (!prompts.length) {
+      content.innerHTML = emptyState(ICON.empty, 'لا توجد برومبتات بعد',
+        u.isSelf ? 'ابدأ بمشاركة أول برومبت.' : 'لم ينشر هذا المستخدم شيئاً.',
+        u.isSelf ? `<a class="btn btn-primary" href="#/new">انشر برومبتاً</a>` : '');
+      return;
+    }
+    content.innerHTML = grid(prompts);
+    bindCards(content, ctx);
+  }
+
+  async function showLikes() {
+    content.innerHTML = skeletonGrid(3);
+    try {
+      const { items } = await ctx.api('/favorites');
+      root.querySelector('#likes-count').textContent = items.length;
+      if (!items.length) {
+        content.innerHTML = emptyState(ICON.heart, 'لا توجد إعجابات',
+          'اضغط زر الإعجاب في أي برومبت.',
+          `<a class="btn btn-primary" href="#/explore">استكشف</a>`);
+        return;
+      }
+      content.innerHTML = grid(items);
+      bindCards(content, ctx);
+    } catch (e) {
+      content.innerHTML = emptyState(ICON.empty, 'تعذّر التحميل', e.message);
+    }
+  }
+
+  root.querySelectorAll('.profile-tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      root.querySelectorAll('.profile-tab').forEach((t) => t.classList.remove('active'));
+      tab.classList.add('active');
+      if (tab.dataset.tab === 'prompts') showPrompts();
+      else showLikes();
+    });
   });
 
-  /* تعديل الملف */
-  const editForm = root.querySelector('#edit-form');
-  const editToggle = root.querySelector('#edit-toggle');
+  await showPrompts();
+  // اجلب عدد الإعجابات في الخلفية
+  if (u.isSelf) {
+    ctx.api('/favorites').then(({ items }) => {
+      const el = root.querySelector('#likes-count');
+      if (el) el.textContent = items.length;
+    }).catch(() => {});
+  }
 
-  editToggle?.addEventListener('click', () => {
+  /* التعديل */
+  const editForm = root.querySelector('#edit-form');
+  root.querySelector('#edit-toggle')?.addEventListener('click', () => {
     editForm.classList.toggle('hidden');
     if (!editForm.classList.contains('hidden')) {
       editForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   });
-  root.querySelector('#edit-cancel')?.addEventListener('click', () => {
-    editForm.classList.add('hidden');
-  });
+  root.querySelector('#edit-cancel')?.addEventListener('click', () => editForm.classList.add('hidden'));
 
   let editAvatar = u.avatar || '';
   const avatarPreview = root.querySelector('#avatar-preview');
   const avatarInput = root.querySelector('#edit-avatar');
   const avatarFile = root.querySelector('#edit-avatar-file');
-
   const setAvatar = (v) => {
     editAvatar = v;
     avatarPreview.innerHTML = v ? `<img src="${esc(v)}" alt="">` : esc(initials(u.name));
   };
-
   avatarInput?.addEventListener('input', () => setAvatar(avatarInput.value.trim()));
   root.querySelector('#edit-avatar-pick')?.addEventListener('click', () => avatarFile.click());
   avatarFile?.addEventListener('change', () => {
     const f = avatarFile.files?.[0];
     if (!f) return;
-    if (f.size > 1.5 * 1024 * 1024) return ctx.toast('حجم الصورة يتجاوز 1.5MB', 'error');
+    if (f.size > 1.5 * 1024 * 1024) return ctx.toast('حجم الصورة > 1.5MB', 'error');
     const r = new FileReader();
     r.onload = () => { avatarInput.value = ''; setAvatar(r.result); };
     r.readAsDataURL(f);
@@ -855,8 +956,7 @@ async function profile(root, ctx) {
     const err = root.querySelector('#edit-err');
     err.hidden = true;
     const saveBtn = root.querySelector('#edit-save');
-    saveBtn.disabled = true; saveBtn.textContent = 'جارٍ الحفظ…';
-
+    saveBtn.disabled = true; saveBtn.textContent = '…';
     try {
       const { user: updated } = await ctx.api('/me', {
         method: 'PATCH',
@@ -868,56 +968,75 @@ async function profile(root, ctx) {
         }
       });
       ctx.state.user = updated;
-      ctx.toast('تم تحديث الملف');
+      ctx.toast('تم التحديث');
       profile(root, ctx);
     } catch (ex) {
       err.textContent = ex.message; err.hidden = false;
-      saveBtn.disabled = false; saveBtn.textContent = 'حفظ التعديلات';
+      saveBtn.disabled = false; saveBtn.textContent = 'حفظ';
     }
+  });
+
+  /* المتابعة */
+  root.querySelector('#follow-btn')?.addEventListener('click', async () => {
+    if (!ctx.state.user) {
+      ctx.toast('سجّل الدخول', 'error');
+      return ctx.navigate('#/login');
+    }
+    try {
+      const { following } = await ctx.api(`/users/${u.id}/follow`, { method: 'POST' });
+      ctx.toast(following ? 'تتابع الآن' : 'ألغيت المتابعة');
+      profile(root, ctx);
+    } catch (e) { ctx.toast(e.message, 'error'); }
+  });
+
+  root.querySelector('#logout')?.addEventListener('click', async () => {
+    if (!confirm('تسجيل الخروج؟')) return;
+    try { await ctx.api('/auth/logout', { method: 'POST' }); } catch {}
+    ctx.logout();
+    ctx.toast('تم الخروج');
+    ctx.navigate('#/');
   });
 }
 
-/* ══════════ 8 — تفضيلاتي ══════════ */
+/* ═══════════ 9 — تفضيلاتي ═══════════ */
 async function favorites(root, ctx) {
   if (!ctx.state.user) {
-    ctx.toast('سجّل الدخول لعرض تفضيلاتك', 'error');
+    ctx.toast('سجّل الدخول', 'error');
     return ctx.navigate('#/login');
   }
 
   root.innerHTML = `
-    <div class="section" style="margin-top:20px">
-      ${sectionHead('07', 'تفضيلاتي', 'البرومبتات التي <span class="hl">أعجبتك</span>')}
+    <div class="section" style="margin-top:16px">
+      ${sectionHead('06', 'تفضيلاتي', 'البرومبتات التي <span class="hl">أعجبتك</span>')}
     </div>
     <div id="fav-results">${skeletonGrid(3)}</div>`;
 
   const { items } = await ctx.api('/favorites');
   const container = root.querySelector('#fav-results');
-
   if (!items.length) {
-    container.innerHTML = emptyState(ICON.heart,
-      'لا توجد إعجابات بعد',
-      'اضغط على زر الإعجاب في أي برومبت ليظهر هنا.',
-      `<a class="btn btn-primary" href="#/explore">استكشف البرومبتات</a>`);
+    container.innerHTML = emptyState(ICON.heart, 'لا توجد إعجابات بعد',
+      'اضغط على زر الإعجاب في أي برومبت.',
+      `<a class="btn btn-primary" href="#/explore">استكشف</a>`);
     return;
   }
   container.innerHTML = grid(items);
   bindCards(container, ctx);
 }
 
-/* ══════════ 9 — لوحة الإدارة ══════════ */
+/* ═══════════ 10 — لوحة الإدارة ═══════════ */
 async function admin(root, ctx) {
   if (!ctx.state.adminToken) {
     root.innerHTML = `
     <div class="lock-screen">
       <div class="shield">${ICON.shield}</div>
       <h2>لوحة الإدارة</h2>
-      <p>هذه المنطقة مخصّصة للمشرفين فقط.</p>
+      <p>منطقة المشرفين فقط.</p>
       <form id="lock-form" class="stack gap-12">
-        <input class="input" id="lock-pass" type="password" dir="ltr" placeholder="كلمة مرور اللوحة" required>
+        <input class="input" id="lock-pass" type="password" dir="ltr" placeholder="كلمة المرور" required>
         <p class="err-text" id="lock-err" hidden></p>
-        <button class="btn btn-primary btn-block" type="submit" id="lock-btn">دخول اللوحة</button>
+        <button class="btn btn-primary btn-block" type="submit" id="lock-btn">دخول</button>
       </form>
-      <div class="lock-note">كلمة المرور التجريبية: khayal-admin</div>
+      <div class="lock-note">التجريبية: khayal-admin</div>
     </div>`;
 
     const form = root.querySelector('#lock-form');
@@ -925,18 +1044,18 @@ async function admin(root, ctx) {
     const btn = root.querySelector('#lock-btn');
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      err.hidden = true; btn.disabled = true; btn.textContent = 'جارٍ التحقق…';
+      err.hidden = true; btn.disabled = true; btn.textContent = '…';
       try {
         const { token } = await ctx.api('/admin/unlock', {
           method: 'POST',
           body: { password: root.querySelector('#lock-pass').value }
         });
         ctx.setAdminToken(token);
-        ctx.toast('تم فتح اللوحة');
+        ctx.toast('تم الفتح');
         admin(root, ctx);
       } catch (ex) {
         err.textContent = ex.message; err.hidden = false;
-        btn.disabled = false; btn.textContent = 'دخول اللوحة';
+        btn.disabled = false; btn.textContent = 'دخول';
       }
     });
     return;
@@ -945,10 +1064,10 @@ async function admin(root, ctx) {
   root.innerHTML = `
   <div class="admin-head">
     <div>
-      <div class="eyebrow"><span class="dot"></span>08 / الإدارة</div>
+      <div class="eyebrow"><span class="dot"></span>07 / الإدارة</div>
       <h1>لوحة التحكم</h1>
     </div>
-    <button class="btn btn-outline btn-sm" id="admin-exit">خروج من اللوحة</button>
+    <button class="btn btn-outline btn-sm" id="admin-exit">خروج</button>
   </div>
   <div class="tabs">
     <button class="tab active" data-tab="overview">نظرة عامة</button>
@@ -959,7 +1078,7 @@ async function admin(root, ctx) {
   <div id="admin-body"></div>`;
 
   root.querySelector('#admin-exit').addEventListener('click', () => {
-    if (!confirm('الخروج من اللوحة؟')) return;
+    if (!confirm('الخروج؟')) return;
     ctx.setAdminToken(null);
     ctx.toast('تم الخروج');
     ctx.navigate('#/');
@@ -987,22 +1106,22 @@ async function admin(root, ctx) {
       </div>
       <div class="two-col">
         <div class="card card-white">
-          <h3 style="font-size:14px;margin-bottom:10px">أعلى البرومبتات</h3>
+          <h3 style="font-size:13px;margin-bottom:10px">أعلى البرومبتات</h3>
           <div class="list-mini">
             ${topPrompts.map((p) => `
               <div class="item">
-                <div style="min-width:0"><div class="t">${esc(p.title)}</div><div class="s">${esc(p.category)}</div></div>
+                <div class="grow"><div class="t">${esc(p.title)}</div><div class="s">${esc(p.category)}</div></div>
                 <span class="v">♥ ${fmt(p.likes)}</span>
-              </div>`).join('') || '<p class="hint">لا توجد بيانات</p>'}
+              </div>`).join('') || '<p class="hint">لا يوجد</p>'}
           </div>
         </div>
         <div class="card card-white">
-          <h3 style="font-size:14px;margin-bottom:10px">أحدث المستخدمين</h3>
+          <h3 style="font-size:13px;margin-bottom:10px">أحدث المستخدمين</h3>
           <div class="list-mini">
             ${latestUsers.map((u) => `
               <div class="item">
                 ${avatar(u, 26)}
-                <div style="min-width:0"><div class="t">${esc(u.name)}</div><div class="s">@${esc(u.username)}</div></div>
+                <div class="grow"><div class="t">${esc(u.name)}</div><div class="s">@${esc(u.username)}</div></div>
                 <span class="v">${u.promptCount || 0}</span>
               </div>`).join('')}
           </div>
@@ -1020,27 +1139,26 @@ async function admin(root, ctx) {
           <tbody>
             ${items.map((u) => `
               <tr>
-                <td><span class="td-user">${avatar(u, 26)}<span>${esc(u.name)}</span>${u.verified ? VCHECK : ''}</span></td>
-                <td class="mono" style="font-size:12px;color:var(--slate)" dir="ltr">${esc(u.email)}</td>
+                <td><span class="td-user">${avatar(u, 26)}<span>${esc(u.name)}</span></span></td>
+                <td class="mono" style="font-size:11px;color:var(--slate)" dir="ltr">${esc(u.email)}</td>
                 <td><span class="tag mono">${u.role === 'admin' ? 'إدارة' : 'عضو'}</span></td>
-                <td>${u.verified ? '<span class="badge">موثّق</span>' : '<span class="tag">غير موثّق</span>'}</td>
+                <td>${u.verified ? '<span class="badge">موثّق</span>' : '<span class="tag">لا</span>'}</td>
                 <td class="mono">${u.promptCount || 0}</td>
                 <td><div class="td-actions">
-                  <button class="btn btn-outline btn-sm" data-verify="${u.id}">${u.verified ? 'إلغاء' : 'توثيق'}</button>
-                  <button class="btn btn-danger btn-sm" data-del="${u.id}">${ICON.trash}</button>
+                  <button class="btn btn-outline btn-xs" data-verify="${u.id}">${u.verified ? 'إلغاء' : 'توثيق'}</button>
+                  <button class="btn btn-danger btn-xs" data-del="${u.id}">${ICON.trash}</button>
                 </div></td>
               </tr>`).join('')}
           </tbody>
         </table>
       </div>`;
-
     body.querySelectorAll('[data-verify]').forEach((b) => b.addEventListener('click', async () => {
-      try { await ctx.api(`/admin/users/${b.dataset.verify}/verify`, { method: 'POST', admin: true }); ctx.toast('تم'); loadUsers(); }
+      try { await ctx.api(`/admin/users/${b.dataset.verify}/verify`, { method: 'POST', admin: true }); loadUsers(); }
       catch (e) { ctx.toast(e.message, 'error'); }
     }));
     body.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', async () => {
-      if (!confirm('سيُحذف المستخدم وكل برومبتاته. متابعة؟')) return;
-      try { await ctx.api(`/admin/users/${b.dataset.del}`, { method: 'DELETE', admin: true }); ctx.toast('تم الحذف'); loadUsers(); }
+      if (!confirm('حذف المستخدم وكل برومبتاته؟')) return;
+      try { await ctx.api(`/admin/users/${b.dataset.del}`, { method: 'DELETE', admin: true }); ctx.toast('تم'); loadUsers(); }
       catch (e) { ctx.toast(e.message, 'error'); }
     }));
   }
@@ -1060,13 +1178,13 @@ async function admin(root, ctx) {
                 <td>${esc(p.author?.name || '—')}</td>
                 <td class="mono">${fmt(p.likes)}</td>
                 <td class="mono">${fmt(p.copies)}</td>
-                <td><button class="btn btn-danger btn-sm" data-delp="${p.id}">${ICON.trash}</button></td>
+                <td><button class="btn btn-danger btn-xs" data-delp="${p.id}">${ICON.trash}</button></td>
               </tr>`).join('')}
           </tbody>
         </table>
       </div>`;
     body.querySelectorAll('[data-delp]').forEach((b) => b.addEventListener('click', async () => {
-      if (!confirm('حذف البرومبت نهائياً؟')) return;
+      if (!confirm('حذف نهائياً؟')) return;
       try { await ctx.api(`/admin/prompts/${b.dataset.delp}`, { method: 'DELETE', admin: true }); ctx.toast('تم'); loadPrompts(); }
       catch (e) { ctx.toast(e.message, 'error'); }
     }));
@@ -1080,22 +1198,22 @@ async function admin(root, ctx) {
       return;
     }
     body.innerHTML = `
-      <p class="hint" style="margin-bottom:14px">${items.length} مستخدم استوفى الشروط.</p>
+      <p class="hint" style="margin-bottom:14px">${items.length} مؤهّل.</p>
       <div class="stack gap-10">
         ${items.map(({ user: u }) => `
-          <div class="card card-white row gap-14" style="flex-wrap:wrap;align-items:center">
+          <div class="card card-white row gap-14" style="flex-wrap:wrap">
             ${avatar(u, 40)}
-            <div style="flex:1;min-width:160px">
-              <div style="font-weight:500">${esc(u.name)}</div>
-              <div class="mono" style="font-size:12px;color:var(--ash)">@${esc(u.username)}</div>
+            <div class="grow">
+              <div style="font-weight:500;font-size:14px">${esc(u.name)}</div>
+              <div class="mono" style="font-size:11px;color:var(--ash)">@${esc(u.username)}</div>
             </div>
             <div class="row gap-12" style="font-size:12px;color:var(--slate)">
               <span>${u.promptCount} برومبت</span>
               <span>♥ ${fmt(u.totalLikes)}</span>
             </div>
             <div class="row gap-8">
-              <a class="btn btn-outline btn-sm" href="#/u/${u.id}">عرض</a>
-              <button class="btn btn-primary btn-sm" data-v="${u.id}">توثيق</button>
+              <a class="btn btn-outline btn-xs" href="#/u/${u.id}">عرض</a>
+              <button class="btn btn-primary btn-xs" data-v="${u.id}">توثيق</button>
             </div>
           </div>`).join('')}
       </div>`;
@@ -1108,13 +1226,13 @@ async function admin(root, ctx) {
   await loadOverview();
 }
 
-/* ══════════ 10 — انقطاع الاتصال ══════════ */
+/* ═══════════ 11 — انقطاع الاتصال ═══════════ */
 async function offline(root, ctx) {
   root.innerHTML = `
-  <div class="state" style="margin:72px auto;max-width:500px;border-style:solid">
+  <div class="state" style="margin:60px auto;max-width:460px;border-style:solid">
     <div class="icon">${ICON.wifiOff}</div>
-    <h3>لا يوجد اتصال بالإنترنت</h3>
-    <p>تعذّر الوصول إلى خيال. سنعيد المحاولة عند عودة الاتصال.</p>
+    <h3>لا يوجد اتصال</h3>
+    <p>تعذّر الوصول. سنعيد المحاولة عند عودة الاتصال.</p>
     <button class="btn btn-primary" id="retry">إعادة المحاولة</button>
   </div>`;
   root.querySelector('#retry').addEventListener('click', async () => {
@@ -1125,7 +1243,7 @@ async function offline(root, ctx) {
       if (strip) strip.hidden = true;
       ctx.toast('عاد الاتصال');
       ctx.navigate('#/');
-    } catch { ctx.toast('ما زال الاتصال مقطوعاً', 'error'); }
+    } catch { ctx.toast('ما زال مقطوعاً', 'error'); }
   });
   const onOnline = () => { ctx.navigate('#/'); window.removeEventListener('online', onOnline); };
   window.addEventListener('online', onOnline);
@@ -1133,5 +1251,5 @@ async function offline(root, ctx) {
 
 export const Screens = {
   home, login, register, explore, prompt,
-  newPrompt, profile, favorites, admin, offline
+  newPrompt, editPrompt, profile, favorites, admin, offline
 };
