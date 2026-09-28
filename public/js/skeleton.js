@@ -7,20 +7,24 @@ export function skeletonCard() {
   <article class="prompt-card sk-card" aria-busy="true">
     <div class="sk sk-cover"></div>
     <div class="pc-body">
-      ${skText('50px', '10px')}
+      ${skText('50px', '11px')}
       <div style="height:8px"></div>
-      ${skText('90%', '14px')}
+      ${skText('90%', '16px')}
       <div style="height:6px"></div>
-      ${skText('70%', '14px')}
+      ${skText('70%', '16px')}
+      <div style="height:12px"></div>
+      ${skText('100%', '13px')}
+      <div style="height:6px"></div>
+      ${skText('80%', '13px')}
       <div style="height:14px"></div>
-      <div class="row gap-4">
-        ${s('sk-pill', 'width:44px;height:16px')}
-        ${s('sk-pill', 'width:52px;height:16px')}
+      <div class="row gap-6">
+        ${s('sk-pill', 'width:52px;height:18px')}
+        ${s('sk-pill', 'width:64px;height:18px')}
       </div>
     </div>
     <footer class="pc-foot">
-      <span class="row gap-6">${skCircle(20)}${skText('60px', '11px')}</span>
-      <span class="row gap-8">${skText('24px', '10px')}${skText('24px', '10px')}</span>
+      <span class="row gap-8">${skCircle(24)}${skText('70px', '13px')}</span>
+      <span class="row gap-12">${skText('30px', '12px')}${skText('30px', '12px')}</span>
     </footer>
   </article>`;
 }
@@ -44,21 +48,6 @@ export function skeletonTableRow(cols = 5) {
 
 export function skeletonTable(rows = 6, cols = 5) {
   return `<div class="table-wrap"><table><tbody>${Array.from({ length: rows }, () => skeletonTableRow(cols)).join('')}</tbody></table></div>`;
-}
-
-export function skeletonFeature() {
-  return `<div class="feature" aria-busy="true">
-    ${s('sk-circle', 'width:40px;height:40px;margin:0 auto 14px')}
-    ${skText('70px', '15px')}
-    <div style="height:8px"></div>
-    ${skText('100%', '12px')}
-    <div style="height:6px"></div>
-    ${skText('70%', '12px')}
-  </div>`;
-}
-
-export function skeletonFeatures(n = 4) {
-  return `<div class="features">${Array.from({ length: n }, skeletonFeature).join('')}</div>`;
 }
 
 export function skeletonSectionHead() {
@@ -91,7 +80,7 @@ export function skeletonPromptDetail() {
 
 export function skeletonProfile() {
   return `<div class="profile-head" aria-busy="true">
-    ${s('sk-circle', 'width:96px;height:96px')}
+    ${s('sk-circle', 'width:88px;height:88px')}
     <div style="flex:1;min-width:200px">
       ${skText('180px', '24px')}
       <div style="height:8px"></div>
@@ -102,8 +91,8 @@ export function skeletonProfile() {
       ${skText('240px', '14px')}
     </div>
   </div>
-  <div class="stats-row">
-    ${[1,2,3].map(() => `<div class="stat">${skText('44px', '22px')}<div style="height:6px"></div>${skText('40px', '11px')}</div>`).join('')}
+  <div class="stat-strip">
+    ${[1,2,3].map(() => `<div class="stat-pill">${skText('44px', '22px')}<div style="height:6px"></div>${skText('40px', '11px')}</div>`).join('')}
   </div>
   ${skeletonGrid(6)}`;
 }
@@ -121,4 +110,34 @@ export function skeletonAdminTab(kind = 'overview') {
       </div>`;
   }
   return skeletonTable(6, kind === 'users' ? 6 : 5);
+}
+
+export function skeletonComments(n = 3) {
+  return Array.from({ length: n }, () => `
+    <div class="comment-item" aria-busy="true" style="pointer-events:none">
+      ${s('sk-circle', 'width:36px;height:36px')}
+      <div class="c-body" style="flex:1">
+        <div class="row gap-8" style="margin-bottom:6px">
+          ${skText('100px', '13px')}
+          ${skText('50px', '11px')}
+        </div>
+        ${skText('100%', '13px')}
+        <div style="height:6px"></div>
+        ${skText('70%', '13px')}
+      </div>
+    </div>
+  `).join('');
+}
+
+export function skeletonNotifications(n = 5) {
+  return Array.from({ length: n }, () => `
+    <div class="notif-item" aria-busy="true" style="pointer-events:none">
+      ${s('sk-circle', 'width:32px;height:32px')}
+      <div class="n-body" style="flex:1">
+        ${skText('85%', '13px')}
+        <div style="height:6px"></div>
+        ${skText('40%', '11px')}
+      </div>
+    </div>
+  `).join('');
 }
