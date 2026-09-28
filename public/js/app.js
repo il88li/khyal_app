@@ -1,9 +1,10 @@
 import { Screens } from './screens.js';
+import { prefetchPrompt, idbGet, idbSet, idbDelete, cleanupOldEntries } from './cache.js';
 
 const TOKEN_KEY = 'khayal_token';
 const ADMIN_KEY = 'khayal_admin';
 
-export const APP_VERSION = '2.3.0';
+export const APP_VERSION = '3.1.0';
 
 export const state = {
   user: null,
@@ -21,7 +22,24 @@ export class ApiError extends Error {
   }
 }
 
-export async function api(path, { method = 'GET', body, admin = false } = {}) {
+/* ═══════════════════════════════════════════════
+   API — مع دعم IndexedDB للبيانات العامة
+   ═══════════════════════════════════════════════ */
+export async function api(path, { method = 'GET', body, admin = false, useCache = true } = {}) {
+  const isGet = method === 'GET';
+  const cacheKey = isGet ? path : null;
+  const isPublicPath = /^\/(prompts|users|comments|meta)/.test(path);
+
+  // اقرأ من IndexedDB فورًا (للتجربة الفورية)
+  if (isGet && useCache && isPublicPath && !admin) {
+    const cached = await idbGet('api:' + cacheKey);
+    if (cached) {
+      // جدّد في الخلفية
+      _backgroundRefresh(path, admin);
+      return cached;
+    }
+  }
+
   const headers = {};
   if (body) headers['Content-Type'] = 'application/json';
   const t = localStorage.getItem(TOKEN_KEY);
@@ -36,13 +54,38 @@ export async function api(path, { method = 'GET', body, admin = false } = {}) {
     });
   } catch {
     setOnline(false);
+    // جرّب IndexedDB حتى في حالة فشل الشبكة
+    if (isGet && isPublicPath) {
+      const cached = await idbGet('api:' + cacheKey);
+      if (cached) return cached;
+    }
     throw new ApiError('تعذّر الاتصال بالخادم', 0);
   }
 
   if (!res.ok && res.status >= 500) setOnline(false);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new ApiError(data.error || 'حدث خطأ غير متوقع', res.status);
+
+  // خزّن في IndexedDB
+  if (isGet && useCache && isPublicPath && !admin) {
+    idbSet('api:' + cacheKey, data);
+  }
+
   return data;
+}
+
+async function _backgroundRefresh(path, admin) {
+  try {
+    const headers = {};
+    const t = localStorage.getItem(TOKEN_KEY);
+    if (t) headers['Authorization'] = 'Bearer ' + t;
+    if (admin && state.adminToken) headers['x-admin-token'] = state.adminToken;
+    const res = await fetch('/api' + path, { headers });
+    if (res.ok) {
+      const data = await res.json();
+      idbSet('api:' + path, data);
+    }
+  } catch { /* تجاهل */ }
 }
 
 export function toast(message, type = 'info') {
@@ -138,7 +181,7 @@ function renderTopbar() {
             </a>
             <a href="#/profile" title="${state.user.name}">
                <span class="avatar ${state.user.verified ? 'verified' : ''}" style="--s:34px">
-                 ${state.user.avatar ? `<img src="${state.user.avatar}" alt="">` : initials(state.user.name)}
+                 ${state.user.avatar ? `<img src="${state.user.avatar}" alt="" decoding="async">` : initials(state.user.name)}
                </span>
              </a>
           ` : `<a class="btn btn-ghost btn-sm" href="#/login">دخول</a>`}
@@ -200,6 +243,7 @@ async function render() {
     const ctx = {
       api, navigate, toast, state, ApiError,
       appVersion: APP_VERSION,
+      prefetchPrompt,
       params: query,
       id: parts[1] || null,
       requireOnline() {
@@ -216,7 +260,7 @@ async function render() {
       },
       async refreshMe() {
         try {
-          const { user } = await api('/me');
+          const { user } = await api('/me', { useCache: false });
           state.user = user;
           renderTopbar(); renderBottomNav();
         } catch (e) {
@@ -231,6 +275,7 @@ async function render() {
         localStorage.removeItem(TOKEN_KEY);
         state.user = null;
         state.unreadCount = 0;
+        idbClear().catch(() => {});
         renderTopbar(); renderBottomNav();
       },
       setToken(t) { localStorage.setItem(TOKEN_KEY, t); },
@@ -262,6 +307,7 @@ async function render() {
   }
 }
 
+/* ═══ Scroll effect (rAF) ═══ */
 let _scrollTick = false;
 window.addEventListener('scroll', () => {
   if (_scrollTick) return;
@@ -273,6 +319,7 @@ window.addEventListener('scroll', () => {
   });
 }, { passive: true });
 
+/* ═══ WebView bridge ═══ */
 function setupWebViewBridge() {
   window.addEventListener('hashchange', () => {
     if (window.AndroidBack?.onRouteChange) {
@@ -288,13 +335,28 @@ function setupWebViewBridge() {
   document.body.style.overscrollBehaviorY = 'contain';
 }
 
+/* ═══ Service Worker ═══ */
+async function registerSW() {
+  if (!('serviceWorker' in navigator)) return;
+  if (location.hostname === 'localhost' && !location.protocol.startsWith('https')) return;
+
+  try {
+    const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    // فحص التحديثات كل ساعة
+    setInterval(() => reg.update().catch(() => {}), 3600000);
+  } catch (err) {
+    console.warn('SW registration failed:', err);
+  }
+}
+
+/* ═══ الإشعارات ═══ */
 async function refreshUnread() {
   if (!localStorage.getItem(TOKEN_KEY) || !state.user) {
     state.unreadCount = 0;
     return;
   }
   try {
-    const { unread } = await api('/notifications/unread-count');
+    const { unread } = await api('/notifications/unread-count', { useCache: false });
     if (state.unreadCount !== unread) {
       state.unreadCount = unread;
       renderTopbar();
@@ -304,20 +366,23 @@ async function refreshUnread() {
 
 async function boot() {
   setupWebViewBridge();
+  registerSW();
+  cleanupOldEntries();
+
   const strip = document.getElementById('offline-strip');
   if (strip) strip.hidden = state.online;
 
+  // تحميل meta و /me بالتوازي
   api('/meta').then(m => state.meta = m).catch(() => {});
 
   if (localStorage.getItem(TOKEN_KEY)) {
-    try {
-      const { user } = await api('/me');
-      state.user = user;
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 401) {
-        localStorage.removeItem(TOKEN_KEY);
-      }
-    }
+    api('/me', { useCache: false })
+      .then(r => { state.user = r.user; })
+      .catch((e) => {
+        if (e instanceof ApiError && e.status === 401) {
+          localStorage.removeItem(TOKEN_KEY);
+        }
+      });
   }
 
   window.addEventListener('hashchange', render);
@@ -326,7 +391,7 @@ async function boot() {
     toast('عاد الاتصال');
     if (currentScreen() === 'offline') navigate('#/');
     if (localStorage.getItem(TOKEN_KEY) && !state.user) {
-      api('/me').then(r => {
+      api('/me', { useCache: false }).then(r => {
         state.user = r.user;
         renderTopbar(); renderBottomNav();
         refreshUnread();
@@ -343,7 +408,7 @@ async function boot() {
   refreshUnread();
   setInterval(() => {
     if (state.online && state.user && !document.hidden) refreshUnread();
-  }, 30000);
+  }, 45000);
 
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden && state.user) refreshUnread();
