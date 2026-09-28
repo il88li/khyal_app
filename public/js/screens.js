@@ -47,35 +47,33 @@ const ICON = {
   userCheck: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8.5" r="3.5"/><path d="M3 20c0-3.6 3.1-5.5 7-5.5s7 1.9 7 5.5"/><path d="m16 11 2 2 4-4"/></svg>`
 };
 
-/* ═══════════ بطاقة برومبت ═══════════ */
+/* ═══════════ بطاقة برومبت — التصميم الأصلي ═══════════ */
 function promptCard(p, idx = 0) {
   const mark = (p.category || p.title || 'خ').charAt(0);
   const excerpt = p.description || p.body.replace(/\s+/g, ' ').slice(0, 110);
   const slugPath = p.slug || p.id;
   return `
   <article class="prompt-card" data-prompt="${esc(p.id)}" data-slug="${esc(slugPath)}">
-    ${p.slug ? `
-    <a class="pc-slug" href="#/p/${esc(p.slug)}" data-stop="1">
-      ${ICON.link}
-      <span>/p/${esc(p.slug)}</span>
-    </a>` : ''}
     <div class="pc-cover">
       ${p.cover
         ? `<img src="${esc(p.cover)}" alt="" loading="lazy">`
         : `<span class="cover-mark">${esc(mark)}</span>`}
+      <span class="cover-idx">#${String(idx + 1).padStart(3, '0')}</span>
     </div>
     <div class="pc-body">
       ${p.category ? `<span class="pc-cat">${esc(p.category)}</span>` : ''}
       <h3 class="pc-title">${esc(p.title)}</h3>
       ${excerpt ? `<p class="pc-desc">${esc(excerpt)}</p>` : ''}
+      ${(p.tags || []).length ? `
       <div class="pc-tags">
-        ${(p.tags || []).slice(0, 2).map((t) => `<span class="tag">${esc(t)}</span>`).join('')}
-      </div>
+        ${(p.tags || []).slice(0, 3).map((t) => `<span class="tag">${esc(t)}</span>`).join('')}
+      </div>` : ''}
     </div>
     <footer class="pc-foot">
       <span class="pc-author">
-        ${avatar(p.author, 20)}
+        ${avatar(p.author, 24)}
         <span class="name">${esc(p.author?.name || 'مجهول')}</span>
+        ${p.author?.verified ? VCHECK : ''}
       </span>
       <span class="pc-stats">
         <span>${ICON.heart} ${fmt(p.likes)}</span>
@@ -89,8 +87,7 @@ const grid = (items) => `<div class="grid-cards">${items.map((p, i) => promptCar
 
 function bindCards(root, ctx) {
   root.querySelectorAll('[data-prompt]').forEach((el) => {
-    el.addEventListener('click', (e) => {
-      if (e.target.closest('[data-stop]')) return;
+    el.addEventListener('click', () => {
       const slug = el.dataset.slug || el.dataset.prompt;
       ctx.navigate('#/p/' + slug);
     });
@@ -228,19 +225,12 @@ async function register(root, ctx) {
   });
 }
 
-/* ═══════════ 3 — الرئيسية ═══════════ */
+/* ═══════════ 3 — الرئيسية (بلا قسم المزايا) ═══════════ */
 async function home(root, ctx) {
-  const features = [
-    { icon: ICON.search, t: 'اكتشاف سريع', d: 'ابحث بين آلاف البرومبتات العربية المصنّفة.' },
-    { icon: ICON.layers, t: 'نماذج متعددة', d: 'كل برومبت يوضّح النماذج المتوافقة معه.' },
-    { icon: ICON.shield, t: 'مبدعون موثّقون', d: 'شارة التوثيق لمن يثبت جودة ما ينشره.' },
-    { icon: ICON.bolt, t: 'نسخ بضغطة', d: 'انسخ نص البرومبت جاهزاً للاستخدام.' }
-  ];
-
   root.innerHTML = `
   <section class="hero">
     <div class="grid-bg"></div>
-    <div class="hero-badge"><span class="badge">جديد · 12 برومبتاً</span></div>
+    <div class="hero-badge"><span class="badge">جديد · برومبتات كل أسبوع</span></div>
     <h1>برومبتات عربية <span class="hl">مكتوبة بإتقان</span> لأدوات الذكاء الاصطناعي</h1>
     <p class="hero-sub">خيال مكتبة مفتوحة لمشاركة أوامر الذكاء الاصطناعي بالعربية.</p>
     <div class="hero-actions">
@@ -256,26 +246,14 @@ async function home(root, ctx) {
   </section>
 
   <section class="section">
-    ${sectionHead('01', 'لماذا خيال', 'أربع مزايا <span class="hl">مجدية</span>')}
-    <div class="features">
-      ${features.map((f) => `
-        <div class="feature">
-          <div class="ic">${f.icon}</div>
-          <h3>${f.t}</h3>
-          <p>${f.d}</p>
-        </div>`).join('')}
-    </div>
-  </section>
-
-  <section class="section">
     <div class="head-row">
       <div>
-        <div class="eyebrow"><span class="dot"></span>02 / وصل حديثاً</div>
+        <div class="eyebrow"><span class="dot"></span>01 / وصل حديثاً</div>
         <h2 class="section-title">أحدث البرومبتات</h2>
       </div>
       <a class="btn btn-ghost btn-sm" href="#/explore?sort=new">عرض الكل ←</a>
     </div>
-    <div id="home-latest">${skeletonGrid(4)}</div>
+    <div id="home-latest">${skeletonGrid(6)}</div>
   </section>
 
   <section class="section">
@@ -293,7 +271,7 @@ async function home(root, ctx) {
   });
 
   try {
-    const latest = await ctx.api('/prompts?sort=new&limit=6');
+    const latest = await ctx.api('/prompts?sort=new&limit=12');
     const el = root.querySelector('#home-latest');
     el.innerHTML = latest.items.length
       ? grid(latest.items)
@@ -314,7 +292,7 @@ async function explore(root, ctx) {
   <div class="section" style="margin-top:16px">
     <div class="head-row">
       <div>
-        <div class="eyebrow"><span class="dot"></span>03 / الاستكشاف</div>
+        <div class="eyebrow"><span class="dot"></span>02 / الاستكشاف</div>
         <h2 class="section-title">تصفّح <span class="hl">المكتبة</span></h2>
       </div>
       <span class="tag mono" id="result-count">…</span>
@@ -340,7 +318,7 @@ async function explore(root, ctx) {
   const countEl = root.querySelector('#result-count');
 
   async function load() {
-    results.innerHTML = skeletonGrid(4);
+    results.innerHTML = skeletonGrid(6);
     const params = new URLSearchParams();
     if (q) params.set('q', q);
     params.set('sort', sort);
@@ -378,7 +356,7 @@ async function explore(root, ctx) {
   await load();
 }
 
-/* ═══════════ 5 — تفاصيل البرومبت (Optimistic) ═══════════ */
+/* ═══════════ 5 — تفاصيل البرومبت ═══════════ */
 async function prompt(root, ctx) {
   root.innerHTML = `
     <div style="padding:14px 0">
@@ -407,7 +385,7 @@ async function prompt(root, ctx) {
   <div class="detail-hero">
     <div class="detail-cover">
       ${p.cover ? `<img src="${esc(p.cover)}" alt="">`
-                : `<span class="cover-mark" style="font-size:56px">${esc(mark)}</span>`}
+                : `<span class="cover-mark" style="font-size:64px">${esc(mark)}</span>`}
     </div>
     <div class="detail-body">
       ${p.slug ? `
@@ -433,7 +411,7 @@ async function prompt(root, ctx) {
             <a class="btn btn-outline btn-sm" href="#/edit/${p.id}">${ICON.edit} تعديل</a>
             <button class="btn btn-danger btn-sm" id="delete-btn">${ICON.trash}</button>
           </div>` : `
-          <button class="btn btn-outline btn-sm" id="follow-btn">
+          <button class="btn btn-outline btn-sm" id="follow-btn" data-following="0">
             ${ICON.userPlus} متابعة
           </button>`}
       </div>
@@ -468,14 +446,13 @@ async function prompt(root, ctx) {
 
   ${related.length ? `
   <section class="section">
-    ${sectionHead('04', 'ذات صلة', 'برومبتات مشابهة')}
+    ${sectionHead('03', 'ذات صلة', 'برومبتات مشابهة')}
     ${grid(related)}
   </section>` : ''}`;
 
   root.querySelector('#back').addEventListener('click', () => history.back());
   bindCards(root, ctx);
 
-  /* نسخ الرابط المخصص */
   root.querySelector('#copy-slug')?.addEventListener('click', async () => {
     const url = location.origin + '/#/p/' + slugPath;
     try {
@@ -484,7 +461,6 @@ async function prompt(root, ctx) {
     } catch { ctx.toast('تعذّر النسخ', 'error'); }
   });
 
-  /* طيّ */
   const toggleBtn = root.querySelector('#toggle-body');
   const bodyEl = root.querySelector('#prompt-body');
   toggleBtn?.addEventListener('click', () => {
@@ -492,7 +468,6 @@ async function prompt(root, ctx) {
     toggleBtn.textContent = clamped ? 'عرض النص كاملاً ↓' : 'إخفاء ↑';
   });
 
-  /* نسخ النص — مع جعل العملية في الخلفية */
   async function doCopy(btn) {
     try { await navigator.clipboard.writeText(p.body); }
     catch {
@@ -505,7 +480,6 @@ async function prompt(root, ctx) {
       ta.remove();
     }
     ctx.toast('تم النسخ');
-    // زيادة العداد في الخلفية (بلا انتظار)
     ctx.api(`/prompts/${p.id}/copy`, { method: 'POST' }).catch(() => {});
     if (btn) {
       const old = btn.innerHTML;
@@ -517,7 +491,6 @@ async function prompt(root, ctx) {
     root.querySelector('#' + id)?.addEventListener('click', (e) => doCopy(e.currentTarget));
   });
 
-  /* إعجاب — Optimistic */
   const likeBtn = root.querySelector('#like-btn');
   likeBtn.addEventListener('click', () => {
     if (!ctx.state.user) {
@@ -528,13 +501,9 @@ async function prompt(root, ctx) {
     const wasCount = parseInt(root.querySelector('#like-n').textContent) || 0;
     const newLiked = !wasLiked;
     const newCount = wasCount + (newLiked ? 1 : -1);
-
-    // تحديث فوري
     likeBtn.dataset.liked = newLiked ? '1' : '0';
     root.querySelector('#like-ic').innerHTML = newLiked ? ICON.heartFill : ICON.heart;
     root.querySelector('#like-n').textContent = newCount;
-
-    // مزامنة في الخلفية
     ctx.api(`/prompts/${p.id}/like`, { method: 'POST' })
       .then((real) => {
         likeBtn.dataset.liked = real.liked ? '1' : '0';
@@ -542,7 +511,6 @@ async function prompt(root, ctx) {
         root.querySelector('#like-n').textContent = real.likes;
       })
       .catch((e) => {
-        // استرجاع
         likeBtn.dataset.liked = wasLiked ? '1' : '0';
         root.querySelector('#like-ic').innerHTML = wasLiked ? ICON.heartFill : ICON.heart;
         root.querySelector('#like-n').textContent = wasCount;
@@ -550,7 +518,6 @@ async function prompt(root, ctx) {
       });
   });
 
-  /* مشاركة */
   root.querySelector('#share-btn').addEventListener('click', async () => {
     const url = location.origin + '/#/p/' + slugPath;
     if (navigator.share) {
@@ -562,7 +529,6 @@ async function prompt(root, ctx) {
     } catch { ctx.toast('تعذّر النسخ', 'error'); }
   });
 
-  /* متابعة — Optimistic */
   const followBtn = root.querySelector('#follow-btn');
   followBtn?.addEventListener('click', () => {
     if (!ctx.state.user) {
@@ -571,10 +537,8 @@ async function prompt(root, ctx) {
     }
     const isNow = followBtn.dataset.following === '1';
     const newState = !isNow;
-    // فوري
     followBtn.dataset.following = newState ? '1' : '0';
     followBtn.innerHTML = newState ? `${ICON.userCheck} متابَع` : `${ICON.userPlus} متابعة`;
-    // خلفية
     ctx.api(`/users/${p.authorId}/follow`, { method: 'POST' })
       .then((r) => ctx.toast(r.following ? 'تتابع الآن' : 'ألغيت المتابعة'))
       .catch((e) => {
@@ -584,7 +548,6 @@ async function prompt(root, ctx) {
       });
   });
 
-  /* حذف */
   root.querySelector('#delete-btn')?.addEventListener('click', async () => {
     if (!confirm('سيُحذف البرومبت نهائياً. متابعة؟')) return;
     ctx.toast('جارٍ الحذف…');
@@ -595,7 +558,7 @@ async function prompt(root, ctx) {
   });
 }
 
-/* ═══════════ 6 — نشر برومبت (بلا حقول التصنيف والنماذج) ═══════════ */
+/* ═══════════ 6 — نشر برومبت ═══════════ */
 async function newPrompt(root, ctx) {
   if (!ctx.state.user) {
     ctx.toast('سجّل الدخول للنشر', 'error');
@@ -621,7 +584,7 @@ async function promptForm(root, ctx, existing) {
   <div class="section" style="margin-top:16px">
     <div class="head-row">
       <div>
-        <div class="eyebrow"><span class="dot"></span>${isEdit ? 'تعديل' : '05 / نشر'} / برومبت</div>
+        <div class="eyebrow"><span class="dot"></span>${isEdit ? 'تعديل' : 'نشر'} / برومبت</div>
         <h2 class="section-title">${isEdit ? 'تعديل' : 'شارك'} <span class="hl">برومبت</span></h2>
       </div>
     </div>
@@ -632,8 +595,8 @@ async function promptForm(root, ctx, existing) {
           <div class="field">
             <label class="label">صورة الغلاف <span class="opt">(اختياري)</span></label>
             <div class="row gap-12" style="flex-wrap:wrap">
-              <div id="cover-preview" style="width:100px;height:64px;border:1px solid var(--grid);border-radius:10px;background:var(--vellum);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">
-                <span class="cover-mark" style="font-size:22px">؟</span>
+              <div id="cover-preview" style="width:110px;height:72px;border:1px solid var(--grid);border-radius:10px;background:var(--vellum);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">
+                <span class="cover-mark" style="font-size:26px">؟</span>
               </div>
               <div class="stack gap-8 grow">
                 <input class="input" id="cover-url" dir="ltr" placeholder="https://…" value="${esc(existing?.cover || '')}">
@@ -690,7 +653,7 @@ async function promptForm(root, ctx, existing) {
     cover = v;
     preview.innerHTML = v
       ? `<img src="${esc(v)}" style="max-width:100%;max-height:100%;object-fit:contain" alt="">`
-      : `<span class="cover-mark" style="font-size:22px">؟</span>`;
+      : `<span class="cover-mark" style="font-size:26px">؟</span>`;
   };
   if (cover) setCover(cover);
   urlInput.addEventListener('input', () => setCover(urlInput.value.trim()));
@@ -732,7 +695,7 @@ async function promptForm(root, ctx, existing) {
       err.textContent = 'النص قصير جداً'; err.hidden = false; return;
     }
 
-    btn.disabled = true; btn.textContent = isEdit ? '…' : '…';
+    btn.disabled = true; btn.textContent = '…';
     try {
       const payload = { title, tags, body, cover, description: '', category: '', models: [] };
       if (isEdit) {
@@ -915,7 +878,6 @@ async function profile(root, ctx) {
     }).catch(() => {});
   }
 
-  /* التعديل */
   const editForm = root.querySelector('#edit-form');
   root.querySelector('#edit-toggle')?.addEventListener('click', () => {
     editForm.classList.toggle('hidden');
@@ -955,18 +917,15 @@ async function profile(root, ctx) {
       bio: root.querySelector('#edit-bio').value.trim(),
       avatar: editAvatar
     };
-    // فوري
     ctx.state.user = { ...ctx.state.user, ...payload };
     ctx.toast('جارٍ الحفظ…');
     saveBtn.disabled = true; saveBtn.textContent = '…';
     profile(root, ctx);
-    // خلفية
     ctx.api('/me', { method: 'PATCH', body: payload })
       .then(({ user }) => { ctx.state.user = user; ctx.toast('تم التحديث'); })
       .catch((ex) => ctx.toast(ex.message, 'error'));
   });
 
-  /* متابعة — Optimistic */
   const followBtn = root.querySelector('#follow-btn');
   followBtn?.addEventListener('click', () => {
     if (!ctx.state.user) {
@@ -1006,7 +965,7 @@ async function favorites(root, ctx) {
 
   root.innerHTML = `
     <div class="section" style="margin-top:16px">
-      ${sectionHead('06', 'تفضيلاتي', 'البرومبتات التي <span class="hl">أعجبتك</span>')}
+      ${sectionHead('04', 'تفضيلاتي', 'البرومبتات التي <span class="hl">أعجبتك</span>')}
     </div>
     <div id="fav-results">${skeletonGrid(3)}</div>`;
 
@@ -1063,7 +1022,7 @@ async function admin(root, ctx) {
   root.innerHTML = `
   <div class="admin-head">
     <div>
-      <div class="eyebrow"><span class="dot"></span>07 / الإدارة</div>
+      <div class="eyebrow"><span class="dot"></span>05 / الإدارة</div>
       <h1>لوحة التحكم</h1>
     </div>
     <button class="btn btn-outline btn-sm" id="admin-exit">خروج</button>
