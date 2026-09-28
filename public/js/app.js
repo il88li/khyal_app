@@ -24,7 +24,6 @@ export async function api(path, { method = 'GET', body, admin = false } = {}) {
     setOnline(false);
     throw new Error('تعذّر الاتصال بالخادم');
   }
-
   if (!res.ok && res.status >= 500) setOnline(false);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || 'حدث خطأ غير متوقع');
@@ -41,9 +40,9 @@ export function toast(message, type = 'info') {
   setTimeout(() => {
     el.style.transition = 'opacity .3s, transform .3s';
     el.style.opacity = '0';
-    el.style.transform = 'translateY(-8px)';
+    el.style.transform = 'translateY(-6px)';
     setTimeout(() => el.remove(), 300);
-  }, 2600);
+  }, 2400);
 }
 
 export const navigate = (hash) => {
@@ -70,7 +69,8 @@ function parseRoute() {
 
 const SCREEN_NAMES = {
   '': 'home', login: 'login', register: 'register', explore: 'explore',
-  prompt: 'prompt', new: 'newPrompt', profile: 'profile', u: 'profile',
+  prompt: 'prompt', new: 'newPrompt', edit: 'editPrompt',
+  profile: 'profile', u: 'profile',
   favorites: 'favorites', admin: 'admin', offline: 'offline'
 };
 
@@ -120,9 +120,7 @@ function renderTopbar() {
           <a class="btn btn-primary btn-sm" href="#/new">انشر</a>
         </div>
       </div>`;
-  } catch (e) {
-    console.error('topbar render:', e);
-  }
+  } catch (e) { console.error('topbar:', e); }
 }
 
 const ICONS = {
@@ -152,71 +150,98 @@ function renderBottomNav() {
           ? item('#/profile', 'حسابي', ICONS.user, 'profile')
           : item('#/login', 'دخول', ICONS.user, 'login')}
       </div>`;
-  } catch (e) {
-    console.error('bottomnav render:', e);
+  } catch (e) { console.error('bottomnav:', e); }
+}
+
+let _rendering = false;
+async function render() {
+  if (_rendering) return;
+  _rendering = true;
+  try {
+    renderTopbar();
+    renderBottomNav();
+
+    if (!state.online && currentScreen() !== 'offline') {
+      location.hash = '#/offline';
+      return;
+    }
+
+    const { parts, query } = parseRoute();
+    const name = currentScreen();
+    const screen = Screens[name] || Screens.home;
+
+    const root = document.getElementById('app');
+    root.innerHTML = `<div style="padding:110px 0"><div class="spinner"></div></div>`;
+
+    const ctx = {
+      api, navigate, toast, state,
+      params: query,
+      id: parts[1] || null,
+      async refreshMe() {
+        try {
+          const { user } = await api('/me');
+          state.user = user;
+          renderTopbar(); renderBottomNav();
+        } catch {}
+      },
+      logout() {
+        localStorage.removeItem(TOKEN_KEY);
+        state.user = null;
+        renderTopbar(); renderBottomNav();
+      },
+      setToken(t) { localStorage.setItem(TOKEN_KEY, t); },
+      getToken() { return localStorage.getItem(TOKEN_KEY); },
+      setAdminToken(t) {
+        state.adminToken = t;
+        if (t) sessionStorage.setItem(ADMIN_KEY, t);
+        else sessionStorage.removeItem(ADMIN_KEY);
+      }
+    };
+
+    try {
+      await screen(root, ctx);
+    } catch (e) {
+      console.error('screen error:', e);
+      root.innerHTML = `
+        <div class="state" style="margin-top:70px">
+          <div class="icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 8v5M12 16.5v.01"/><circle cx="12" cy="12" r="9"/></svg>
+          </div>
+          <h3>حدث خطأ ما</h3>
+          <p>${e.message}</p>
+          <button class="btn btn-outline" onclick="location.reload()">إعادة المحاولة</button>
+        </div>`;
+    }
+    window.scrollTo(0, 0);
+  } finally {
+    _rendering = false;
   }
 }
 
-async function render() {
-  renderTopbar();
-  renderBottomNav();
-
-  if (!state.online && currentScreen() !== 'offline') {
-    location.hash = '#/offline';
-    return;
-  }
-
-  const { parts, query } = parseRoute();
-  const name = currentScreen();
-  const screen = Screens[name] || Screens.home;
-
-  const root = document.getElementById('app');
-  root.innerHTML = `<div style="padding:120px 0"><div class="spinner"></div></div>`;
-
-  const ctx = {
-    api, navigate, toast, state,
-    params: query,
-    id: parts[1] || null,
-    async refreshMe() {
-      try {
-        const { user } = await api('/me');
-        state.user = user;
-        renderTopbar(); renderBottomNav();
-      } catch {}
-    },
-    logout() {
-      localStorage.removeItem(TOKEN_KEY);
-      state.user = null;
-      renderTopbar(); renderBottomNav();
-    },
-    setToken(t) { localStorage.setItem(TOKEN_KEY, t); },
-    getToken() { return localStorage.getItem(TOKEN_KEY); },
-    setAdminToken(t) {
-      state.adminToken = t;
-      if (t) sessionStorage.setItem(ADMIN_KEY, t);
-      else sessionStorage.removeItem(ADMIN_KEY);
+/* ═══════════ Android WebView bridge ═══════════ */
+function setupWebViewBridge() {
+  /* إشعار WebView عند تغيير المسار لدعم زر الرجوع */
+  window.addEventListener('hashchange', () => {
+    if (window.AndroidBack && typeof window.AndroidBack.onRouteChange === 'function') {
+      try { window.AndroidBack.onRouteChange(location.hash); } catch {}
     }
-  };
+  });
 
-  try {
-    await screen(root, ctx);
-  } catch (e) {
-    console.error('screen error:', e);
-    root.innerHTML = `
-      <div class="state" style="margin-top:80px">
-        <div class="icon">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 8v5M12 16.5v.01"/><circle cx="12" cy="12" r="9"/></svg>
-        </div>
-        <h3>حدث خطأ ما</h3>
-        <p>${e.message}</p>
-        <button class="btn btn-outline" onclick="location.reload()">إعادة المحاولة</button>
-      </div>`;
-  }
+  /* منع زوم بضغطتين */
+  let lastTouch = 0;
+  document.addEventListener('touchend', (e) => {
+    const now = Date.now();
+    if (now - lastTouch <= 300) e.preventDefault();
+    lastTouch = now;
+  }, { passive: false });
 
-  window.scrollTo({ top: 0, behavior: 'auto' });
+  /* منع سحب الصفحة (pull to refresh) */
+  document.body.style.overscrollBehaviorY = 'contain';
 }
 
 async function boot() {
+  setupWebViewBridge();
+
   const strip = document.getElementById('offline-strip');
   if (strip) strip.hidden = state.online;
 
@@ -246,20 +271,15 @@ async function boot() {
   await render();
 }
 
-/* معالج أخطاء عالمي — يعرض أي خطأ بدل شاشة فارغة */
-window.addEventListener('error', (e) => {
-  console.error('global error:', e.error || e.message);
-});
-window.addEventListener('unhandledrejection', (e) => {
-  console.error('unhandled rejection:', e.reason);
-});
+window.addEventListener('error', (e) => console.error('global:', e.error || e.message));
+window.addEventListener('unhandledrejection', (e) => console.error('rejection:', e.reason));
 
 boot().catch((e) => {
   console.error('boot failed:', e);
   const app = document.getElementById('app');
   if (app) {
     app.innerHTML = `
-      <div class="state" style="margin-top:80px">
+      <div class="state" style="margin-top:70px">
         <h3>تعذّر تحميل التطبيق</h3>
         <p>${e.message}</p>
         <button class="btn btn-primary" onclick="location.reload()">إعادة التحميل</button>
