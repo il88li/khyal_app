@@ -50,7 +50,6 @@ function getPool() {
 
 export const pool = getPool();
 
-/* ═══════════ إعادة المحاولة للأخطاء العابرة ═══════════ */
 const TRANSIENT_PATTERNS = [
   'ECONNRESET', 'EPIPE', 'ETIMEDOUT', 'ECONNREFUSED',
   'socket hang up', 'Connection terminated',
@@ -68,9 +67,8 @@ export async function query(sql, params = []) {
   let lastErr;
   for (let i = 0; i < RETRY_DELAYS.length; i++) {
     if (RETRY_DELAYS[i]) await sleep(RETRY_DELAYS[i]);
-    try {
-      return await pool.query(sql, params);
-    } catch (err) {
+    try { return await pool.query(sql, params); }
+    catch (err) {
       lastErr = err;
       if (!isTransient(err)) throw err;
     }
@@ -99,7 +97,6 @@ export async function transaction(fn) {
   }
 }
 
-/* ═══════════ ذاكرة تخزين مؤقت (per-instance) ═══════════ */
 const CACHE_KEY = '__khayal_cache__';
 function getCache() {
   if (!globalThis[CACHE_KEY]) globalThis[CACHE_KEY] = new Map();
@@ -117,7 +114,6 @@ export function cacheGet(key) {
 export function cacheSet(key, value, ttlMs = 30000) {
   const c = getCache();
   c.set(key, { value, expires: Date.now() + ttlMs });
-  // حد أقصى 500 مدخل
   if (c.size > 500) {
     const firstKey = c.keys().next().value;
     c.delete(firstKey);
@@ -130,7 +126,9 @@ export function cacheClear(prefix = '') {
   for (const k of c.keys()) if (k.startsWith(prefix)) c.delete(k);
 }
 
-/* ═══════════ المخطط ═══════════ */
+/* ═══════════════════════════════════════════════
+   المخطط — يشمل كل الجداول
+   ═══════════════════════════════════════════════ */
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS users (
   id           TEXT PRIMARY KEY,
@@ -164,6 +162,11 @@ CREATE TABLE IF NOT EXISTS prompts (
 );
 
 ALTER TABLE prompts ADD COLUMN IF NOT EXISTS slug TEXT;
+ALTER TABLE prompts ADD COLUMN IF NOT EXISTS description TEXT DEFAULT '';
+ALTER TABLE prompts ADD COLUMN IF NOT EXISTS category TEXT DEFAULT '';
+ALTER TABLE prompts ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}';
+ALTER TABLE prompts ADD COLUMN IF NOT EXISTS models TEXT[] DEFAULT '{}';
+ALTER TABLE prompts ADD COLUMN IF NOT EXISTS cover TEXT DEFAULT '';
 CREATE UNIQUE INDEX IF NOT EXISTS idx_prompts_slug ON prompts(slug) WHERE slug IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS likes (
@@ -187,10 +190,29 @@ CREATE TABLE IF NOT EXISTS sessions (
   expires_at   TIMESTAMPTZ DEFAULT NOW() + INTERVAL '30 days'
 );
 
+CREATE TABLE IF NOT EXISTS comments (
+  id           TEXT PRIMARY KEY,
+  prompt_id    TEXT NOT NULL REFERENCES prompts(id) ON DELETE CASCADE,
+  user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  body         TEXT NOT NULL,
+  created_at   TIMESTAMPTZ DEFAULT NOW(),
+  updated_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS notifications (
+  id           TEXT PRIMARY KEY,
+  user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  actor_id     TEXT REFERENCES users(id) ON DELETE SET NULL,
+  type         TEXT NOT NULL CHECK (type IN ('like', 'follow', 'comment')),
+  prompt_id    TEXT REFERENCES prompts(id) ON DELETE CASCADE,
+  comment_id   TEXT REFERENCES comments(id) ON DELETE CASCADE,
+  is_read      BOOLEAN DEFAULT FALSE,
+  created_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
 CREATE INDEX IF NOT EXISTS idx_prompts_author     ON prompts(author_id);
 CREATE INDEX IF NOT EXISTS idx_prompts_created    ON prompts(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_prompts_copies     ON prompts(copies DESC);
-CREATE INDEX IF NOT EXISTS idx_prompts_tags       ON prompts USING GIN(tags);
 CREATE INDEX IF NOT EXISTS idx_likes_prompt       ON likes(prompt_id);
 CREATE INDEX IF NOT EXISTS idx_likes_user         ON likes(user_id);
 CREATE INDEX IF NOT EXISTS idx_follows_follower   ON follows(follower_id);
@@ -198,6 +220,10 @@ CREATE INDEX IF NOT EXISTS idx_follows_following  ON follows(following_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_user      ON sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires   ON sessions(expires_at);
 CREATE INDEX IF NOT EXISTS idx_users_verified     ON users(verified);
+CREATE INDEX IF NOT EXISTS idx_comments_prompt    ON comments(prompt_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_comments_user      ON comments(user_id);
+CREATE INDEX IF NOT EXISTS idx_notif_user         ON notifications(user_id, is_read, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notif_actor        ON notifications(actor_id);
 `;
 
 const MIGRATED_KEY = '__khayal_migrated__';
