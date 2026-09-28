@@ -4,7 +4,7 @@ import { prefetchPrompt, idbGet, idbSet, idbClear, cleanupOldEntries } from './c
 const TOKEN_KEY = 'khayal_token';
 const ADMIN_KEY = 'khayal_admin';
 
-export const APP_VERSION = '5.1.1';
+export const APP_VERSION = '5.1.2';
 
 export const state = {
   user: null,
@@ -516,14 +516,39 @@ function setupWebViewBridge() {
 }
 
 /* ═══════════════════════════════════════════════
-   Service Worker
+   Service Worker — مع تحديث تلقائي
    ═══════════════════════════════════════════════ */
 async function registerSW() {
   if (!('serviceWorker' in navigator)) return;
+
   try {
     const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+
+    // ✅ إذا كان هناك SW جديد في انتظار التفعيل، فعّله فورًا
+    reg.addEventListener('updatefound', () => {
+      const newWorker = reg.installing;
+      if (!newWorker) return;
+      newWorker.addEventListener('statechange', () => {
+        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+          console.log('[SW] نسخة جديدة جاهزة — تحديث فوري');
+          newWorker.postMessage('SKIP_WAITING');
+          setTimeout(() => location.reload(), 500);
+        }
+      });
+    });
+
+    // ✅ استمع لرسائل SW
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      if (event.data?.type === 'SW_UPDATED') {
+        console.log('[SW] تم التحديث إلى', event.data.version);
+      }
+    });
+
+    // فحص التحديثات كل ساعة
     setInterval(() => reg.update().catch(() => {}), 3600000);
-  } catch { /* تجاهل */ }
+  } catch (err) {
+    console.warn('SW registration failed:', err);
+  }
 }
 
 /* ═══════════════════════════════════════════════
