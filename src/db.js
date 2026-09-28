@@ -33,11 +33,12 @@ function getPool() {
     console.log('[db] إنشاء pool جديد');
     const pool = new Pool({
       ...buildConfig(),
-      max: Number(process.env.PG_POOL_MAX) || 5,
+      max: Number(process.env.PG_POOL_MAX) || 8,
       min: 0,
-      idleTimeoutMillis: 8000,
+      idleTimeoutMillis: 10000,
       connectionTimeoutMillis: 8000,
       keepAlive: true,
+      keepAliveInitialDelayMillis: 5000,
       application_name: 'khayal',
       statement_timeout: 15000,
       query_timeout: 15000
@@ -97,6 +98,7 @@ export async function transaction(fn) {
   }
 }
 
+/* ═══════════ ذاكرة تخزين مؤقت ═══════════ */
 const CACHE_KEY = '__khayal_cache__';
 function getCache() {
   if (!globalThis[CACHE_KEY]) globalThis[CACHE_KEY] = new Map();
@@ -126,9 +128,7 @@ export function cacheClear(prefix = '') {
   for (const k of c.keys()) if (k.startsWith(prefix)) c.delete(k);
 }
 
-/* ═══════════════════════════════════════════════
-   المخطط — يشمل كل الجداول
-   ═══════════════════════════════════════════════ */
+/* ═══════════ المخطط — v3.1 ═══════════ */
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS users (
   id           TEXT PRIMARY KEY,
@@ -210,6 +210,7 @@ CREATE TABLE IF NOT EXISTS notifications (
   created_at   TIMESTAMPTZ DEFAULT NOW()
 );
 
+/* ═══ الفهارس الأساسية ═══ */
 CREATE INDEX IF NOT EXISTS idx_prompts_author     ON prompts(author_id);
 CREATE INDEX IF NOT EXISTS idx_prompts_created    ON prompts(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_prompts_copies     ON prompts(copies DESC);
@@ -224,6 +225,29 @@ CREATE INDEX IF NOT EXISTS idx_comments_prompt    ON comments(prompt_id, created
 CREATE INDEX IF NOT EXISTS idx_comments_user      ON comments(user_id);
 CREATE INDEX IF NOT EXISTS idx_notif_user         ON notifications(user_id, is_read, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_notif_actor        ON notifications(actor_id);
+
+/* ═══ فهارس v3.1 للأداء المحسّن ═══ */
+CREATE INDEX IF NOT EXISTS idx_prompts_author_created
+  ON prompts(author_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_prompts_copies_created
+  ON prompts(copies DESC, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_likes_user_created
+  ON likes(user_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_follows_follower_created
+  ON follows(follower_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_follows_following_created
+  ON follows(following_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user_created
+  ON notifications(user_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user_unread
+  ON notifications(user_id, is_read)
+  WHERE is_read = FALSE;
 `;
 
 const MIGRATED_KEY = '__khayal_migrated__';
