@@ -6,35 +6,27 @@ const { Pool } = pg;
 /* ═══════════════════════════════════════════════
    إعداد الاتصال — يدعم Aiven SSL
    ─────────────────────────────────────────────
-   ملاحظة مهمة: عندما يحتوي DATABASE_URL على
-   ?sslmode=require، فإن مكتبة pg تتجاهل كائن ssl
-   المخصص وترجع لإعداداتها الافتراضية التي تتحقق
-   من الشهادة وتفشل مع شهادة Aiven الموقّعة ذاتيًا.
-
-   الحل: نزيل sslmode من الرابط وتمرير ssl بشكل صريح.
+   ملاحظة: عندما يحتوي DATABASE_URL على ?sslmode=require،
+   تتجاهل pg كائن ssl المخصص. لذا نزيل sslmode من الرابط
+   وتمرير ssl بشكل صريح.
    ═══════════════════════════════════════════════ */
 
 function buildConfig() {
   let connectionString = process.env.DATABASE_URL;
 
-  /* أزل sslmode من الرابط لتجنّب تعارضه مع كائن ssl */
   if (connectionString) {
     try {
       const u = new URL(connectionString);
       u.searchParams.delete('sslmode');
       u.searchParams.delete('sslrootcert');
       connectionString = u.toString();
-    } catch {
-      /* تجاهل إذا لم يكن URL صالحاً */
-    }
+    } catch { /* تجاهل */ }
   }
 
   if (connectionString) {
     return {
       connectionString,
-      ssl: {
-        rejectUnauthorized: false  // يقبل شهادة Aiven الموقّعة ذاتيًا
-      }
+      ssl: { rejectUnauthorized: false }
     };
   }
 
@@ -50,9 +42,6 @@ function buildConfig() {
 
 /* ═══════════════════════════════════════════════
    Pool عالمي يُعاد استخدامه بين invocations
-   ─────────────────────────────────────────────
-   Vercel يُعيد استخدام globalThis بين الطلبات
-   الدافئة وهذا يمنع إنشاء pool جديد في كل cold start.
    ═══════════════════════════════════════════════ */
 
 const POOL_KEY = '__khayal_pg_pool__';
@@ -62,9 +51,9 @@ function getPool() {
     console.log('[db] إنشاء pool جديد');
     const pool = new Pool({
       ...buildConfig(),
-      max: 3,                        // أقل من الحد المسموح لـ Aiven
-      min: 0,                        // serverless: لا اتصالات دائمة
-      idleTimeoutMillis: 10000,      // إغلاق سريع
+      max: 3,
+      min: 0,
+      idleTimeoutMillis: 10000,
       connectionTimeoutMillis: 8000,
       keepAlive: true,
       application_name: 'khayal',
@@ -135,9 +124,6 @@ export async function transaction(fn) {
 
 /* ═══════════════════════════════════════════════
    المخطط مضمّن + Auto-migrate
-   ─────────────────────────────────────────────
-   Vercel لا يشغّل أوامر npm تلقائياً — لذا
-   ننشئ الجداول عند أول طلب.
    ═══════════════════════════════════════════════ */
 
 const SCHEMA = `
@@ -148,11 +134,14 @@ CREATE TABLE IF NOT EXISTS users (
   email        TEXT UNIQUE NOT NULL,
   password     TEXT NOT NULL,
   bio          TEXT DEFAULT '',
+  avatar       TEXT DEFAULT '',
   verified     BOOLEAN DEFAULT FALSE,
   role         TEXT DEFAULT 'user' CHECK (role IN ('user', 'admin')),
   joined       DATE DEFAULT CURRENT_DATE,
   created_at   TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar TEXT DEFAULT '';
 
 CREATE TABLE IF NOT EXISTS prompts (
   id           TEXT PRIMARY KEY,
@@ -175,6 +164,13 @@ CREATE TABLE IF NOT EXISTS likes (
   PRIMARY KEY (user_id, prompt_id)
 );
 
+CREATE TABLE IF NOT EXISTS follows (
+  follower_id  TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  following_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at   TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (follower_id, following_id)
+);
+
 CREATE TABLE IF NOT EXISTS sessions (
   token        TEXT PRIMARY KEY,
   user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -182,17 +178,19 @@ CREATE TABLE IF NOT EXISTS sessions (
   expires_at   TIMESTAMPTZ DEFAULT NOW() + INTERVAL '30 days'
 );
 
-CREATE INDEX IF NOT EXISTS idx_prompts_author    ON prompts(author_id);
-CREATE INDEX IF NOT EXISTS idx_prompts_category  ON prompts(category);
-CREATE INDEX IF NOT EXISTS idx_prompts_created   ON prompts(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_prompts_copies    ON prompts(copies DESC);
-CREATE INDEX IF NOT EXISTS idx_prompts_tags      ON prompts USING GIN(tags);
-CREATE INDEX IF NOT EXISTS idx_prompts_models    ON prompts USING GIN(models);
-CREATE INDEX IF NOT EXISTS idx_likes_prompt      ON likes(prompt_id);
-CREATE INDEX IF NOT EXISTS idx_likes_user        ON likes(user_id);
-CREATE INDEX IF NOT EXISTS idx_sessions_user     ON sessions(user_id);
-CREATE INDEX IF NOT EXISTS idx_sessions_expires  ON sessions(expires_at);
-CREATE INDEX IF NOT EXISTS idx_users_verified    ON users(verified);
+CREATE INDEX IF NOT EXISTS idx_prompts_author     ON prompts(author_id);
+CREATE INDEX IF NOT EXISTS idx_prompts_category   ON prompts(category);
+CREATE INDEX IF NOT EXISTS idx_prompts_created    ON prompts(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_prompts_copies     ON prompts(copies DESC);
+CREATE INDEX IF NOT EXISTS idx_prompts_tags       ON prompts USING GIN(tags);
+CREATE INDEX IF NOT EXISTS idx_prompts_models     ON prompts USING GIN(models);
+CREATE INDEX IF NOT EXISTS idx_likes_prompt       ON likes(prompt_id);
+CREATE INDEX IF NOT EXISTS idx_likes_user         ON likes(user_id);
+CREATE INDEX IF NOT EXISTS idx_follows_follower   ON follows(follower_id);
+CREATE INDEX IF NOT EXISTS idx_follows_following  ON follows(following_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_user      ON sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_expires   ON sessions(expires_at);
+CREATE INDEX IF NOT EXISTS idx_users_verified     ON users(verified);
 `;
 
 const MIGRATED_KEY = '__khayal_migrated__';
