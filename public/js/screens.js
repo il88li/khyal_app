@@ -33,30 +33,30 @@ const VCHECK = `<span class="verify-check" title="موثّق">
 </span>`;
 
 const ICON = {
-  heart: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.4-7-9.2A4.2 4.2 0 0 1 12 8a4.2 4.2 0 0 1 7 2.8C19 15.6 12 20 12 20Z"/></svg>`,
+  heart: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.4-7-9.2A4.2 4.2 0 0 1 12 8a4.2 4.2 0 0 1 7 2.8C19 15.6 12 20 12 20Z"/></svg>`,
   heartFill: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.2 10.7 19C5.4 14.4 2 11.5 2 7.9 2 5 4.2 3 7 3c1.6 0 3.1.7 4 1.9C12 3.7 13.5 3 15.1 3 17.9 3 20 5 20 7.9c0 3.6-3.4 6.5-8.7 11.1Z"/></svg>`,
-  copy: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>`,
+  copy: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>`,
   check: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 9 17.5 20 6.5"/></svg>`,
-  chat: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L3 21l1.9-6.4A8 8 0 1 1 21 12Z"/></svg>`,
+  chat: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L3 21l1.9-6.4A8 8 0 1 1 21 12Z"/></svg>`,
   chev: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="chev"><path d="m6 9 6 6 6-6"/></svg>`,
   expand: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>`,
   send: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2 15 22l-4-9-9-4Z"/></svg>`,
-  shield: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v6c0 4.4 3 7.5 7 9 4-1.5 7-4.6 7-9V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg>`,
-  trash: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg>`,
-  empty: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5 12 4l8 4.5v7L12 20l-8-4.5v-7Z"/><path d="M12 12v8M4 8.5 12 12l8-3.5"/></svg>`,
-  wifiOff: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M8.5 16.4a5 5 0 0 1 7 0M5 12.8a10 10 0 0 1 3-1.9M16 10.9a10 10 0 0 1 3 1.9M2 9.2A15 15 0 0 1 8 6.1M16 6.1a15 15 0 0 1 6 3.1"/><circle cx="12" cy="20" r=".6" fill="currentColor"/></svg>`,
-  edit: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10-4-4L4 16v4ZM14 6l4 4"/></svg>`,
-  share: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5M5 15v5h14v-5"/></svg>`,
-  link: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>`,
+  shield: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v6c0 4.4 3 7.5 7 9 4-1.5 7-4.6 7-9V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg>`,
+  trash: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg>`,
+  empty: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5 12 4l8 4.5v7L12 20l-8-4.5v-7Z"/><path d="M12 12v8M4 8.5 12 12l8-3.5"/></svg>`,
+  wifiOff: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M8.5 16.4a5 5 0 0 1 7 0M5 12.8a10 10 0 0 1 3-1.9M16 10.9a10 10 0 0 1 3 1.9M2 9.2A15 15 0 0 1 8 6.1M16 6.1a15 15 0 0 1 6 3.1"/><circle cx="12" cy="20" r=".6" fill="currentColor"/></svg>`,
+  edit: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10-4-4L4 16v4ZM14 6l4 4"/></svg>`,
+  share: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5M5 15v5h14v-5"/></svg>`,
+  link: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>`,
   userPlus: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8.5" r="3.5"/><path d="M3 20c0-3.6 3.1-5.5 7-5.5s7 1.9 7 5.5"/><path d="M18 8v6M15 11h6"/></svg>`,
   userCheck: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8.5" r="3.5"/><path d="M3 20c0-3.6 3.1-5.5 7-5.5s7 1.9 7 5.5"/><path d="m16 11 2 2 4-4"/></svg>`,
-  bell: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7Z"/><path d="M9.5 17a2.5 2.5 0 0 0 5 0"/></svg>`,
-  settings: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>`,
-  lock: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>`
+  bell: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7Z"/><path d="M9.5 17a2.5 2.5 0 0 0 5 0"/></svg>`,
+  settings: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>`,
+  lock: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>`
 };
 
 /* ═══════════════════════════════════════════════
-   ⭐ بطاقة البرومبت v4
+   ⭐ بطاقة البرومبت
    ═══════════════════════════════════════════════ */
 function promptCard(p, idx = 0) {
   const mark = (p.category || p.title || 'خ').charAt(0);
@@ -228,7 +228,7 @@ function bindCards(root, ctx) {
     });
   });
 
-  /* ─── نسخ (زر صغير داخل prompt box) ─── */
+  /* ─── نسخ ─── */
   root.querySelectorAll('[data-copy]').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -261,7 +261,7 @@ function bindCards(root, ctx) {
     });
   });
 
-  /* ─── مشاركة (زر أيقونة صغير) ─── */
+  /* ─── مشاركة ─── */
   root.querySelectorAll('[data-share]').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -355,7 +355,7 @@ async function loadInlineComments(box, promptId, ctx) {
         <button class="pc-comment-send" data-comment-send disabled>${ICON.send}</button>
       </div>` : `
       <div class="pc-comments-empty">
-        <a href="#/login" style="color:var(--orange);font-weight:500">سجّل الدخول</a> للتعليق
+        <a href="#/login" style="color:var(--orange);font-weight:600">سجّل الدخول</a> للتعليق
       </div>`}
 
       ${items.length
@@ -430,7 +430,7 @@ const sectionHead = (index, label, title, sub = '') => `
 async function login(root, ctx) {
   if (ctx.state.user) return ctx.navigate('#/');
   root.innerHTML = `
-  <div style="max-width:400px;margin:48px auto">
+  <div style="max-width:400px;margin:32px auto">
     <div style="text-align:center;margin-bottom:24px">
       <h1 class="section-title" style="font-size:24px">مرحباً بعودتك</h1>
       <p class="section-sub">سجّل دخولك لمتابعة برومبتاتك</p>
@@ -446,11 +446,11 @@ async function login(root, ctx) {
           <input class="input" id="password" type="password" dir="ltr" placeholder="••••••••" autocomplete="current-password" required>
         </div>
         <p class="err-text" id="login-err" hidden></p>
-        <button class="btn btn-primary btn-block" type="submit" id="login-btn">دخول</button>
+        <button class="btn btn-primary btn-block btn-lg" type="submit" id="login-btn">دخول</button>
       </div>
     </form>
     <p style="text-align:center;margin-top:16px;font-size:13px;color:var(--slate)">
-      ليس لديك حساب؟ <a href="#/register" style="color:var(--orange);font-weight:500">أنشئ حساباً</a>
+      ليس لديك حساب؟ <a href="#/register" style="color:var(--orange);font-weight:600">أنشئ حساباً</a>
     </p>
     <div class="lock-note" style="text-align:center">تجريبي: sara@khayal.app / 123456</div>
   </div>`;
@@ -484,7 +484,7 @@ async function login(root, ctx) {
 async function register(root, ctx) {
   if (ctx.state.user) return ctx.navigate('#/');
   root.innerHTML = `
-  <div style="max-width:400px;margin:48px auto">
+  <div style="max-width:400px;margin:32px auto">
     <div style="text-align:center;margin-bottom:24px">
       <h1 class="section-title" style="font-size:24px">انضم إلى خيال</h1>
       <p class="section-sub">شارك برومبتاتك مع المجتمع</p>
@@ -508,11 +508,11 @@ async function register(root, ctx) {
           <input class="input" id="password" type="password" dir="ltr" placeholder="6 أحرف على الأقل" required>
         </div>
         <p class="err-text" id="reg-err" hidden></p>
-        <button class="btn btn-primary btn-block" type="submit" id="reg-btn">إنشاء الحساب</button>
+        <button class="btn btn-primary btn-block btn-lg" type="submit" id="reg-btn">إنشاء الحساب</button>
       </div>
     </form>
     <p style="text-align:center;margin-top:16px;font-size:13px;color:var(--slate)">
-      لديك حساب؟ <a href="#/login" style="color:var(--orange);font-weight:500">سجّل الدخول</a>
+      لديك حساب؟ <a href="#/login" style="color:var(--orange);font-weight:600">سجّل الدخول</a>
     </p>
   </div>`;
 
@@ -549,20 +549,13 @@ async function register(root, ctx) {
 async function home(root, ctx) {
   root.innerHTML = `
   <section class="hero">
-    <div class="grid-bg"></div>
     <div class="hero-badge"><span class="badge">جديد · برومبتات كل أسبوع</span></div>
     <h1>برومبتات عربية <span class="hl">مكتوبة بإتقان</span> لأدوات الذكاء الاصطناعي</h1>
-    <p class="hero-sub">خيال مكتبة مفتوحة لمشاركة أوامر الذكاء الاصطناعي بالعربية.</p>
+    <p class="hero-sub">خيال مكتبة مفتوحة لمشاركة أوامر الذكاء الاصطناعي بالعربية — اكتشف، انسخ، وانشر.</p>
     <div class="hero-actions">
-      <a class="btn btn-primary" href="#/explore">استكشف البرومبتات</a>
-      <a class="btn btn-outline" href="#/new">شارك برومبتك</a>
+      <a class="btn btn-primary btn-lg" href="#/explore">استكشف البرومبتات</a>
+      <a class="btn btn-outline btn-lg" href="#/new">شارك برومبتك</a>
     </div>
-    <form class="searchbar" id="hero-search">
-      <input id="hero-q" placeholder="ابحث عن برومبت…" autocomplete="off">
-      <button class="go" type="submit" aria-label="ابحث">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
-      </button>
-    </form>
   </section>
 
   <section class="section">
@@ -573,25 +566,19 @@ async function home(root, ctx) {
       </div>
       <a class="btn btn-ghost btn-sm" href="#/explore?sort=new">عرض الكل ←</a>
     </div>
-    <div id="home-latest">${skeletonGrid(4)}</div>
+    <div id="home-latest">${skeletonGrid(6)}</div>
   </section>
 
   <section class="section">
-    <div class="card card-lg" style="text-align:center">
+    <div class="card card-lg" style="text-align:center;background:var(--vellum);border-color:transparent">
       <h2 class="section-title" style="font-size:22px">لديك برومبت يعمل جيداً؟</h2>
-      <p class="section-sub" style="max-width:42ch;margin:8px auto 18px">شاركه مع المجتمع.</p>
-      <a class="btn btn-primary" href="#/new">انشر برومبتاً</a>
+      <p class="section-sub" style="max-width:42ch;margin:8px auto 20px">شاركه مع المجتمع.</p>
+      <a class="btn btn-primary btn-lg" href="#/new">انشر برومبتاً</a>
     </div>
   </section>`;
 
-  root.querySelector('#hero-search').addEventListener('submit', (e) => {
-    e.preventDefault();
-    const q = root.querySelector('#hero-q').value.trim();
-    ctx.navigate(q ? `#/explore?q=${encodeURIComponent(q)}` : '#/explore');
-  });
-
   try {
-    const latest = await ctx.api('/prompts?sort=new&limit=6');
+    const latest = await ctx.api('/prompts?sort=new&limit=12');
     const el = root.querySelector('#home-latest');
     el.innerHTML = latest.items.length
       ? grid(latest.items)
@@ -609,24 +596,22 @@ async function explore(root, ctx) {
   const sortOptions = [['new', 'الأحدث'], ['likes', 'الأعلى إعجاباً'], ['copies', 'الأكثر نسخاً']];
 
   root.innerHTML = `
-  <div class="section" style="margin-top:16px">
+  <div class="section" style="margin-top:0">
     <div class="head-row">
       <div>
         <div class="eyebrow"><span class="dot"></span>02 / الاستكشاف</div>
         <h2 class="section-title">تصفّح <span class="hl">المكتبة</span></h2>
       </div>
-      <span class="tag mono" id="result-count">…</span>
+      <span class="badge badge-soft mono" id="result-count" style="font-family:var(--font-mono)">…</span>
     </div>
   </div>
 
   <div class="filter-bar">
-    <div class="searchbar" style="max-width:100%;margin:0">
-      <input id="x-q" value="${esc(q)}" placeholder="ابحث…" autocomplete="off">
-      <button class="go" id="x-go" aria-label="ابحث">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
-      </button>
+    <div class="search-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-3.6-3.6"/></svg>
+      <input class="input" id="x-q" value="${esc(q)}" placeholder="ابحث بالعنوان أو الوسم أو النص…" autocomplete="off">
     </div>
-    <div class="sortbar">
+    <div class="filter-row">
       <span class="lbl">الترتيب</span>
       ${sortOptions.map(([k, l]) => `<button class="chip ${sort === k ? 'active' : ''}" data-s="${k}">${l}</button>`).join('')}
     </div>
@@ -649,7 +634,7 @@ async function explore(root, ctx) {
     loading = true;
     if (reset) {
       offset = 0; allItems = [];
-      results.innerHTML = skeletonGrid(4);
+      results.innerHTML = skeletonGrid(6);
       moreBox.innerHTML = '';
     }
     if (!reset) {
@@ -702,7 +687,6 @@ async function explore(root, ctx) {
     ctx.navigate('#/explore' + (qs ? '?' + qs : ''));
   };
   input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => sync(), 400); });
-  root.querySelector('#x-go').addEventListener('click', () => sync());
   root.querySelectorAll('.chip[data-s]').forEach((chip) => {
     chip.addEventListener('click', () => sync({ sort: chip.dataset.s }));
   });
@@ -713,7 +697,7 @@ async function explore(root, ctx) {
 /* ═══════════ 5 — تفاصيل البرومبت ═══════════ */
 async function prompt(root, ctx) {
   root.innerHTML = `
-    <div style="padding:14px 0">
+    <div style="padding:8px 0">
       <button class="btn btn-ghost btn-sm" onclick="history.back()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
         رجوع
@@ -730,7 +714,7 @@ async function prompt(root, ctx) {
   const isFollowingAuthor = !!p.isFollowingAuthor;
 
   root.innerHTML = `
-  <div style="padding:14px 0">
+  <div style="padding:8px 0">
     <button class="btn btn-ghost btn-sm" id="back">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
       رجوع
@@ -740,7 +724,7 @@ async function prompt(root, ctx) {
   <div class="detail-hero">
     <div class="detail-cover">
       ${p.cover ? `<img src="${esc(p.cover)}" alt="" decoding="async">`
-                : `<span class="cover-mark" style="font-size:64px">${esc(mark)}</span>`}
+                : `<span class="pc-media-mark" style="font-size:80px">${esc(mark)}</span>`}
     </div>
     <div class="detail-body">
       ${p.slug ? `
@@ -749,33 +733,35 @@ async function prompt(root, ctx) {
       </button>` : ''}
 
       <h1 class="detail-title">${esc(p.title)}</h1>
-      <p style="color:var(--slate);line-height:1.75;font-size:14px">${esc(description)}</p>
+      <p style="color:var(--slate);line-height:1.75;font-size:14.5px">${esc(description)}</p>
 
       <div class="meta-row" style="margin-top:12px">
-        <span class="tag mono">${timeAgo(p.createdAt)}</span>
+        <span class="chip" style="cursor:default">${timeAgo(p.createdAt)}</span>
       </div>
 
       <div class="author-bar">
-        ${avatar(p.author, 40)}
-        <div class="info grow">
+        ${avatar(p.author, 44)}
+        <div class="info">
           <span class="name">${esc(p.author?.name || 'مجهول')}${p.author?.verified ? VCHECK : ''}</span>
           <span class="handle">@${esc(p.author?.username || 'unknown')}</span>
         </div>
-        ${isOwner ? `
-          <div class="row gap-6">
+        <div class="acts">
+          ${isOwner ? `
             <a class="btn btn-outline btn-sm" href="#/edit/${p.id}">${ICON.edit} تعديل</a>
             <button class="btn btn-danger btn-sm" id="delete-btn">${ICON.trash}</button>
-          </div>` : `
-          <button class="btn ${isFollowingAuthor ? 'btn-outline' : 'btn-primary'} btn-sm" id="follow-btn" data-following="${isFollowingAuthor ? '1' : '0'}">
-            ${isFollowingAuthor ? ICON.userCheck + ' متابَع' : ICON.userPlus + ' متابعة'}
-          </button>`}
+          ` : `
+            <button class="btn ${isFollowingAuthor ? 'btn-outline' : 'btn-primary'} btn-sm" id="follow-btn" data-following="${isFollowingAuthor ? '1' : '0'}">
+              ${isFollowingAuthor ? ICON.userCheck + ' متابَع' : ICON.userPlus + ' متابعة'}
+            </button>
+          `}
+        </div>
       </div>
 
       <div class="code-window">
         <div class="code-head">
           <span class="traffic"><i></i><i></i><i></i></span>
           <span class="code-name">prompt.txt</span>
-          <button class="btn btn-ghost btn-xs" id="copy-head">نسخ</button>
+          <button class="btn btn-ghost btn-xs" id="copy-head">${ICON.copy} نسخ</button>
         </div>
         <pre class="code-body ${isLong ? 'clamped' : ''}" id="prompt-body">${esc(p.body)}</pre>
         ${isLong ? `<button class="collapse-toggle" id="toggle-body">عرض النص كاملاً ↓</button>` : ''}
@@ -794,7 +780,7 @@ async function prompt(root, ctx) {
 
       ${(p.tags || []).length ? `
       <div class="pc-tags" style="margin-top:16px">
-        ${(p.tags || []).map((t) => `<a class="tag tag-orange" href="#/explore?q=${encodeURIComponent(t)}">#${esc(t)}</a>`).join('')}
+        ${(p.tags || []).map((t) => `<a class="pc-tag" href="#/explore?q=${encodeURIComponent(t)}">#${esc(t)}</a>`).join('')}
       </div>` : ''}
     </div>
   </div>
@@ -812,16 +798,14 @@ async function prompt(root, ctx) {
 
     ${ctx.state.user ? `
     <div class="comment-form" id="cm-form">
-      <div class="field">
-        <textarea id="cm-input" placeholder="شارك رأيك أو سؤالاً…" maxlength="2000"></textarea>
-        <div class="submit-row">
-          <span class="hint mono" id="cm-char">0 / 2000</span>
-          <button class="btn btn-primary btn-sm" id="cm-submit" disabled>${ICON.send} إرسال</button>
-        </div>
+      <textarea id="cm-input" placeholder="شارك رأيك أو سؤالاً…" maxlength="2000"></textarea>
+      <div class="submit-row">
+        <span class="hint mono" id="cm-char">0 / 2000</span>
+        <button class="btn btn-primary btn-sm" id="cm-submit" disabled>${ICON.send} إرسال</button>
       </div>
     </div>` : `
     <div class="comments-empty" style="margin-bottom:16px">
-      <a href="#/login" style="color:var(--orange);font-weight:500">سجّل الدخول</a>
+      <a href="#/login" style="color:var(--orange);font-weight:600">سجّل الدخول</a>
       لتتمكن من التعليق.
     </div>`}
 
@@ -951,14 +935,11 @@ async function prompt(root, ctx) {
     }
   });
 
-  /* ═══════════ التعليقات ═══════════ */
+  /* التعليقات */
   const cmList = root.querySelector('#cm-list');
   const cmMore = root.querySelector('#cm-more');
   const cmCount = root.querySelector('#cm-count');
-  let cmOffset = 0;
-  let cmAll = [];
-  let cmHasMore = true;
-  let cmLoading = false;
+  let cmOffset = 0, cmAll = [], cmHasMore = true, cmLoading = false;
   const CM_PAGE = 10;
 
   function commentItem(c) {
@@ -968,7 +949,7 @@ async function prompt(root, ctx) {
     const edited = c.updatedAt && new Date(c.updatedAt) - new Date(c.createdAt) > 1000;
     return `
     <div class="comment-item" data-cid="${esc(c.id)}">
-      <div class="c-avatar">${avatar(c.author, 36)}</div>
+      <div class="c-avatar">${avatar(c.author, 40)}</div>
       <div class="c-body">
         <div class="c-head">
           <span class="c-name">${esc(c.author?.name || 'مجهول')}${c.author?.verified ? VCHECK : ''}</span>
@@ -991,8 +972,6 @@ async function prompt(root, ctx) {
       cmOffset = 0; cmAll = []; cmHasMore = true;
       cmList.innerHTML = skeletonComments(3);
       cmMore.innerHTML = '';
-    } else if (cmHasMore) {
-      cmMore.innerHTML = `<div class="load-more-wrap"><button class="load-more-btn" disabled><span class="spinner" style="width:14px;height:14px;border-width:2px;margin:0"></span> …</button></div>`;
     }
     try {
       const { items, hasMore, total } = await ctx.api(
@@ -1144,7 +1123,7 @@ async function editPrompt(root, ctx) {
 async function promptForm(root, ctx, existing) {
   const isEdit = !!existing;
   root.innerHTML = `
-  <div class="section" style="margin-top:16px">
+  <div class="section" style="margin-top:0">
     <div class="head-row">
       <div>
         <div class="eyebrow"><span class="dot"></span>${isEdit ? 'تعديل' : 'نشر'} / برومبت</div>
@@ -1153,13 +1132,13 @@ async function promptForm(root, ctx, existing) {
     </div>
 
     <form id="np-form" class="stack gap-16">
-      <div class="card card-white">
+      <div class="card">
         <div class="stack gap-16">
           <div class="field">
             <label class="label">صورة الغلاف <span class="opt">(اختياري)</span></label>
             <div class="row gap-12" style="flex-wrap:wrap">
-              <div id="cover-preview" style="width:120px;height:90px;border:1px solid var(--grid);border-radius:14px;background:var(--vellum);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">
-                <span class="cover-mark" style="font-size:28px">؟</span>
+              <div id="cover-preview" style="width:140px;height:96px;border:1.5px solid var(--grid);border-radius:var(--r-lg);background:var(--vellum);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">
+                <span class="pc-media-mark" style="font-size:32px">؟</span>
               </div>
               <div class="stack gap-8 grow">
                 <input class="input" id="cover-url" dir="ltr" placeholder="https://…" value="${esc(existing?.cover || '')}">
@@ -1185,11 +1164,11 @@ async function promptForm(root, ctx, existing) {
         </div>
       </div>
 
-      <div class="card card-white">
+      <div class="card">
         <div class="stack gap-16">
           <div class="field">
             <label class="label">نص البرومبت</label>
-            <textarea class="textarea code" id="body" rows="12" required
+            <textarea class="textarea code" id="body" rows="14" required
               placeholder="اكتب البرومبت…">${esc(existing?.body || '')}</textarea>
             <div class="row" style="justify-content:space-between">
               <span class="hint">استخدم <span class="mono">{{ }}</span> للمتغيرات</span>
@@ -1203,7 +1182,7 @@ async function promptForm(root, ctx, existing) {
 
       <div class="row gap-10" style="flex-wrap:wrap;justify-content:flex-end">
         <button type="button" class="btn btn-ghost" id="cancel">إلغاء</button>
-        <button type="submit" class="btn btn-primary" id="publish">${isEdit ? 'حفظ' : 'نشر البرومبت'}</button>
+        <button type="submit" class="btn btn-primary btn-lg" id="publish">${isEdit ? 'حفظ' : 'نشر البرومبت'}</button>
       </div>
     </form>
   </div>`;
@@ -1216,7 +1195,7 @@ async function promptForm(root, ctx, existing) {
     cover = v;
     preview.innerHTML = v
       ? `<img src="${esc(v)}" style="width:100%;height:100%;object-fit:cover" alt="">`
-      : `<span class="cover-mark" style="font-size:28px">؟</span>`;
+      : `<span class="pc-media-mark" style="font-size:32px">؟</span>`;
   };
   if (cover) setCover(cover);
   urlInput.addEventListener('input', () => setCover(urlInput.value.trim()));
@@ -1311,7 +1290,7 @@ async function profile(root, ctx) {
     </div>
     ${u.isSelf ? `
     <div class="profile-actions">
-      <button class="settings-btn" id="settings-btn" title="الإعدادات">${ICON.settings}</button>
+      <button class="settings-btn" id="settings-btn" title="الإعدادات" aria-label="الإعدادات">${ICON.settings}</button>
     </div>` : `
     <div class="profile-actions">
       <button class="btn ${u.isFollowing ? 'btn-outline' : 'btn-primary'} btn-sm" id="follow-btn" data-following="${u.isFollowing ? '1' : '0'}">
@@ -1321,15 +1300,13 @@ async function profile(root, ctx) {
   </div>
 
   ${u.isSelf ? `
-  <div class="edit-panel hidden" id="settings-panel" style="background:#fff;border:1px solid var(--grid);border-radius:20px;padding:22px;margin-bottom:20px;box-shadow:var(--shadow-card)">
+  <div class="card hidden" id="settings-panel" style="margin-bottom:20px">
     <div class="stack gap-16">
 
-      <h3 style="font-size:15px;display:flex;align-items:center;gap:8px;margin-bottom:4px">
-        ${ICON.settings} الإعدادات
-      </h3>
+      <h3 style="font-size:16px;display:flex;align-items:center;gap:8px">${ICON.settings} الإعدادات</h3>
 
       <div class="row gap-12" style="flex-wrap:wrap;align-items:flex-start">
-        <div id="avatar-preview" class="profile-avatar" style="width:60px;height:60px;font-size:20px;flex-shrink:0">${avatarInner}</div>
+        <div id="avatar-preview" class="profile-avatar" style="width:64px;height:64px;font-size:22px;flex-shrink:0">${avatarInner}</div>
         <div class="stack gap-8 grow">
           <input class="input" id="edit-avatar" dir="ltr" placeholder="رابط الصورة" value="${esc(u.avatar || '')}">
           <div class="row gap-8">
@@ -1383,7 +1360,9 @@ async function profile(root, ctx) {
 
       <div class="danger-zone">
         <h4>الأمان</h4>
-        <p>إن كنت مسجّلًا على أجهزة أخرى ولا تريد ذلك، يمكنك إبطال جميع الجلسات.</p>
+        <p style="font-size:13px;color:var(--graphite);margin-bottom:12px;line-height:1.7">
+          إن كنت مسجّلًا على أجهزة أخرى ولا تريد ذلك، يمكنك إبطال جميع الجلسات. ستحتفظ أنت بالجلسة الحالية.
+        </p>
         <div class="row gap-8" style="flex-wrap:wrap">
           <button type="button" class="btn btn-danger btn-sm" id="logout-all">
             إبطال الجلسات الأخرى
@@ -1392,12 +1371,6 @@ async function profile(root, ctx) {
             تسجيل الخروج
           </button>
         </div>
-      </div>
-
-      <div style="text-align:center;padding-top:6px">
-        <button type="button" id="version-btn" style="font-family:var(--font-mono);font-size:11px;color:var(--ash);padding:8px 14px;border-radius:999px;transition:all .2s var(--ease)">
-          خيال · الإصدار ${ctx.appVersion}
-        </button>
       </div>
 
     </div>
@@ -1492,12 +1465,12 @@ async function profile(root, ctx) {
   function userMiniCard(x) {
     return `
       <div class="user-mini" data-uid="${esc(x.id)}">
-        ${avatar(x, 42)}
+        ${avatar(x, 44)}
         <div class="info">
           <div class="nm">${esc(x.name)}${x.verified ? VCHECK : ''}</div>
           <div class="hn">@${esc(x.username)}</div>
         </div>
-        <div class="st">→</div>
+        <div class="st">←</div>
       </div>`;
   }
 
@@ -1571,7 +1544,7 @@ async function profile(root, ctx) {
     if (!panel) return;
     panel.classList.toggle('hidden');
     if (!panel.classList.contains('hidden')) {
-      panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   });
   root.querySelector('#edit-cancel')?.addEventListener('click', () => panel.classList.add('hidden'));
@@ -1660,10 +1633,6 @@ async function profile(root, ctx) {
     ctx.navigate('#/');
   });
 
-  root.querySelector('#version-btn')?.addEventListener('click', () => {
-    ctx.navigate('#/admin');
-  });
-
   const followBtn = root.querySelector('#follow-btn');
   followBtn?.addEventListener('click', () => {
     if (!ctx.state.user) {
@@ -1699,10 +1668,10 @@ async function favorites(root, ctx) {
     return ctx.navigate('#/login');
   }
   root.innerHTML = `
-    <div class="section" style="margin-top:16px">
+    <div class="section" style="margin-top:0">
       ${sectionHead('04', 'تفضيلاتي', 'البرومبتات التي <span class="hl">أعجبتك</span>')}
     </div>
-    <div id="fav-results">${skeletonGrid(3)}</div>`;
+    <div id="fav-results">${skeletonGrid(4)}</div>`;
   const { items } = await ctx.api('/favorites', { useCache: false });
   const container = root.querySelector('#fav-results');
   if (!items.length) {
@@ -1722,7 +1691,7 @@ async function notifications(root, ctx) {
     return ctx.navigate('#/login');
   }
   root.innerHTML = `
-  <div class="section" style="margin-top:16px">
+  <div class="section" style="margin-top:0">
     <div class="head-row">
       <div>
         <div class="eyebrow"><span class="dot"></span>09 / الإشعارات</div>
@@ -1731,7 +1700,7 @@ async function notifications(root, ctx) {
       <button class="btn btn-outline btn-sm" id="mark-all">تعليم الكل كمقروء</button>
     </div>
   </div>
-  <div class="notif-list" id="nf-list">${skeletonNotifications(5)}</div>
+  <div class="notif-list" id="nf-list">${skeletonNotifications(6)}</div>
   <div id="nf-more"></div>`;
 
   const list = root.querySelector('#nf-list');
@@ -1770,7 +1739,7 @@ async function notifications(root, ctx) {
     loading = true;
     if (reset) {
       offset = 0; all = []; hasMore = true;
-      list.innerHTML = skeletonNotifications(5);
+      list.innerHTML = skeletonNotifications(6);
       more.innerHTML = '';
     }
     try {
@@ -1842,7 +1811,7 @@ async function admin(root, ctx) {
       <form id="lock-form" class="stack gap-12">
         <input class="input" id="lock-pass" type="password" dir="ltr" placeholder="كلمة المرور" required>
         <p class="err-text" id="lock-err" hidden></p>
-        <button class="btn btn-primary btn-block" type="submit" id="lock-btn">دخول</button>
+        <button class="btn btn-primary btn-block btn-lg" type="submit" id="lock-btn">دخول</button>
       </form>
       <div class="lock-note">التجريبية: khayal-admin</div>
     </div>`;
@@ -1873,7 +1842,7 @@ async function admin(root, ctx) {
       <div class="eyebrow"><span class="dot"></span>10 / الإدارة</div>
       <h1>لوحة التحكم</h1>
     </div>
-    <button class="btn btn-outline btn-sm" id="admin-exit">خروج</button>
+    <button class="btn btn-outline btn-sm" id="admin-exit">خروج من اللوحة</button>
   </div>
   <div class="tabs">
     <button class="tab active" data-tab="overview">نظرة عامة</button>
@@ -1911,8 +1880,8 @@ async function admin(root, ctx) {
         <div class="stat-card"><div class="k">التعليقات</div><div class="v">${fmt(stats.comments || 0)}</div></div>
       </div>
       <div class="two-col">
-        <div class="card card-white">
-          <h3 style="font-size:13px;margin-bottom:10px">أعلى البرومبتات</h3>
+        <div class="card">
+          <h3 style="font-size:14px;margin-bottom:12px">أعلى البرومبتات</h3>
           <div class="list-mini">
             ${topPrompts.map((p) => `
               <div class="item">
@@ -1921,12 +1890,12 @@ async function admin(root, ctx) {
               </div>`).join('') || '<p class="hint">لا يوجد</p>'}
           </div>
         </div>
-        <div class="card card-white">
-          <h3 style="font-size:13px;margin-bottom:10px">أحدث المستخدمين</h3>
+        <div class="card">
+          <h3 style="font-size:14px;margin-bottom:12px">أحدث المستخدمين</h3>
           <div class="list-mini">
             ${latestUsers.map((u) => `
               <div class="item">
-                ${avatar(u, 26)}
+                ${avatar(u, 28)}
                 <div class="grow"><div class="t">${esc(u.name)}</div><div class="s">@${esc(u.username)}</div></div>
                 <span class="v">${u.promptCount || 0}</span>
               </div>`).join('')}
@@ -1945,10 +1914,10 @@ async function admin(root, ctx) {
           <tbody>
             ${items.map((u) => `
               <tr>
-                <td><span class="td-user">${avatar(u, 26)}<span>${esc(u.name)}</span></span></td>
+                <td><span class="td-user">${avatar(u, 28)}<span>${esc(u.name)}</span></span></td>
                 <td class="mono" style="font-size:11px;color:var(--slate)" dir="ltr">${esc(u.email)}</td>
-                <td><span class="tag mono">${u.role === 'admin' ? 'إدارة' : 'عضو'}</span></td>
-                <td>${u.verified ? '<span class="badge">موثّق</span>' : '<span class="tag">لا</span>'}</td>
+                <td><span class="badge badge-soft mono">${u.role === 'admin' ? 'إدارة' : 'عضو'}</span></td>
+                <td>${u.verified ? '<span class="badge">موثّق</span>' : '<span class="badge badge-soft">لا</span>'}</td>
                 <td class="mono">${u.promptCount || 0}</td>
                 <td><div class="td-actions">
                   <button class="btn btn-outline btn-xs" data-verify="${u.id}">${u.verified ? 'إلغاء' : 'توثيق'}</button>
@@ -1979,7 +1948,7 @@ async function admin(root, ctx) {
           <tbody>
             ${items.map((p) => `
               <tr>
-                <td><a href="#/p/${esc(p.slug || p.id)}" style="font-weight:500">${esc(p.title)}</a></td>
+                <td><a href="#/p/${esc(p.slug || p.id)}" style="font-weight:600">${esc(p.title)}</a></td>
                 <td class="mono" style="font-size:11px;color:var(--ash)">${p.slug ? '/' + esc(p.slug) : '—'}</td>
                 <td>${esc(p.author?.name || '—')}</td>
                 <td class="mono">${fmt(p.likes)}</td>
@@ -2008,13 +1977,13 @@ async function admin(root, ctx) {
       <p class="hint" style="margin-bottom:14px">${items.length} مؤهّل.</p>
       <div class="stack gap-10">
         ${items.map(({ user: u }) => `
-          <div class="card card-white row gap-14" style="flex-wrap:wrap">
-            ${avatar(u, 40)}
+          <div class="card row gap-14" style="flex-wrap:wrap;padding:16px">
+            ${avatar(u, 44)}
             <div class="grow">
-              <div style="font-weight:500;font-size:14px">${esc(u.name)}</div>
-              <div class="mono" style="font-size:11px;color:var(--ash)">@${esc(u.username)}</div>
+              <div style="font-weight:600;font-size:14.5px">${esc(u.name)}</div>
+              <div class="mono" style="font-size:11.5px;color:var(--ash)">@${esc(u.username)}</div>
             </div>
-            <div class="row gap-12" style="font-size:12px;color:var(--slate)">
+            <div class="row gap-12" style="font-size:12.5px;color:var(--slate)">
               <span>${u.promptCount} برومبت</span>
               <span>♥ ${fmt(u.totalLikes)}</span>
             </div>
@@ -2036,7 +2005,7 @@ async function admin(root, ctx) {
 /* ═══════════ 11 — انقطاع الاتصال ═══════════ */
 async function offline(root, ctx) {
   root.innerHTML = `
-  <div class="state" style="margin:60px auto;max-width:460px;border-style:solid">
+  <div class="state" style="margin:48px auto;max-width:480px">
     <div class="icon">${ICON.wifiOff}</div>
     <h3>لا يوجد اتصال</h3>
     <p>تعذّر الوصول. سنعيد المحاولة عند عودة الاتصال.</p>
