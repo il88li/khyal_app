@@ -1,4 +1,4 @@
-import { query, queryOne, queryAll, transaction } from './db.js';
+import { query, queryOne, queryAll, transaction, ensureSchema } from './db.js';
 
 export const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'khayal-admin';
 
@@ -12,13 +12,9 @@ export const MODELS = [
   'Gemini 1.5 Pro', 'Llama 3.1 70B', 'Midjourney v6', 'DALL·E 3'
 ];
 
-/* الجلسات في الذاكرة — خفيفة وسريعة */
-export const sessions = new Map();
-export const adminTokens = new Set();
-
 /* ═══════════ المستخدمون ═══════════ */
 
-const USER_COLS = `id, name, username, email, bio, verified, role,
+const USER_COLS = `id, name, username, email, bio, avatar, verified, role,
   joined::text AS joined, password`;
 
 export const findUser = (id) =>
@@ -30,13 +26,29 @@ export const findUserByEmail = (email) =>
 export async function createUser({ name, email, password, username }) {
   const id = 'u' + Date.now().toString(36);
   const uname = username || email.split('@')[0];
-  const row = await queryOne(
-    `INSERT INTO users (id,name,username,email,password,bio,verified,role,joined)
-     VALUES ($1,$2,$3,$4,$5,'',FALSE,'user',CURRENT_DATE)
+  return queryOne(
+    `INSERT INTO users (id,name,username,email,password,bio,avatar,verified,role,joined)
+     VALUES ($1,$2,$3,$4,$5,'','',FALSE,'user',CURRENT_DATE)
      RETURNING ${USER_COLS}`,
     [id, name, uname, email, password]
   );
-  return row;
+}
+
+export async function updateUser(id, patch) {
+  const allowed = ['name', 'username', 'bio', 'avatar'];
+  const fields = [];
+  const params = [id];
+  for (const k of allowed) {
+    if (patch[k] !== undefined) {
+      params.push(String(patch[k]));
+      fields.push(`${k} = $${params.length}`);
+    }
+  }
+  if (!fields.length) return findUser(id);
+  return queryOne(
+    `UPDATE users SET ${fields.join(', ')} WHERE id = $1 RETURNING ${USER_COLS}`,
+    params
+  );
 }
 
 /* ═══════════ البرومبتات ═══════════ */
@@ -46,7 +58,8 @@ const PROMPT_SELECT = `
          p.tags, p.models, p.cover, p.author_id AS "authorId",
          p.copies, p.created_at AS "createdAt",
          (SELECT COUNT(*)::int FROM likes l WHERE l.prompt_id = p.id) AS likes,
-         u.id AS "aId", u.name AS "aName", u.username AS "aUsername", u.verified AS "aVerified"
+         u.id AS "aId", u.name AS "aName", u.username AS "aUsername",
+         u.verified AS "aVerified", u.avatar AS "aAvatar"
   FROM prompts p
   LEFT JOIN users u ON u.id = p.author_id
 `;
@@ -62,7 +75,8 @@ function shapePrompt(row, viewerId, likedSet) {
     liked: likedSet ? likedSet.has(row.id) : false,
     author: row.aId ? {
       id: row.aId, name: row.aName,
-      username: row.aUsername, verified: row.aVerified
+      username: row.aUsername, verified: row.aVerified,
+      avatar: row.aAvatar || ''
     } : null
   };
 }
@@ -138,6 +152,21 @@ export async function createPrompt(data) {
   return getPrompt(row.id, data.authorId);
 }
 
+export async function updatePrompt(id, patch) {
+  const allowed = ['title', 'description', 'body', 'category', 'tags', 'models', 'cover'];
+  const fields = [];
+  const params = [id];
+  for (const k of allowed) {
+    if (patch[k] !== undefined) {
+      params.push(patch[k]);
+      fields.push(`${k} = $${params.length}`);
+    }
+  }
+  if (!fields.length) return getPrompt(id, null);
+  await query(`UPDATE prompts SET ${fields.join(', ')} WHERE id = $1`, params);
+  return getPrompt(id, null);
+}
+
 export async function incrementCopies(id) {
   const row = await queryOne(
     `UPDATE prompts SET copies = copies + 1 WHERE id = $1 RETURNING copies`,
@@ -197,6 +226,55 @@ export async function getUserLikes(userId) {
   return rows.map((r) => shapePrompt(r, userId, likedSet));
 }
 
+/* ═══════════ المتابعة ═══════════ */
+
+export async function toggleFollow(followerId, followingId) {
+  return transaction(async (client) => {
+    const { rows } = await client.query(
+      `SELECT 1 FROM follows WHERE follower_id = $1 AND following_id = $2`,
+      [followerId, followingId]
+    );
+    if (rows.length) {
+      await client.query(
+        `DELETE FROM follows WHERE follower_id = $1 AND following_id = $2`,
+        [followerId, followingId]
+      );
+      return { following: false };
+    } else {
+      await client.query(
+        `INSERT INTO follows (follower_id, following_id) VALUES ($1, $2)`,
+        [followerId, followingId]
+      );
+      return { following: true };
+    }
+  });
+}
+
+export async function isFollowing(followerId, followingId) {
+  if (!followerId || !followingId) return false;
+  const row = await queryOne(
+    `SELECT 1 FROM follows WHERE follower_id = $1 AND following_id = $2`,
+    [followerId, followingId]
+  );
+  return !!row;
+}
+
+export async function countFollowers(userId) {
+  const row = await queryOne(
+    `SELECT COUNT(*)::int AS n FROM follows WHERE following_id = $1`,
+    [userId]
+  );
+  return row?.n || 0;
+}
+
+export async function countFollowing(userId) {
+  const row = await queryOne(
+    `SELECT COUNT(*)::int AS n FROM follows WHERE follower_id = $1`,
+    [userId]
+  );
+  return row?.n || 0;
+}
+
 /* ═══════════ إحصائيات المستخدم ═══════════ */
 
 export async function userStats(userId) {
@@ -205,7 +283,9 @@ export async function userStats(userId) {
        (SELECT COUNT(*)::int FROM prompts WHERE author_id = $1) AS "promptCount",
        (SELECT COUNT(*)::int FROM likes l
          JOIN prompts p ON p.id = l.prompt_id WHERE p.author_id = $1) AS "totalLikes",
-       (SELECT COALESCE(SUM(copies),0)::int FROM prompts WHERE author_id = $1) AS "totalCopies"`,
+       (SELECT COALESCE(SUM(copies),0)::int FROM prompts WHERE author_id = $1) AS "totalCopies",
+       (SELECT COUNT(*)::int FROM follows WHERE following_id = $1) AS "followers",
+       (SELECT COUNT(*)::int FROM follows WHERE follower_id = $1) AS "following"`,
     [userId]
   );
   return row;
@@ -276,8 +356,8 @@ export async function latestUsers(limit = 5) {
 
 export async function listUsers() {
   return queryAll(`
-    SELECT u.id, u.name, u.username, u.email, u.bio, u.verified, u.role,
-           u.joined::text AS joined,
+    SELECT u.id, u.name, u.username, u.email, u.bio, u.avatar,
+           u.verified, u.role, u.joined::text AS joined,
            (SELECT COUNT(*)::int FROM prompts WHERE author_id = u.id) AS "promptCount",
            (SELECT COUNT(*)::int FROM likes l JOIN prompts p ON p.id = l.prompt_id
              WHERE p.author_id = u.id) AS "totalLikes",
@@ -290,7 +370,8 @@ export async function listUsers() {
 export async function toggleVerify(userId) {
   return queryOne(
     `UPDATE users SET verified = NOT verified WHERE id = $1
-     RETURNING id, name, username, email, bio, verified, role, joined::text AS joined`,
+     RETURNING id, name, username, email, bio, avatar, verified, role,
+               joined::text AS joined`,
     [userId]
   );
 }
