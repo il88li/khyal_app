@@ -3,8 +3,13 @@ import 'dotenv/config';
 
 const { Pool } = pg;
 
+/* ═══════════════════════════════════════════════
+   بناء الإعدادات — يدعم Aiven SSL
+   ═══════════════════════════════════════════════ */
+
 function buildConfig() {
   let connectionString = process.env.DATABASE_URL;
+
   if (connectionString) {
     try {
       const u = new URL(connectionString);
@@ -13,9 +18,14 @@ function buildConfig() {
       connectionString = u.toString();
     } catch { /* تجاهل */ }
   }
+
   if (connectionString) {
-    return { connectionString, ssl: { rejectUnauthorized: false } };
+    return {
+      connectionString,
+      ssl: { rejectUnauthorized: false }
+    };
   }
+
   return {
     host: process.env.DB_HOST,
     port: Number(process.env.DB_PORT) || 5432,
@@ -26,24 +36,63 @@ function buildConfig() {
   };
 }
 
+/* ═══════════════════════════════════════════════
+   Pool مُحسّن لـ Serverless (Vercel Lambda)
+   ─────────────────────────────────────────────
+   ⚠️ الحرجة: عدد الاتصالات قليل جدًا في Aiven Free
+   كل Lambda instance يجب ألا يفتح أكثر من اتصالين.
+   ═══════════════════════════════════════════════ */
+
 const POOL_KEY = '__khayal_pg_pool__';
 
 function getPool() {
   if (!globalThis[POOL_KEY]) {
-    console.log('[db] إنشاء pool جديد');
+    console.log('[db] إنشاء pool جديد لـ Serverless');
+
     const pool = new Pool({
       ...buildConfig(),
-      max: Number(process.env.PG_POOL_MAX) || 8,
-      min: 0,
-      idleTimeoutMillis: 10000,
-      connectionTimeoutMillis: 8000,
+
+      // ⭐⭐⭐ التعديلات الحرجة ⭐⭐⭐
+      max: 2,                              // ← كان 8! الآن 2 فقط
+      min: 0,                              // لا اتصالات دائمة
+
+      // ⭐ إغلاق سريع للاتصالات الخاملة
+      idleTimeoutMillis: 5000,             // ← كان 8s
+      connectionTimeoutMillis: 6000,       // ← كان 8s
+
+      // ⭐⭐⭐ مهم جدًا لـ Vercel: اسمح للـ pool بإغلاق نفسه
+      allowExitOnIdle: true,               // ← جديد! يُغلق pool عند تجمد Lambda
+
+      // ⭐ إعادة استخدام الاتصال حتى 50 مرة ثم إغلاقه
+      maxUses: 50,                         // ← جديد! يمنع تسريب الاتصالات
+
+      // ⭐ إعدادات الشبكة
       keepAlive: true,
       keepAliveInitialDelayMillis: 5000,
-      application_name: 'khayal',
-      statement_timeout: 15000,
-      query_timeout: 15000
+
+      // ⭐ تقليل المهلة من 15s إلى 8s لتجنب 504
+      statement_timeout: 8000,             // ← كان 15s
+      query_timeout: 8000,                 // ← كان 15s
+
+      application_name: 'khayal-serverless'
     });
-    pool.on('error', (err) => console.error('[db] خطأ اتصال خامل:', err.message));
+
+    pool.on('error', (err) => {
+      console.error('[db] خطأ اتصال خامل:', err.message);
+    });
+
+    pool.on('connect', () => {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[db] اتصال جديد — إجمالي:', pool.totalCount);
+      }
+    });
+
+    pool.on('remove', () => {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[db] اتصال مُغلق — إجمالي:', pool.totalCount);
+      }
+    });
+
     globalThis[POOL_KEY] = pool;
   }
   return globalThis[POOL_KEY];
@@ -51,29 +100,71 @@ function getPool() {
 
 export const pool = getPool();
 
+/* ═══════════════════════════════════════════════
+   إعادة المحاولة الذكية
+   ─────────────────────────────────────────────
+   ⭐ يعالج خطأ "remaining connection slots"
+   ⭐ يعالج timeout والمشاكل العابرة
+   ═══════════════════════════════════════════════ */
+
 const TRANSIENT_PATTERNS = [
   'ECONNRESET', 'EPIPE', 'ETIMEDOUT', 'ECONNREFUSED',
   'socket hang up', 'Connection terminated',
   'connect timeout', 'connection timeout',
   'server closed', 'terminating connection'
 ];
+
+const CONNECTION_LIMIT_PATTERNS = [
+  'remaining connection slots',
+  'too many clients',
+  'too many connections'
+];
+
 const isTransient = (err) =>
   TRANSIENT_PATTERNS.some((p) =>
     (err?.message || '').toLowerCase().includes(p.toLowerCase()));
 
-const RETRY_DELAYS = [0, 250, 800];
+const isConnectionLimit = (err) =>
+  CONNECTION_LIMIT_PATTERNS.some((p) =>
+    (err?.message || '').toLowerCase().includes(p.toLowerCase()));
+
+// ⭐ للاتصالات المحدودة: انتظر أطول قليلاً
+const RETRY_DELAYS = [0, 200, 800, 2000, 4000];
+const CONNECTION_LIMIT_DELAYS = [1000, 2000, 3000, 5000];
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export async function query(sql, params = []) {
   let lastErr;
+  let connectionAttempt = 0;
+
   for (let i = 0; i < RETRY_DELAYS.length; i++) {
     if (RETRY_DELAYS[i]) await sleep(RETRY_DELAYS[i]);
-    try { return await pool.query(sql, params); }
-    catch (err) {
+
+    try {
+      return await pool.query(sql, params);
+    } catch (err) {
       lastErr = err;
+
+      // ⭐ إذا القاعدة مليئة بالاتصالات — انتظر ثم أعد المحاولة
+      if (isConnectionLimit(err)) {
+        if (connectionAttempt < CONNECTION_LIMIT_DELAYS.length) {
+          const delay = CONNECTION_LIMIT_DELAYS[connectionAttempt++];
+          console.warn(`[db] الاتصالات ممتلئة — انتظار ${delay}ms (محاولة ${connectionAttempt})`);
+          await sleep(delay);
+          i--; // كرّر نفس الفهرس
+          continue;
+        }
+        console.error('[db] فشلت كل محاولات الاتصال');
+        throw err;
+      }
+
+      // أخطاء عابرة — أعِد المحاولة
       if (!isTransient(err)) throw err;
+      console.warn(`[db] محاولة ${i + 1} فشلت: ${err.message}`);
     }
   }
+
   throw lastErr;
 }
 
@@ -98,7 +189,10 @@ export async function transaction(fn) {
   }
 }
 
-/* ═══════════ ذاكرة تخزين مؤقت ═══════════ */
+/* ═══════════════════════════════════════════════
+   Cache في الذاكرة
+   ═══════════════════════════════════════════════ */
+
 const CACHE_KEY = '__khayal_cache__';
 function getCache() {
   if (!globalThis[CACHE_KEY]) globalThis[CACHE_KEY] = new Map();
@@ -128,7 +222,10 @@ export function cacheClear(prefix = '') {
   for (const k of c.keys()) if (k.startsWith(prefix)) c.delete(k);
 }
 
-/* ═══════════ المخطط — v3.1 ═══════════ */
+/* ═══════════════════════════════════════════════
+   المخطط — كل الجداول
+   ═══════════════════════════════════════════════ */
+
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS users (
   id           TEXT PRIMARY KEY,
@@ -210,7 +307,6 @@ CREATE TABLE IF NOT EXISTS notifications (
   created_at   TIMESTAMPTZ DEFAULT NOW()
 );
 
-/* ═══ الفهارس الأساسية ═══ */
 CREATE INDEX IF NOT EXISTS idx_prompts_author     ON prompts(author_id);
 CREATE INDEX IF NOT EXISTS idx_prompts_created    ON prompts(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_prompts_copies     ON prompts(copies DESC);
@@ -225,29 +321,6 @@ CREATE INDEX IF NOT EXISTS idx_comments_prompt    ON comments(prompt_id, created
 CREATE INDEX IF NOT EXISTS idx_comments_user      ON comments(user_id);
 CREATE INDEX IF NOT EXISTS idx_notif_user         ON notifications(user_id, is_read, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_notif_actor        ON notifications(actor_id);
-
-/* ═══ فهارس v3.1 للأداء المحسّن ═══ */
-CREATE INDEX IF NOT EXISTS idx_prompts_author_created
-  ON prompts(author_id, created_at DESC);
-
-CREATE INDEX IF NOT EXISTS idx_prompts_copies_created
-  ON prompts(copies DESC, created_at DESC);
-
-CREATE INDEX IF NOT EXISTS idx_likes_user_created
-  ON likes(user_id, created_at DESC);
-
-CREATE INDEX IF NOT EXISTS idx_follows_follower_created
-  ON follows(follower_id, created_at DESC);
-
-CREATE INDEX IF NOT EXISTS idx_follows_following_created
-  ON follows(following_id, created_at DESC);
-
-CREATE INDEX IF NOT EXISTS idx_notifications_user_created
-  ON notifications(user_id, created_at DESC);
-
-CREATE INDEX IF NOT EXISTS idx_notifications_user_unread
-  ON notifications(user_id, is_read)
-  WHERE is_read = FALSE;
 `;
 
 const MIGRATED_KEY = '__khayal_migrated__';
@@ -263,6 +336,10 @@ export async function ensureSchema() {
     throw e;
   }
 }
+
+/* ═══════════════════════════════════════════════
+   فحص الصحة
+   ═══════════════════════════════════════════════ */
 
 export async function healthCheck() {
   const start = Date.now();
@@ -283,7 +360,7 @@ export async function healthCheck() {
 
 export async function closePool() {
   if (globalThis[POOL_KEY]) {
-    await globalThis[POOL_KEY].end();
+    await globalThis[POOL_KEY].end().catch(() => {});
     delete globalThis[POOL_KEY];
     console.log('[db] أُغلق الـ pool');
   }
