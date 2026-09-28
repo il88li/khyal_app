@@ -3,6 +3,8 @@ import { Screens } from './screens.js';
 const TOKEN_KEY = 'khayal_token';
 const ADMIN_KEY = 'khayal_admin';
 
+export const APP_VERSION = '2.3.0';
+
 export const state = {
   user: null,
   meta: { categories: [], models: [], stats: {} },
@@ -11,7 +13,6 @@ export const state = {
   unreadCount: 0
 };
 
-/* ═══════════ خطأ مخصّص يحمل رمز الحالة ═══════════ */
 export class ApiError extends Error {
   constructor(message, status) {
     super(message);
@@ -54,9 +55,9 @@ export function toast(message, type = 'info') {
   setTimeout(() => {
     el.style.transition = 'opacity .3s, transform .3s';
     el.style.opacity = '0';
-    el.style.transform = 'translateY(-6px)';
+    el.style.transform = 'translateY(-6px) scale(.94)';
     setTimeout(() => el.remove(), 300);
-  }, 2200);
+  }, 2400);
 }
 
 export const navigate = (hash) => {
@@ -136,7 +137,7 @@ function renderTopbar() {
                 : ''}
             </a>
             <a href="#/profile" title="${state.user.name}">
-               <span class="avatar ${state.user.verified ? 'verified' : ''}" style="--s:32px">
+               <span class="avatar ${state.user.verified ? 'verified' : ''}" style="--s:34px">
                  ${state.user.avatar ? `<img src="${state.user.avatar}" alt="">` : initials(state.user.name)}
                </span>
              </a>
@@ -198,6 +199,7 @@ async function render() {
 
     const ctx = {
       api, navigate, toast, state, ApiError,
+      appVersion: APP_VERSION,
       params: query,
       id: parts[1] || null,
       requireOnline() {
@@ -260,7 +262,6 @@ async function render() {
   }
 }
 
-/* ═══════════ scroll effect ═══════════ */
 let _scrollTick = false;
 window.addEventListener('scroll', () => {
   if (_scrollTick) return;
@@ -272,7 +273,6 @@ window.addEventListener('scroll', () => {
   });
 }, { passive: true });
 
-/* ═══════════ WebView bridge ═══════════ */
 function setupWebViewBridge() {
   window.addEventListener('hashchange', () => {
     if (window.AndroidBack?.onRouteChange) {
@@ -288,7 +288,6 @@ function setupWebViewBridge() {
   document.body.style.overscrollBehaviorY = 'contain';
 }
 
-/* ═══════════ الإشعارات — جلب + استقصاء ═══════════ */
 async function refreshUnread() {
   if (!localStorage.getItem(TOKEN_KEY) || !state.user) {
     state.unreadCount = 0;
@@ -341,7 +340,6 @@ async function boot() {
     toast('انقطع الاتصال', 'error');
   });
 
-  // استقصاء الإشعارات كل 30 ثانية
   refreshUnread();
   setInterval(() => {
     if (state.online && state.user && !document.hidden) refreshUnread();
