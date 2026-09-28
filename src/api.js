@@ -2,8 +2,9 @@ import { Router } from 'express';
 import {
   ADMIN_PASSWORD, CATEGORIES, MODELS,
   findUser, findUserByEmail, createUser, updateUser,
-  listPrompts, countPrompts, getPrompt, getRelated, createPrompt,
-  updatePrompt, incrementCopies, deletePrompt, toggleLike, getUserLikes,
+  listPrompts, countPrompts, getPrompt, getPromptByKey, getRelated,
+  createPrompt, updatePrompt, incrementCopies, deletePrompt,
+  toggleLike, getUserLikes,
   userStats, publicUser, eligibility,
   adminStats, topPrompts, latestUsers, listUsers,
   toggleVerify, deleteUser, eligibleUsers,
@@ -17,21 +18,32 @@ import { healthCheck, ensureSchema } from './db.js';
 
 const api = Router();
 
-/* ═══════════════════════════════════════════════
-   تهيئة المخطط عند أول طلب
-   ═══════════════════════════════════════════════ */
-api.use(async (_req, res, next) => {
-  try {
-    await ensureSchema();
-    next();
-  } catch (e) {
-    res.status(503).json({ error: 'قاعدة البيانات غير مهيأة: ' + e.message });
+/* ═══════════ Rate limiting بسيط (in-memory) ═══════════ */
+const RL_KEY = '__khayal_rl__';
+function rateLimit(key, max, windowMs) {
+  if (!globalThis[RL_KEY]) globalThis[RL_KEY] = new Map();
+  const store = globalThis[RL_KEY];
+  const now = Date.now();
+  const entry = store.get(key);
+  if (!entry || entry.reset < now) {
+    store.set(key, { count: 1, reset: now + windowMs });
+    return true;
   }
+  if (entry.count >= max) return false;
+  entry.count++;
+  if (store.size > 5000) {
+    for (const [k, v] of store) if (v.reset < now) store.delete(k);
+  }
+  return true;
+}
+
+/* ═══════════ تهيئة المخطط ═══════════ */
+api.use(async (_req, res, next) => {
+  try { await ensureSchema(); next(); }
+  catch (e) { res.status(503).json({ error: 'قاعدة البيانات غير مهيأة: ' + e.message }); }
 });
 
-/* ═══════════════════════════════════════════════
-   المصادقة — من قاعدة البيانات
-   ═══════════════════════════════════════════════ */
+/* ═══════════ المصادقة ═══════════ */
 api.use(async (req, _res, next) => {
   const h = req.headers.authorization || '';
   const t = h.startsWith('Bearer ') ? h.slice(7) : null;
@@ -46,11 +58,9 @@ const requireAuth = (req, res, next) =>
 const requireAdmin = (req, res, next) =>
   verifyAdminToken(req.headers['x-admin-token'])
     ? next()
-    : res.status(401).json({ error: 'انتهت جلسة اللوحة، أعد الدخول' });
+    : res.status(401).json({ error: 'انتهت جلسة اللوحة' });
 
-/* ═══════════════════════════════════════════════
-   الصحة والبيانات الوصفية
-   ═══════════════════════════════════════════════ */
+/* ═══════════ الصحة والبيانات الوصفية ═══════════ */
 api.get('/health', async (_req, res) => {
   const db = await healthCheck();
   res.status(db.ok ? 200 : 503).json({
@@ -64,20 +74,23 @@ api.get('/health', async (_req, res) => {
 api.get('/meta', async (_req, res, next) => {
   try {
     const stats = await adminStats();
+    res.set('Cache-Control', 'public, max-age=60');
     res.json({ categories: CATEGORIES, models: MODELS, stats });
   } catch (e) { next(e); }
 });
 
-/* ═══════════════════════════════════════════════
-   المصادقة
-   ═══════════════════════════════════════════════ */
+/* ═══════════ المصادقة ═══════════ */
 api.post('/auth/register', async (req, res, next) => {
   try {
+    const ip = req.ip || 'unknown';
+    if (!rateLimit('reg:' + ip, 5, 60000))
+      return res.status(429).json({ error: 'محاولات كثيرة، انتظر قليلاً' });
+
     const { name, email, password, username } = req.body || {};
     if (!name || !email || !password)
       return res.status(400).json({ error: 'الاسم والبريد وكلمة المرور مطلوبة' });
     if (password.length < 6)
-      return res.status(400).json({ error: 'كلمة المرور يجب ألا تقل عن 6 أحرف' });
+      return res.status(400).json({ error: 'كلمة المرور 6 أحرف على الأقل' });
     if (await findUserByEmail(email))
       return res.status(409).json({ error: 'هذا البريد مسجّل مسبقاً' });
 
@@ -92,16 +105,17 @@ api.post('/auth/register', async (req, res, next) => {
 
 api.post('/auth/login', async (req, res, next) => {
   try {
+    const ip = req.ip || 'unknown';
+    if (!rateLimit('login:' + ip, 15, 60000))
+      return res.status(429).json({ error: 'محاولات كثيرة' });
+
     const { email, password } = req.body || {};
     const user = await findUserByEmail(email);
     if (!user || user.password !== password)
       return res.status(401).json({ error: 'بيانات الدخول غير صحيحة' });
     const token = await createSession(user.id);
     cleanupSessions();
-    res.json({
-      token,
-      user: publicUser(user, await userStats(user.id))
-    });
+    res.json({ token, user: publicUser(user, await userStats(user.id)) });
   } catch (e) { next(e); }
 });
 
@@ -129,51 +143,51 @@ api.patch('/me', requireAuth, async (req, res, next) => {
     if (username !== undefined) patch.username = String(username).trim();
     if (bio !== undefined) patch.bio = String(bio).trim();
     if (avatar !== undefined) patch.avatar = String(avatar);
-
     const updated = await updateUser(req.userId, patch);
-    res.json({
-      user: publicUser(updated, await userStats(updated.id))
-    });
+    res.json({ user: publicUser(updated, await userStats(updated.id)) });
   } catch (e) { next(e); }
 });
 
-/* ═══════════════════════════════════════════════
-   البرومبتات
-   ═══════════════════════════════════════════════ */
+/* ═══════════ البرومبتات ═══════════ */
 api.get('/prompts', async (req, res, next) => {
   try {
-    const { q = '', category = '', sort = 'new', author = '', limit = '60' } = req.query;
+    const { q = '', sort = 'new', author = '', limit = '40' } = req.query;
     const items = await listPrompts({
-      q: String(q).trim(), category, sort, author,
-      limit: Math.min(Number(limit) || 60, 200),
+      q: String(q).trim(), sort, author,
+      limit: Math.min(Number(limit) || 40, 100),
       viewerId: req.userId
     });
-    const total = q || category || author
-      ? await countPrompts({ q: String(q).trim(), category })
-      : items.length;
+    const total = q || author ? items.length : await countPrompts();
+    res.set('Cache-Control', 'private, max-age=10');
     res.json({ items, total });
   } catch (e) { next(e); }
 });
 
-api.get('/prompts/:id', async (req, res, next) => {
+/* يقبل id أو slug */
+api.get('/prompts/:key', async (req, res, next) => {
   try {
-    const prompt = await getPrompt(req.params.id, req.userId);
+    const prompt = await getPromptByKey(req.params.key, req.userId);
     if (!prompt) return res.status(404).json({ error: 'البرومبت غير موجود' });
     const related = await getRelated(prompt.id, prompt.category, req.userId);
+    res.set('Cache-Control', 'private, max-age=20');
     res.json({ prompt, related });
   } catch (e) { next(e); }
 });
 
 api.post('/prompts', requireAuth, async (req, res, next) => {
   try {
+    const ip = req.ip || 'unknown';
+    if (!rateLimit('create:' + req.userId, 10, 60000))
+      return res.status(429).json({ error: 'أنت تنشر بسرعة كبيرة' });
+
     const { title, description, body, category, tags = [], models = [], cover = '' } = req.body || {};
-    if (!title || !body || !category)
-      return res.status(400).json({ error: 'العنوان والنص والتصنيف مطلوبة' });
+    if (!title || !body)
+      return res.status(400).json({ error: 'العنوان والنص مطلوبان' });
     const prompt = await createPrompt({
       title: String(title).trim(),
       description: String(description || '').trim(),
       body: String(body),
-      category,
+      category: String(category || ''),
       tags: Array.isArray(tags) ? tags.filter(Boolean).slice(0, 8) : [],
       models: Array.isArray(models) ? models.slice(0, 6) : [],
       cover: String(cover || ''),
@@ -219,7 +233,7 @@ api.delete('/prompts/:id', requireAuth, async (req, res, next) => {
 api.post('/prompts/:id/like', requireAuth, async (req, res, next) => {
   try {
     const p = await getPrompt(req.params.id, req.userId);
-    if (!p) return res.status(404).json({ error: 'البرومبت غير موجود' });
+    if (!p) return res.status(404).json({ error: 'غير موجود' });
     res.json(await toggleLike(req.userId, p.id));
   } catch (e) { next(e); }
 });
@@ -227,28 +241,22 @@ api.post('/prompts/:id/like', requireAuth, async (req, res, next) => {
 api.post('/prompts/:id/copy', async (req, res, next) => {
   try {
     const p = await getPrompt(req.params.id, null);
-    if (!p) return res.status(404).json({ error: 'البرومبت غير موجود' });
+    if (!p) return res.status(404).json({ error: 'غير موجود' });
     res.json({ copies: await incrementCopies(p.id) });
   } catch (e) { next(e); }
 });
 
-/* ═══════════════════════════════════════════════
-   المستخدمون
-   ═══════════════════════════════════════════════ */
+/* ═══════════ المستخدمون ═══════════ */
 api.get('/users/:id', async (req, res, next) => {
   try {
     const u = await findUser(req.params.id);
     if (!u) return res.status(404).json({ error: 'المستخدم غير موجود' });
     const stats = await userStats(u.id);
-    const prompts = await listPrompts({ author: u.id, viewerId: req.userId });
+    const prompts = await listPrompts({ author: u.id, viewerId: req.userId, limit: 100 });
     const elig = await eligibility(u.id);
     const following = req.userId ? await isFollowing(req.userId, u.id) : false;
     res.json({
-      user: publicUser(u, {
-        ...stats,
-        isSelf: u.id === req.userId,
-        isFollowing: following
-      }),
+      user: publicUser(u, { ...stats, isSelf: u.id === req.userId, isFollowing: following }),
       prompts,
       eligibility: elig
     });
@@ -261,8 +269,7 @@ api.post('/users/:id/follow', requireAuth, async (req, res, next) => {
       return res.status(400).json({ error: 'لا يمكنك متابعة نفسك' });
     const target = await findUser(req.params.id);
     if (!target) return res.status(404).json({ error: 'المستخدم غير موجود' });
-    const result = await toggleFollow(req.userId, req.params.id);
-    res.json(result);
+    res.json(await toggleFollow(req.userId, req.params.id));
   } catch (e) { next(e); }
 });
 
@@ -271,10 +278,11 @@ api.get('/favorites', requireAuth, async (req, res, next) => {
   catch (e) { next(e); }
 });
 
-/* ═══════════════════════════════════════════════
-   الإدارة
-   ═══════════════════════════════════════════════ */
+/* ═══════════ الإدارة ═══════════ */
 api.post('/admin/unlock', (req, res) => {
+  const ip = req.ip || 'unknown';
+  if (!rateLimit('admin:' + ip, 5, 300000))
+    return res.status(429).json({ error: 'محاولات كثيرة، انتظر 5 دقائق' });
   const { password } = req.body || {};
   if (password !== ADMIN_PASSWORD)
     return res.status(401).json({ error: 'كلمة المرور غير صحيحة' });
@@ -301,7 +309,7 @@ api.get('/admin/users', requireAdmin, async (_req, res, next) => {
 api.post('/admin/users/:id/verify', requireAdmin, async (req, res, next) => {
   try {
     const u = await toggleVerify(req.params.id);
-    if (!u) return res.status(404).json({ error: 'المستخدم غير موجود' });
+    if (!u) return res.status(404).json({ error: 'غير موجود' });
     res.json({ user: publicUser(u) });
   } catch (e) { next(e); }
 });
