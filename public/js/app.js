@@ -19,7 +19,10 @@ export async function api(path, { method = 'GET', body, admin = false } = {}) {
 
   let res;
   try {
-    res = await fetch('/api' + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+    res = await fetch('/api' + path, {
+      method, headers,
+      body: body ? JSON.stringify(body) : undefined
+    });
   } catch {
     setOnline(false);
     throw new Error('تعذّر الاتصال بالخادم');
@@ -42,7 +45,7 @@ export function toast(message, type = 'info') {
     el.style.opacity = '0';
     el.style.transform = 'translateY(-6px)';
     setTimeout(() => el.remove(), 300);
-  }, 2400);
+  }, 2200);
 }
 
 export const navigate = (hash) => {
@@ -69,7 +72,8 @@ function parseRoute() {
 
 const SCREEN_NAMES = {
   '': 'home', login: 'login', register: 'register', explore: 'explore',
-  prompt: 'prompt', new: 'newPrompt', edit: 'editPrompt',
+  prompt: 'prompt', p: 'prompt',
+  new: 'newPrompt', edit: 'editPrompt',
   profile: 'profile', u: 'profile',
   favorites: 'favorites', admin: 'admin', offline: 'offline'
 };
@@ -139,7 +143,6 @@ function renderBottomNav() {
       <a class="bn-item ${root === key ? 'active' : ''}" href="${href}">
         ${icon}<span>${label}</span>
       </a>`;
-
     document.getElementById('bottomnav').innerHTML = `
       <div class="bottomnav-inner">
         ${item('#/', 'الرئيسية', ICONS.home, '')}
@@ -207,7 +210,7 @@ async function render() {
           <div class="icon">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 8v5M12 16.5v.01"/><circle cx="12" cy="12" r="9"/></svg>
           </div>
-          <h3>حدث خطأ ما</h3>
+          <h3>حدث خطأ</h3>
           <p>${e.message}</p>
           <button class="btn btn-outline" onclick="location.reload()">إعادة المحاولة</button>
         </div>`;
@@ -218,43 +221,48 @@ async function render() {
   }
 }
 
+/* ═══════════ Scroll effect على الشريط العلوي ═══════════ */
+let _scrollTick = false;
+window.addEventListener('scroll', () => {
+  if (_scrollTick) return;
+  _scrollTick = true;
+  requestAnimationFrame(() => {
+    const tb = document.querySelector('.topbar');
+    if (tb) tb.classList.toggle('scrolled', window.scrollY > 6);
+    _scrollTick = false;
+  });
+}, { passive: true });
+
 /* ═══════════ Android WebView bridge ═══════════ */
 function setupWebViewBridge() {
-  /* إشعار WebView عند تغيير المسار لدعم زر الرجوع */
   window.addEventListener('hashchange', () => {
-    if (window.AndroidBack && typeof window.AndroidBack.onRouteChange === 'function') {
+    if (window.AndroidBack?.onRouteChange) {
       try { window.AndroidBack.onRouteChange(location.hash); } catch {}
     }
   });
-
-  /* منع زوم بضغطتين */
   let lastTouch = 0;
   document.addEventListener('touchend', (e) => {
     const now = Date.now();
     if (now - lastTouch <= 300) e.preventDefault();
     lastTouch = now;
   }, { passive: false });
-
-  /* منع سحب الصفحة (pull to refresh) */
   document.body.style.overscrollBehaviorY = 'contain';
 }
 
 async function boot() {
   setupWebViewBridge();
-
   const strip = document.getElementById('offline-strip');
   if (strip) strip.hidden = state.online;
 
-  try { state.meta = await api('/meta'); } catch {}
-
+  // جلب meta و /me بالتوازي لتقليل زمن التحميل
+  const promises = [api('/meta').then(m => state.meta = m).catch(() => {})];
   if (localStorage.getItem(TOKEN_KEY)) {
-    try {
-      const { user } = await api('/me');
-      state.user = user;
-    } catch {
-      localStorage.removeItem(TOKEN_KEY);
-    }
+    promises.push(
+      api('/me').then(r => state.user = r.user)
+        .catch(() => localStorage.removeItem(TOKEN_KEY))
+    );
   }
+  await Promise.all(promises);
 
   window.addEventListener('hashchange', render);
   window.addEventListener('online', () => {
