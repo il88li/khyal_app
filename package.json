@@ -1,13 +1,17 @@
 {
   "name": "khayal",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "خيال — منصة عربية لمشاركة برومبتات الذكاء الاصطناعي",
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "db:setup": "node src/seed.js",
+    "db:migrate": "node src/seed.js --migrate"
   },
   "dependencies": {
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "pg": "^8.13.1",
+    "dotenv": "^16.4.5"
   }
 }
