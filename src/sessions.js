@@ -1,10 +1,3 @@
-/* ═══════════════════════════════════════════════
-   الجلسات مخزّنة في PostgreSQL
-   ─────────────────────────────────────────────
-   لماذا؟ Vercel Lambda بلا حالة (stateless) —
-   الذاكرة لا تُشارَك بين الطلبات، لذا Map لن تعمل.
-   ═══════════════════════════════════════════════ */
-
 import crypto from 'node:crypto';
 import { query, queryOne } from './db.js';
 
@@ -39,20 +32,37 @@ export async function deleteSession(token) {
   await query(`DELETE FROM sessions WHERE token = $1`, [token]);
 }
 
-/* تنظيف الجلسات المنتهية — fire-and-forget */
+/* ← حذف كل جلسات المستخدم (اختياريًا مع استثناء الجلسة الحالية) */
+export async function deleteAllSessions(userId, exceptToken = null) {
+  if (!userId) return 0;
+  if (exceptToken) {
+    const r = await query(
+      `DELETE FROM sessions WHERE user_id = $1 AND token <> $2`,
+      [userId, exceptToken]
+    );
+    return r.rowCount;
+  }
+  const r = await query(`DELETE FROM sessions WHERE user_id = $1`, [userId]);
+  return r.rowCount;
+}
+
+/* ← عدّ الجلسات النشطة */
+export async function countUserSessions(userId) {
+  const row = await queryOne(
+    `SELECT COUNT(*)::int AS n FROM sessions
+     WHERE user_id = $1 AND expires_at > NOW()`,
+    [userId]
+  );
+  return row?.n || 0;
+}
+
 export async function cleanupSessions() {
   try {
     await query(`DELETE FROM sessions WHERE expires_at < NOW()`);
   } catch { /* تجاهل */ }
 }
 
-/* ═══════════════════════════════════════════════
-   توكن الإدارة — HMAC بسيط بلا تخزين
-   ─────────────────────────────────────────────
-   كل خادم يمكنه التحقق من التوكن بنفسه،
-   لا حاجة لتخزين مشترك.
-   ═══════════════════════════════════════════════ */
-
+/* ═══════════ توكن الإدارة — HMAC ═══════════ */
 export function signAdminToken() {
   const secret = process.env.ADMIN_PASSWORD || 'khayal-admin';
   return crypto.createHmac('sha256', secret)
@@ -69,7 +79,5 @@ export function verifyAdminToken(token) {
       Buffer.from(token, 'hex'),
       Buffer.from(expected, 'hex')
     );
-  } catch {
-    return false;
-  }
+  } catch { return false; }
 }
