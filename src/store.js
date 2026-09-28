@@ -1,6 +1,6 @@
-/* مخزن البيانات في الذاكرة — يختفي عند إعادة تشغيل الخادم */
+import { query, queryOne, queryAll, transaction } from './db.js';
 
-export const ADMIN_PASSWORD = 'khayal-admin';
+export const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'khayal-admin';
 
 export const CATEGORIES = [
   'كتابة', 'برمجة', 'تصميم', 'تسويق',
@@ -12,424 +12,306 @@ export const MODELS = [
   'Gemini 1.5 Pro', 'Llama 3.1 70B', 'Midjourney v6', 'DALL·E 3'
 ];
 
-/* ─────────── المستخدمون ─────────── */
-const users = [
-  {
-    id: 'u1', name: 'سارة الشمري', username: 'sara',
-    email: 'sara@khayal.app', password: '123456',
-    bio: 'مهندسة برومبتات ومهتمة بتبسيط الذكاء الاصطناعي للمحتوى العربي.',
-    verified: true, role: 'admin', joined: '2023-11-02'
-  },
-  {
-    id: 'u2', name: 'خالد العتيبي', username: 'khaled',
-    email: 'khaled@khayal.app', password: '123456',
-    bio: 'مطوّر واجهات. أكتب برومبتات تساعد المبرمجين على إنجاز عملهم أسرع.',
-    verified: true, role: 'user', joined: '2024-02-18'
-  },
-  {
-    id: 'u3', name: 'نورة القحطاني', username: 'noura',
-    email: 'noura@khayal.app', password: '123456',
-    bio: 'كاتبة محتوى تسويقي. أحوّل الأفكار البسيطة إلى حملات مؤثرة.',
-    verified: false, role: 'user', joined: '2024-06-04'
-  },
-  {
-    id: 'u4', name: 'عبدالله الحربي', username: 'abdullah',
-    email: 'abdullah@khayal.app', password: '123456',
-    bio: 'مهتم بتحليل البيانات وبناء لوحات المعلومات.',
-    verified: false, role: 'user', joined: '2025-01-22'
-  },
-  {
-    id: 'u5', name: 'ريم الدوسري', username: 'reem',
-    email: 'reem@khayal.app', password: '123456',
-    bio: 'مصممة تعليمية. أصنع محتوى تعليمياً واضحاً وقابلاً للتطبيق.',
-    verified: true, role: 'user', joined: '2024-09-11'
-  },
-  {
-    id: 'u6', name: 'فهد الزهراني', username: 'fahad',
-    email: 'fahad@khayal.app', password: '123456',
-    bio: 'مهتم بالتصميم البصري وتوليد الصور.',
-    verified: false, role: 'user', joined: '2025-03-08'
+/* الجلسات في الذاكرة — خفيفة وسريعة */
+export const sessions = new Map();
+export const adminTokens = new Set();
+
+/* ═══════════ المستخدمون ═══════════ */
+
+const USER_COLS = `id, name, username, email, bio, verified, role,
+  joined::text AS joined, password`;
+
+export const findUser = (id) =>
+  queryOne(`SELECT ${USER_COLS} FROM users WHERE id = $1`, [id]);
+
+export const findUserByEmail = (email) =>
+  queryOne(`SELECT ${USER_COLS} FROM users WHERE email = $1`, [email]);
+
+export async function createUser({ name, email, password, username }) {
+  const id = 'u' + Date.now().toString(36);
+  const uname = username || email.split('@')[0];
+  const row = await queryOne(
+    `INSERT INTO users (id,name,username,email,password,bio,verified,role,joined)
+     VALUES ($1,$2,$3,$4,$5,'',FALSE,'user',CURRENT_DATE)
+     RETURNING ${USER_COLS}`,
+    [id, name, uname, email, password]
+  );
+  return row;
+}
+
+/* ═══════════ البرومبتات ═══════════ */
+
+const PROMPT_SELECT = `
+  SELECT p.id, p.title, p.description, p.body, p.category,
+         p.tags, p.models, p.cover, p.author_id AS "authorId",
+         p.copies, p.created_at AS "createdAt",
+         (SELECT COUNT(*)::int FROM likes l WHERE l.prompt_id = p.id) AS likes,
+         u.id AS "aId", u.name AS "aName", u.username AS "aUsername", u.verified AS "aVerified"
+  FROM prompts p
+  LEFT JOIN users u ON u.id = p.author_id
+`;
+
+function shapePrompt(row, viewerId, likedSet) {
+  if (!row) return null;
+  return {
+    id: row.id, title: row.title, description: row.description,
+    body: row.body, category: row.category,
+    tags: row.tags || [], models: row.models || [], cover: row.cover,
+    authorId: row.authorId, copies: row.copies, createdAt: row.createdAt,
+    likes: row.likes,
+    liked: likedSet ? likedSet.has(row.id) : false,
+    author: row.aId ? {
+      id: row.aId, name: row.aName,
+      username: row.aUsername, verified: row.aVerified
+    } : null
+  };
+}
+
+export async function listPrompts({ q, category, sort = 'new', author, limit = 60, viewerId }) {
+  const where = [];
+  const params = [];
+
+  if (q) {
+    params.push(`%${q}%`);
+    const i = params.length;
+    where.push(`(p.title ILIKE $${i} OR p.description ILIKE $${i} OR p.body ILIKE $${i} OR p.category ILIKE $${i} OR EXISTS (SELECT 1 FROM unnest(p.tags) t WHERE t ILIKE $${i}))`);
   }
-];
+  if (category) { params.push(category); where.push(`p.category = $${params.length}`); }
+  if (author)   { params.push(author);   where.push(`p.author_id = $${params.length}`); }
 
-/* ─────────── البرومبتات ─────────── */
-const prompts = [
-  {
-    id: 'p1', title: 'محرر نصوص عربي احترافي',
-    description: 'يُراجع نصك العربي ويُعيد صياغته بلغة سليمة وأسلوب واضح دون تغيير المعنى.',
-    body: `أنت محرر لغوي عربي محترف بخبرة 15 عاماً في تحرير المحتوى الرقمي.
+  const order =
+    sort === 'likes'  ? 'likes DESC, p.created_at DESC' :
+    sort === 'copies' ? 'p.copies DESC, p.created_at DESC' :
+                        'p.created_at DESC';
 
-المهمة:
-حرّر النص التالي مع الحفاظ الكامل على المعنى الأصلي.
+  params.push(limit);
+  const sql = `${PROMPT_SELECT}
+    ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
+    ORDER BY ${order}
+    LIMIT $${params.length}`;
 
-القواعد:
-1. صحّح الأخطاء النحوية والإملائية.
-2. بسّط الجمل الطويلة دون فقدان المعنى.
-3. استبدل الكلمات الركيكة بمرادفات فصيحة ومألوفة.
-4. حافظ على نبرة النص الأصلية (رسمية / ودّية / تسويقية).
-5. لا تُضف معلومات جديدة.
+  const rows = await queryAll(sql, params);
+  const likedSet = await getLikedSet(viewerId);
+  return rows.map((r) => shapePrompt(r, viewerId, likedSet));
+}
 
-المخرجات المطلوبة:
-- النص المُحرَّر.
-- جدول بثلاثة أعمدة: (التعديل | السبب | البديل المقترح).
-- تقييم من 10 لجودة النص قبل وبعد.
-
-النص:
-"""
-{{النص_هنا}}
-"""`,
-    category: 'كتابة', tags: ['تحرير', 'لغة عربية', 'صياغة'],
-    models: ['GPT-4o', 'Claude 3.5 Sonnet'],
-    authorId: 'u1', cover: '', copies: 412, createdAt: '2025-08-02T10:00:00Z'
-  },
-  {
-    id: 'p2', title: 'مراجع كود صارم لواجهات React',
-    description: 'يفحص مكوّنات React ويكشف مشاكل الأداء وإدارة الحالة قبل الدمج.',
-    body: `أنت مهندس واجهات أمامية خبير في React وTypeScript.
-
-راجع الكود التالي وأعطني:
-
-1. المشاكل الحرجة (Bugs) — مع سطر الكود وسبب المشكلة.
-2. مشاكل الأداء — إعادة الرسم غير الضرورية، الاعتماديات الناقصة في useEffect.
-3. مشاكل إدارة الحالة — هل الحالة في المكان الصحيح؟
-4. مشاكل إمكانية الوصول (a11y).
-5. اقتراح إعادة هيكلة مختصر مع كود جاهز للنسخ.
-
-كن صريحاً ومباشراً. لا تمدح الكود. رتّب الملاحظات من الأخطر إلى الأقل.
-
-الكود:
-\`\`\`tsx
-{{الكود_هنا}}
-\`\`\``,
-    category: 'برمجة', tags: ['React', 'TypeScript', 'مراجعة كود'],
-    models: ['Claude 3.5 Sonnet', 'GPT-4o'],
-    authorId: 'u2', cover: '', copies: 337, createdAt: '2025-08-14T09:30:00Z'
-  },
-  {
-    id: 'p3', title: 'حملة تسويقية من فكرة واحدة',
-    description: 'يأخذ فكرة منتج ويبني منها حملة كاملة عبر القنوات المختلفة.',
-    body: `أنت مدير تسويق رقمي بخبرة في السوق العربي.
-
-المعطيات:
-- المنتج: {{اسم_المنتج}}
-- الجمهور: {{الجمهور_المستهدف}}
-- الميزانية: {{الميزانية}}
-- الهدف: {{الهدف}}
-
-ابنِ حملة متكاملة تشمل:
-
-1. **الرسالة الأساسية** — جملة واحدة تلخّص الوعد.
-2. **ثلاث زوايا تسويقية** مختلفة، لكل زاوية:
-   - العنوان (أقل من 40 حرفاً)
-   - النص الإعلاني (أقل من 90 كلمة)
-   - دعوة الإجراء
-3. **خطة النشر** — جدول أسبوعي لأربعة أسابيع.
-4. **مقاييس النجاح** — ما الذي نقيسه وكيف.
-5. **ما نتجنّبه** — ثلاث أخطاء شائعة في هذا النوع من الحملات.`,
-    category: 'تسويق', tags: ['حملات', 'محتوى', 'إعلانات'],
-    models: ['GPT-4o', 'Gemini 1.5 Pro'],
-    authorId: 'u3', cover: '', copies: 289, createdAt: '2025-09-01T14:15:00Z'
-  },
-  {
-    id: 'p4', title: 'محلّل بيانات يحوّل الأرقام إلى قرار',
-    description: 'يستقبل جدول بيانات ويخرج بتوصيات عملية قابلة للتنفيذ.',
-    body: `أنت محلل بيانات أول تعمل مع الإدارة التنفيذية.
-
-سأعطيك بيانات خام. المطلوب:
-
-1. **قراءة سريعة** — ثلاث ملاحظات فورية من نظرة واحدة.
-2. **الأنماط** — اتجاهات، شذوذ، علاقات بين المتغيرات.
-3. **الفرضيات** — ثلاثة تفسيرات محتملة لما نراه.
-4. **التوصيات** — ثلاث توصيات مرتبة حسب الأثر المتوقع مقابل الجهد.
-5. **ما ينقصنا** — ما البيانات الإضافية التي ستزيد دقة التحليل؟
-
-اعتمد على الأرقام فقط. لا تخترع بيانات غير موجودة. إذا كان شيء غير واضح، قل ذلك صراحة.
-
-البيانات:
-{{البيانات_هنا}}`,
-    category: 'تحليل بيانات', tags: ['تحليل', 'قرارات', 'تقارير'],
-    models: ['GPT-4o', 'Claude 3.5 Sonnet'],
-    authorId: 'u4', cover: '', copies: 178, createdAt: '2025-09-12T08:45:00Z'
-  },
-  {
-    id: 'p5', title: 'مصمّم خطط دروس تفاعلية',
-    description: 'يبني خطة درس كاملة بأنشطة وتقييم لمدة حصة واحدة.',
-    body: `أنت مصمم تعليمي متخصص في التعلم النشط.
-
-المطلوب خطة درس لـ:
-- الموضوع: {{الموضوع}}
-- الفئة العمرية: {{العمر}}
-- مدة الحصة: {{المدة}} دقيقة
-- عدد الطلاب: {{العدد}}
-
-أخرج الخطة بالشكل التالي:
-
-**أهداف التعلم** — ثلاثة أهداف قابلة للقياس.
-**التمهيد (5 د)** — سؤال أو نشاط يشد الانتباه.
-**الشرح (10 د)** — الفكرة الأساسية بأبسط صورة ممكنة.
-**النشاط العملي (20 د)** — مجموعات، أدوار، مخرجات.
-**التقييم (10 د)** — كيف نعرف أنهم فهموا؟
-**الإغلاق (5 د)** — تلخيص + سؤال مفتوح.
-**التمايز** — كيف ندعم المتعثرين ونتحدى المتقدمين.
-**المواد المطلوبة** — قائمة قصيرة.`,
-    category: 'تعليم', tags: ['تعليم', 'خطط دروس', 'تعلم نشط'],
-    models: ['GPT-4o', 'Claude 3.5 Sonnet', 'Gemini 1.5 Pro'],
-    authorId: 'u5', cover: '', copies: 245, createdAt: '2025-09-20T11:20:00Z'
-  },
-  {
-    id: 'p6', title: 'مولّد أوصاف صور فنية',
-    description: 'يحوّل وصفاً عربياً بسيطاً إلى برومبت Midjourney احترافي.',
-    body: `أنت خبير في هندسة برومبتات توليد الصور.
-
-حوّل الوصف العربي التالي إلى برومبت Midjourney احترافي.
-
-المطلوب:
-1. **البرومبت الإنجليزي** — جملة واحدة مكثفة، بين 30 و60 كلمة.
-2. **المعاملات** — اقترح --ar و --style و --stylize المناسبة.
-3. **عناصر يجب تجنّبها** — ضعها في --no.
-4. **نسخة بديلة** — زاوية مختلفة تماماً لنفس الفكرة.
-5. **نصيحة** — ما العنصر الذي لو غيّرته لتحصل على نتيجة أفضل؟
-
-الوصف العربي:
-"""
-{{الوصف}}
-"""`,
-    category: 'تصميم', tags: ['Midjourney', 'صور', 'برومبت بصري'],
-    models: ['Midjourney v6', 'DALL·E 3', 'GPT-4o'],
-    authorId: 'u6', cover: '', copies: 356, createdAt: '2025-09-25T16:00:00Z'
-  },
-  {
-    id: 'p7', title: 'كاتب سيرة ذاتية موجزة',
-    description: 'يحوّل خبراتك المبعثرة إلى سيرة ذاتية من صفحة واحدة.',
-    body: `أنت كاتب سير ذاتية متخصص في السوق العربي.
-
-سأعطيك خبراتي بشكل عشوائي. حوّلها إلى سيرة ذاتية من صفحة واحدة.
-
-القواعد:
-- ابدأ بملخص من 3 أسطر يوضّح القيمة المضافة.
-- كل نقطة إنجاز تبدأ بفعل قوي + نتيجة قابلة للقياس.
-- احذف أي معلومة لا تخدم الوظيفة المستهدفة.
-- لا تكتب أكثر من 6 نقاط لأي وظيفة.
-- تجنّب الكلمات المطاطة (طموح، مجتهد، يعمل تحت الضغط).
-
-الوظيفة المستهدفة: {{الوظيفة}}
-خبراتي: {{الخبرات}}`,
-    category: 'أعمال', tags: ['سيرة ذاتية', 'توظيف', 'مهارات'],
-    models: ['GPT-4o', 'Claude 3.5 Sonnet'],
-    authorId: 'u1', cover: '', copies: 203, createdAt: '2025-10-02T07:10:00Z'
-  },
-  {
-    id: 'p8', title: 'شريك تفكير بنمط سقراطي',
-    description: 'لا يعطيك الجواب — يسألك حتى تصل إليه بنفسك.',
-    body: `أنت شريك تفكير يتبع الأسلوب السقراطي.
-
-القواعد الصارمة:
-1. لا تُعطِ الإجابة أبداً.
-2. اطرح سؤالاً واحداً فقط في كل رد.
-3. اجعل كل سؤال أعمق قليلاً من الذي قبله.
-4. إذا تهت، أعد صياغة السؤال السابق بزاوية مختلفة.
-5. بعد 7 أسئلة، لخّص ما وصلت إليه أنا بكلماتي.
-
-ابدأ بسؤال واحد فقط عن الموضوع الذي سأطرحه.
-
-الموضوع: {{الموضوع}}`,
-    category: 'ترفيه', tags: ['تفكير', 'أسئلة', 'تأمل'],
-    models: ['Claude 3 Opus', 'GPT-4o'],
-    authorId: 'u2', cover: '', copies: 167, createdAt: '2025-10-08T13:40:00Z'
-  },
-  {
-    id: 'p9', title: 'مبسّط المحتوى التقني',
-    description: 'يشرح مفهوم تقني معقّد لجمهور غير تقني بأمثلة يومية.',
-    body: `أنت كاتب تقني مهمتك التبسيط دون تشويه.
-
-اشرح المفهوم التالي لشخص غير تقني:
-
-المفهوم: {{المفهوم}}
-الجمهور: {{الجمهور}}
-
-ابنِ الشرح على أربع طبقات:
-
-**الطبقة 1 — الجملة الواحدة**
-اشرحه في جملة واحدة لا تتجاوز 15 كلمة.
-
-**الطبقة 2 — التشبيه**
-استخدم مثالاً من الحياة اليومية (مطبخ، سيارة، مكتب…).
-
-**الطبقة 3 — التفاصيل**
-ثلاث فقرات قصيرة، كل فقرة فكرة واحدة.
-
-**الطبقة 4 — الحدود**
-ما الذي لا يفسّره التشبيه؟ كن صادقاً بشأن التبسيط الزائد.
-
-تجنّب: المصطلحات الإنجليزية، الاختصارات، الجمل الطويلة.`,
-    category: 'تعليم', tags: ['تبسيط', 'شرح', 'محتوى تقني'],
-    models: ['GPT-4o', 'Claude 3.5 Sonnet'],
-    authorId: 'u5', cover: '', copies: 298, createdAt: '2025-10-15T09:05:00Z'
-  },
-  {
-    id: 'p10', title: 'مولّد اختبارات وحدة شاملة',
-    description: 'يكتب اختبارات Jest كاملة بناءً على دالة واحدة.',
-    body: `أنت مهندس اختبارات خبير في Jest وVitest.
-
-بالنظر إلى الدالة التالية، اكتب مجموعة اختبارات كاملة تشمل:
-
-1. الحالة الطبيعية (Happy path).
-2. المدخلات الحدّية (0، سلسلة فارغة، مصفوفة فارغة، null، undefined).
-3. القيم غير الصالحة (أنواع خاطئة، أرقام سالبة).
-4. الحالات غير المتزامنة إن وُجدت.
-5. اختبار الأخطاء المتوقعة (toThrow).
-
-المطلوب:
-- وصف واضح لكل اختبار بالعربية.
-- تغطية 100% للفروع.
-- لا تكرّر نفس الفكرة بصيغ مختلفة.
-
-الدالة:
-\`\`\`js
-{{الدالة}}
-\`\`\``,
-    category: 'برمجة', tags: ['اختبارات', 'Jest', 'جودة'],
-    models: ['Claude 3.5 Sonnet', 'GPT-4o'],
-    authorId: 'u2', cover: '', copies: 154, createdAt: '2025-10-21T15:30:00Z'
-  },
-  {
-    id: 'p11', title: 'مهندس متطلبات المنتج',
-    description: 'يحوّل فكرة غامضة إلى وثيقة متطلبات واضحة.',
-    body: `أنت مدير منتج أول.
-
-لديّ فكرة غير مكتملة. حوّلها إلى وثيقة متطلبات (PRD) مختصرة.
-
-الفكرة: {{الفكرة}}
-
-أخرج:
-
-1. **المشكلة** — ما الذي نصلحه ولمن؟
-2. **الفرضية** — إذا بنينا X، فسيحدث Y لأن Z.
-3. **نطاق النسخة الأولى** — ما داخلها (3 بنود) وما خارجها (3 بنود).
-4. **قصص المستخدم** — خمس قصص بصيغة: بصفتي… أريد… حتى…
-5. **معايير القبول** — لكل قصة.
-6. **المخاطر** — ثلاثة مخاطر وخطة التعامل معها.
-7. **سؤال مفتوح** — أهم شيء نحتاج حسمه قبل البدء.`,
-    category: 'أعمال', tags: ['منتج', 'متطلبات', 'تخطيط'],
-    models: ['GPT-4o', 'Claude 3.5 Sonnet'],
-    authorId: 'u1', cover: '', copies: 221, createdAt: '2025-10-27T12:00:00Z'
-  },
-  {
-    id: 'p12', title: 'لوحة معلومات بصرية من جدول',
-    description: 'يقترح تصميماً كاملاً للوحة معلومات انطلاقاً من بياناتك.',
-    body: `أنت مصمم لوحات معلومات.
-
-بناءً على البيانات الموصوفة، اقترح لوحة معلومات كاملة:
-
-**هيكل الشاشة**
-- ما الرسوم البيانية؟ أين موقع كل منها ولماذا؟
-- التسلسل البصري: ما الذي يُقرأ أولاً؟
-
-**لكل رسم بياني**
-- النوع (شريطي / خطي / دائري / جدول)
-- المتغيرات على المحورين
-- القيمة الأساسية المعروضة (KPI)
-
-**الألوان**
-- قاعدة صارمة: لون واحد للتمييز فقط.
-- ما الذي يستحق التمييز ولماذا؟
-
-**ما نتجنّبه**
-- ثلاث ممارسات سيئة شائعة في هذا النوع من اللوحات.
-
-وصف البيانات: {{الوصف}}`,
-    category: 'تحليل بيانات', tags: ['لوحات معلومات', 'تصور', 'KPI'],
-    models: ['GPT-4o', 'Gemini 1.5 Pro'],
-    authorId: 'u4', cover: '', copies: 189, createdAt: '2025-11-01T10:30:00Z'
+export async function countPrompts(filters = {}) {
+  const where = [];
+  const params = [];
+  if (filters.q) {
+    params.push(`%${filters.q}%`);
+    where.push(`(title ILIKE $1 OR description ILIKE $1 OR body ILIKE $1)`);
   }
-];
+  if (filters.category) { params.push(filters.category); where.push(`category = $${params.length}`); }
+  const sql = `SELECT COUNT(*)::int AS c FROM prompts ${where.length ? 'WHERE ' + where.join(' AND ') : ''}`;
+  const row = await queryOne(sql, params);
+  return row.c;
+}
 
-/* ─────────── الجلسات والإعجابات ─────────── */
-const likes = [
-  { userId: 'u1', promptId: 'p2' }, { userId: 'u1', promptId: 'p5' },
-  { userId: 'u1', promptId: 'p9' }, { userId: 'u2', promptId: 'p1' },
-  { userId: 'u2', promptId: 'p6' }, { userId: 'u3', promptId: 'p1' },
-  { userId: 'u3', promptId: 'p7' }, { userId: 'u4', promptId: 'p5' },
-  { userId: 'u5', promptId: 'p1' }, { userId: 'u5', promptId: 'p11' },
-  { userId: 'u6', promptId: 'p6' }, { userId: 'u6', promptId: 'p3' }
-];
+export async function getPrompt(id, viewerId) {
+  const row = await queryOne(`${PROMPT_SELECT} WHERE p.id = $1`, [id]);
+  if (!row) return null;
+  const likedSet = await getLikedSet(viewerId);
+  return shapePrompt(row, viewerId, likedSet);
+}
 
-export const db = {
-  users,
-  prompts,
-  likes,
-  sessions: new Map(),   // token -> userId
-  adminTokens: new Set()
-};
+export async function getRelated(promptId, category, viewerId, limit = 3) {
+  const rows = await queryAll(
+    `${PROMPT_SELECT} WHERE p.id <> $1 AND p.category = $2
+     ORDER BY (SELECT COUNT(*) FROM likes l WHERE l.prompt_id = p.id) DESC
+     LIMIT $3`,
+    [promptId, category, limit]
+  );
+  const likedSet = await getLikedSet(viewerId);
+  return rows.map((r) => shapePrompt(r, viewerId, likedSet));
+}
 
-/* ─────────── أدوات مساعدة ─────────── */
-let seq = 100;
-export const uid = (p = 'id') => `${p}${++seq}`;
-export const token = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
+export async function createPrompt(data) {
+  const id = 'p' + Date.now().toString(36);
+  const row = await queryOne(
+    `INSERT INTO prompts (id,title,description,body,category,tags,models,cover,author_id,copies)
+     VALUES ($1,$2,$3,$4,$5,$6::text[],$7::text[],$8,$9,0)
+     RETURNING id`,
+    [id, data.title, data.description || '', data.body, data.category,
+     data.tags || [], data.models || [], data.cover || '', data.authorId]
+  );
+  return getPrompt(row.id, data.authorId);
+}
 
-export const findUser = (id) => db.users.find((u) => u.id === id);
-export const findPrompt = (id) => db.prompts.find((p) => p.id === id);
+export async function incrementCopies(id) {
+  const row = await queryOne(
+    `UPDATE prompts SET copies = copies + 1 WHERE id = $1 RETURNING copies`,
+    [id]
+  );
+  return row?.copies ?? 0;
+}
 
-export const likesCount = (promptId) =>
-  db.likes.filter((l) => l.promptId === promptId).length;
+export async function deletePrompt(id) {
+  await query('DELETE FROM prompts WHERE id = $1', [id]);
+}
 
-export const isLiked = (userId, promptId) =>
-  db.likes.some((l) => l.userId === userId && l.promptId === promptId);
+/* ═══════════ الإعجابات ═══════════ */
 
-export function publicUser(u, viewerId) {
+export async function toggleLike(userId, promptId) {
+  return transaction(async (client) => {
+    const { rows } = await client.query(
+      `SELECT 1 FROM likes WHERE user_id = $1 AND prompt_id = $2`,
+      [userId, promptId]
+    );
+    if (rows.length) {
+      await client.query(
+        `DELETE FROM likes WHERE user_id = $1 AND prompt_id = $2`,
+        [userId, promptId]
+      );
+    } else {
+      await client.query(
+        `INSERT INTO likes (user_id, prompt_id) VALUES ($1,$2)`,
+        [userId, promptId]
+      );
+    }
+    const { rows: c } = await client.query(
+      `SELECT COUNT(*)::int AS n FROM likes WHERE prompt_id = $1`,
+      [promptId]
+    );
+    return { liked: rows.length === 0, likes: c[0].n };
+  });
+}
+
+async function getLikedSet(userId) {
+  if (!userId) return new Set();
+  const rows = await queryAll(
+    `SELECT prompt_id FROM likes WHERE user_id = $1`,
+    [userId]
+  );
+  return new Set(rows.map((r) => r.prompt_id));
+}
+
+export async function getUserLikes(userId) {
+  const rows = await queryAll(
+    `${PROMPT_SELECT}
+     WHERE p.id IN (SELECT prompt_id FROM likes WHERE user_id = $1)
+     ORDER BY p.created_at DESC`,
+    [userId]
+  );
+  const likedSet = new Set(rows.map((r) => r.id));
+  return rows.map((r) => shapePrompt(r, userId, likedSet));
+}
+
+/* ═══════════ إحصائيات المستخدم ═══════════ */
+
+export async function userStats(userId) {
+  const row = await queryOne(
+    `SELECT
+       (SELECT COUNT(*)::int FROM prompts WHERE author_id = $1) AS "promptCount",
+       (SELECT COUNT(*)::int FROM likes l
+         JOIN prompts p ON p.id = l.prompt_id WHERE p.author_id = $1) AS "totalLikes",
+       (SELECT COALESCE(SUM(copies),0)::int FROM prompts WHERE author_id = $1) AS "totalCopies"`,
+    [userId]
+  );
+  return row;
+}
+
+export function publicUser(u, extra = {}) {
   if (!u) return null;
-  return {
-    id: u.id, name: u.name, username: u.username, email: u.email,
-    bio: u.bio, verified: u.verified, role: u.role, joined: u.joined,
-    isSelf: u.id === viewerId,
-    promptCount: db.prompts.filter((p) => p.authorId === u.id).length,
-    totalLikes: db.prompts
-      .filter((p) => p.authorId === u.id)
-      .reduce((s, p) => s + likesCount(p.id), 0),
-    totalCopies: db.prompts
-      .filter((p) => p.authorId === u.id)
-      .reduce((s, p) => s + p.copies, 0)
-  };
+  const { password, ...rest } = u;
+  return { ...rest, ...extra };
 }
 
-export function promptView(p, viewerId) {
-  const author = findUser(p.authorId);
-  return {
-    ...p,
-    likes: likesCount(p.id),
-    liked: viewerId ? isLiked(viewerId, p.id) : false,
-    author: author
-      ? { id: author.id, name: author.name, username: author.username, verified: author.verified }
-      : null
-  };
-}
+/* ═══════════ التوثيق ═══════════ */
 
-/* شروط شارة "موثوق" */
 export const VERIFY_RULES = [
   { key: 'prompts', label: 'نشر 10 برومبتات على الأقل', target: 10 },
-  { key: 'likes', label: 'الحصول على 100 إعجاب', target: 100 },
-  { key: 'copies', label: 'تجاوز 500 عملية نسخ', target: 500 },
-  { key: 'months', label: 'عضوية لا تقل عن 3 أشهر', target: 3 }
+  { key: 'likes',   label: 'الحصول على 100 إعجاب',      target: 100 },
+  { key: 'copies',  label: 'تجاوز 500 عملية نسخ',       target: 500 },
+  { key: 'months',  label: 'عضوية لا تقل عن 3 أشهر',    target: 3 }
 ];
 
-export function eligibility(userId) {
-  const u = findUser(userId);
+export async function eligibility(userId) {
+  const u = await findUser(userId);
   if (!u) return null;
-  const mine = db.prompts.filter((p) => p.authorId === userId);
-  const months = Math.max(
-    0,
-    Math.floor((Date.now() - new Date(u.joined).getTime()) / (1000 * 60 * 60 * 24 * 30))
-  );
-  const values = {
-    prompts: mine.length,
-    likes: mine.reduce((s, p) => s + likesCount(p.id), 0),
-    copies: mine.reduce((s, p) => s + p.copies, 0),
-    months
-  };
+  const s = await userStats(userId);
+  const months = Math.max(0, Math.floor(
+    (Date.now() - new Date(u.joined).getTime()) / (1000 * 60 * 60 * 24 * 30)
+  ));
+  const values = { ...s, months };
   const rules = VERIFY_RULES.map((r) => ({
-    ...r,
-    value: values[r.key],
-    met: values[r.key] >= r.target
+    ...r, value: values[r.key] || 0,
+    met: (values[r.key] || 0) >= r.target
   }));
-  return { rules, eligible: rules.every((r) => r.met), values, verified: u.verified };
+  return {
+    rules, values, verified: u.verified,
+    eligible: rules.every((r) => r.met)
+  };
+}
+
+/* ═══════════ لوحة الإدارة ═══════════ */
+
+export async function adminStats() {
+  const row = await queryOne(`
+    SELECT
+      (SELECT COUNT(*)::int FROM users)              AS users,
+      (SELECT COUNT(*)::int FROM prompts)            AS prompts,
+      (SELECT COUNT(*)::int FROM likes)              AS likes,
+      (SELECT COALESCE(SUM(copies),0)::int FROM prompts) AS copies
+  `);
+  return row;
+}
+
+export async function topPrompts(limit = 5, viewerId = null) {
+  const rows = await queryAll(
+    `${PROMPT_SELECT}
+     ORDER BY (SELECT COUNT(*) FROM likes l WHERE l.prompt_id = p.id) DESC
+     LIMIT $1`,
+    [limit]
+  );
+  return rows.map((r) => shapePrompt(r, viewerId, null));
+}
+
+export async function latestUsers(limit = 5) {
+  return queryAll(
+    `SELECT ${USER_COLS} FROM users ORDER BY joined DESC LIMIT $1`,
+    [limit]
+  );
+}
+
+export async function listUsers() {
+  return queryAll(`
+    SELECT u.id, u.name, u.username, u.email, u.bio, u.verified, u.role,
+           u.joined::text AS joined,
+           (SELECT COUNT(*)::int FROM prompts WHERE author_id = u.id) AS "promptCount",
+           (SELECT COUNT(*)::int FROM likes l JOIN prompts p ON p.id = l.prompt_id
+             WHERE p.author_id = u.id) AS "totalLikes",
+           (SELECT COALESCE(SUM(copies),0)::int FROM prompts WHERE author_id = u.id) AS "totalCopies"
+    FROM users u
+    ORDER BY u.joined DESC
+  `);
+}
+
+export async function toggleVerify(userId) {
+  return queryOne(
+    `UPDATE users SET verified = NOT verified WHERE id = $1
+     RETURNING id, name, username, email, bio, verified, role, joined::text AS joined`,
+    [userId]
+  );
+}
+
+export async function deleteUser(id) {
+  await query('DELETE FROM users WHERE id = $1', [id]);
+}
+
+export async function eligibleUsers() {
+  const users = await queryAll(`
+    SELECT u.id, u.name, u.username, u.verified, u.joined::text AS joined,
+           (SELECT COUNT(*)::int FROM prompts WHERE author_id = u.id) AS "promptCount",
+           (SELECT COUNT(*)::int FROM likes l JOIN prompts p ON p.id = l.prompt_id
+             WHERE p.author_id = u.id) AS "totalLikes",
+           (SELECT COALESCE(SUM(copies),0)::int FROM prompts WHERE author_id = u.id) AS "totalCopies"
+    FROM users u WHERE u.verified = FALSE
+  `);
+  const out = [];
+  for (const u of users) {
+    const e = await eligibility(u.id);
+    if (e?.eligible) out.push({ user: publicUser(u), eligibility: e });
+  }
+  return out;
 }
