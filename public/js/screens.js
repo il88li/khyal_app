@@ -22,6 +22,7 @@ function timeAgo(iso) {
 }
 
 const avatar = (u, size = 32) => {
+  // ✅ v5.1: افتراضيًا استخدم الأحرف الأولى — لا صور غريبة
   const inner = u?.avatar
     ? `<img src="${esc(u.avatar)}" alt="" loading="lazy" decoding="async">`
     : esc(initials(u?.name || '؟'));
@@ -52,18 +53,19 @@ const ICON = {
   userCheck: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8.5" r="3.5"/><path d="M3 20c0-3.6 3.1-5.5 7-5.5s7 1.9 7 5.5"/><path d="m16 11 2 2 4-4"/></svg>`,
   bell: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7Z"/><path d="M9.5 17a2.5 2.5 0 0 0 5 0"/></svg>`,
   settings: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>`,
-  lock: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>`
+  lock: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>`,
+  search: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-3.6-3.6"/></svg>`
 };
 
 /* ═══════════════════════════════════════════════
-   ⭐ بطاقة البرومبت
+   بطاقة البرومبت v5.1
    ═══════════════════════════════════════════════ */
 function promptCard(p, idx = 0) {
   const mark = (p.category || p.title || 'خ').charAt(0);
   const slugPath = p.slug || p.id;
   const isOwner = (window.__khayal_user_id === p.authorId);
   const isFollowing = !!p.isFollowingAuthor;
-  const tags = (p.tags || []).slice(0, 4);
+  const tags = (p.tags || []).slice(0, 3);
 
   const coverContent = p.cover
     ? `<img class="pc-media-img" src="${esc(p.cover)}" alt="" loading="lazy" decoding="async">`
@@ -88,7 +90,7 @@ function promptCard(p, idx = 0) {
       ${isOwner
         ? `<span class="pc-self">أنت</span>`
         : `<button class="pc-follow ${isFollowing ? 'following' : ''}" data-follow="${esc(p.authorId)}" data-following="${isFollowing ? '1' : '0'}">
-             ${isFollowing ? 'متابَع' : 'متابعة'}
+             ${isFollowing ? 'متابَع' : '+ متابعة'}
            </button>`}
     </header>
 
@@ -153,7 +155,6 @@ const grid = (items) => `<div class="grid-cards">${items.map((p, i) => promptCar
 function bindCards(root, ctx) {
   window.__khayal_user_id = ctx.state.user?.id || null;
 
-  /* ─── إعجاب (Optimistic) ─── */
   root.querySelectorAll('[data-like]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -195,7 +196,6 @@ function bindCards(root, ctx) {
     });
   });
 
-  /* ─── متابعة ─── */
   root.querySelectorAll('[data-follow]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -209,26 +209,25 @@ function bindCards(root, ctx) {
 
       btn.dataset.following = newState ? '1' : '0';
       btn.classList.toggle('following', newState);
-      btn.textContent = newState ? 'متابَع' : 'متابعة';
+      btn.textContent = newState ? 'متابَع' : '+ متابعة';
 
       ctx.api(`/users/${authorId}/follow`, { method: 'POST', useCache: false })
         .then((r) => {
           const actual = !!r.following;
           btn.dataset.following = actual ? '1' : '0';
           btn.classList.toggle('following', actual);
-          btn.textContent = actual ? 'متابَع' : 'متابعة';
+          btn.textContent = actual ? 'متابَع' : '+ متابعة';
           ctx.toast(actual ? 'تتابع الآن' : 'ألغيت المتابعة');
         })
         .catch((ex) => {
           btn.dataset.following = isNow ? '1' : '0';
           btn.classList.toggle('following', isNow);
-          btn.textContent = isNow ? 'متابَع' : 'متابعة';
+          btn.textContent = isNow ? 'متابَع' : '+ متابعة';
           ctx.toast(ex.message, 'error');
         });
     });
   });
 
-  /* ─── نسخ ─── */
   root.querySelectorAll('[data-copy]').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -261,7 +260,6 @@ function bindCards(root, ctx) {
     });
   });
 
-  /* ─── مشاركة ─── */
   root.querySelectorAll('[data-share]').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -281,7 +279,6 @@ function bindCards(root, ctx) {
     });
   });
 
-  /* ─── توسيع/إغلاق ─── */
   root.querySelectorAll('[data-expand]').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -304,7 +301,6 @@ function bindCards(root, ctx) {
     });
   });
 
-  /* ─── Prefetch على hover/touch ─── */
   root.querySelectorAll('.prompt-card').forEach((card) => {
     let hoverTimer;
     const startPrefetch = () => {
@@ -324,9 +320,6 @@ function bindCards(root, ctx) {
   });
 }
 
-/* ═══════════════════════════════════════════════
-   التعليقات داخل البطاقة
-   ═══════════════════════════════════════════════ */
 async function loadInlineComments(box, promptId, ctx) {
   try {
     const { items, total } = await ctx.api(`/prompts/${promptId}/comments?limit=3&offset=0`);
@@ -382,7 +375,7 @@ async function loadInlineComments(box, promptId, ctx) {
         const body = input.value.trim();
         if (!body) return;
         sendBtn.disabled = true;
-        sendBtn.innerHTML = '<span class="spinner" style="width:13px;height:13px;border-width:2px"></span>';
+        sendBtn.innerHTML = '<span class="spinner" style="width:12px;height:12px;border-width:2px"></span>';
         try {
           await ctx.api(`/prompts/${promptId}/comments`, {
             method: 'POST', body: { body }, useCache: false
@@ -430,12 +423,12 @@ const sectionHead = (index, label, title, sub = '') => `
 async function login(root, ctx) {
   if (ctx.state.user) return ctx.navigate('#/');
   root.innerHTML = `
-  <div style="max-width:400px;margin:32px auto">
-    <div style="text-align:center;margin-bottom:24px">
-      <h1 class="section-title" style="font-size:24px">مرحباً بعودتك</h1>
+  <div style="max-width:400px;margin:16px auto">
+    <div style="text-align:center;margin-bottom:20px">
+      <h1 class="section-title" style="font-size:22px">مرحباً بعودتك</h1>
       <p class="section-sub">سجّل دخولك لمتابعة برومبتاتك</p>
     </div>
-    <form class="card card-white card-lg" id="login-form">
+    <form class="card card-white" id="login-form">
       <div class="stack gap-14">
         <div class="field">
           <label class="label" for="email">البريد الإلكتروني</label>
@@ -449,7 +442,7 @@ async function login(root, ctx) {
         <button class="btn btn-primary btn-block btn-lg" type="submit" id="login-btn">دخول</button>
       </div>
     </form>
-    <p style="text-align:center;margin-top:16px;font-size:13px;color:var(--slate)">
+    <p style="text-align:center;margin-top:14px;font-size:13px;color:var(--slate)">
       ليس لديك حساب؟ <a href="#/register" style="color:var(--orange);font-weight:600">أنشئ حساباً</a>
     </p>
     <div class="lock-note" style="text-align:center">تجريبي: sara@khayal.app / 123456</div>
@@ -484,12 +477,12 @@ async function login(root, ctx) {
 async function register(root, ctx) {
   if (ctx.state.user) return ctx.navigate('#/');
   root.innerHTML = `
-  <div style="max-width:400px;margin:32px auto">
-    <div style="text-align:center;margin-bottom:24px">
-      <h1 class="section-title" style="font-size:24px">انضم إلى خيال</h1>
+  <div style="max-width:400px;margin:16px auto">
+    <div style="text-align:center;margin-bottom:20px">
+      <h1 class="section-title" style="font-size:22px">انضم إلى خيال</h1>
       <p class="section-sub">شارك برومبتاتك مع المجتمع</p>
     </div>
-    <form class="card card-white card-lg" id="reg-form">
+    <form class="card card-white" id="reg-form">
       <div class="stack gap-14">
         <div class="field">
           <label class="label">الاسم الكامل</label>
@@ -511,7 +504,7 @@ async function register(root, ctx) {
         <button class="btn btn-primary btn-block btn-lg" type="submit" id="reg-btn">إنشاء الحساب</button>
       </div>
     </form>
-    <p style="text-align:center;margin-top:16px;font-size:13px;color:var(--slate)">
+    <p style="text-align:center;margin-top:14px;font-size:13px;color:var(--slate)">
       لديك حساب؟ <a href="#/login" style="color:var(--orange);font-weight:600">سجّل الدخول</a>
     </p>
   </div>`;
@@ -547,14 +540,33 @@ async function register(root, ctx) {
 
 /* ═══════════ 3 — الرئيسية ═══════════ */
 async function home(root, ctx) {
+  // ✅ v5.1: تصنيفات مختصرة
+  const quickCats = ['كتابة', 'برمجة', 'تصميم', 'تسويق', 'تعليم'];
+
   root.innerHTML = `
   <section class="hero">
     <div class="hero-badge"><span class="badge">جديد · برومبتات كل أسبوع</span></div>
     <h1>برومبتات عربية <span class="hl">مكتوبة بإتقان</span> لأدوات الذكاء الاصطناعي</h1>
-    <p class="hero-sub">خيال مكتبة مفتوحة لمشاركة أوامر الذكاء الاصطناعي بالعربية — اكتشف، انسخ، وانشر.</p>
-    <div class="hero-actions">
-      <a class="btn btn-primary btn-lg" href="#/explore">استكشف البرومبتات</a>
-      <a class="btn btn-outline btn-lg" href="#/new">شارك برومبتك</a>
+    <p class="hero-sub">مكتبة مفتوحة لمشاركة أوامر الذكاء الاصطناعي بالعربية — اكتشف، انسخ، وانشر.</p>
+
+    <!-- ✅ v5.1: شريط البحث في الصفحة الرئيسية -->
+    <form class="hero-search" id="hero-search-form">
+      <div class="search-wrap">
+        ${ICON.search}
+        <input class="input" id="hero-search-q" placeholder="ابحث عن برومبت… مثال: تحرير نصوص" autocomplete="off">
+      </div>
+    </form>
+
+    <!-- ✅ v5.1: تصنيفات سريعة -->
+    <div class="hero-cats">
+      ${quickCats.map((c) =>
+        `<a class="chip" href="#/explore?q=${encodeURIComponent(c)}">${esc(c)}</a>`
+      ).join('')}
+    </div>
+
+    <div class="hero-actions" style="margin-top:20px">
+      <a class="btn btn-primary btn-lg" href="#/explore">استكشف كل البرومبتات</a>
+      <a class="btn btn-outline btn-lg" href="#/new">انشر برومبتك</a>
     </div>
   </section>
 
@@ -571,11 +583,17 @@ async function home(root, ctx) {
 
   <section class="section">
     <div class="card card-lg" style="text-align:center;background:var(--vellum);border-color:transparent">
-      <h2 class="section-title" style="font-size:22px">لديك برومبت يعمل جيداً؟</h2>
-      <p class="section-sub" style="max-width:42ch;margin:8px auto 20px">شاركه مع المجتمع.</p>
+      <h2 class="section-title" style="font-size:20px">لديك برومبت يعمل جيداً؟</h2>
+      <p class="section-sub" style="max-width:42ch;margin:6px auto 16px">شاركه مع المجتمع.</p>
       <a class="btn btn-primary btn-lg" href="#/new">انشر برومبتاً</a>
     </div>
   </section>`;
+
+  root.querySelector('#hero-search-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const q = root.querySelector('#hero-search-q').value.trim();
+    ctx.navigate(q ? `#/explore?q=${encodeURIComponent(q)}` : '#/explore');
+  });
 
   try {
     const latest = await ctx.api('/prompts?sort=new&limit=12');
@@ -602,13 +620,13 @@ async function explore(root, ctx) {
         <div class="eyebrow"><span class="dot"></span>02 / الاستكشاف</div>
         <h2 class="section-title">تصفّح <span class="hl">المكتبة</span></h2>
       </div>
-      <span class="badge badge-soft mono" id="result-count" style="font-family:var(--font-mono)">…</span>
+      <span class="badge badge-soft" id="result-count" style="font-family:var(--font-mono);font-size:11.5px">…</span>
     </div>
   </div>
 
   <div class="filter-bar">
     <div class="search-wrap">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-3.6-3.6"/></svg>
+      ${ICON.search}
       <input class="input" id="x-q" value="${esc(q)}" placeholder="ابحث بالعنوان أو الوسم أو النص…" autocomplete="off">
     </div>
     <div class="filter-row">
@@ -697,7 +715,7 @@ async function explore(root, ctx) {
 /* ═══════════ 5 — تفاصيل البرومبت ═══════════ */
 async function prompt(root, ctx) {
   root.innerHTML = `
-    <div style="padding:8px 0">
+    <div style="padding:6px 0">
       <button class="btn btn-ghost btn-sm" onclick="history.back()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
         رجوع
@@ -714,7 +732,7 @@ async function prompt(root, ctx) {
   const isFollowingAuthor = !!p.isFollowingAuthor;
 
   root.innerHTML = `
-  <div style="padding:8px 0">
+  <div style="padding:6px 0">
     <button class="btn btn-ghost btn-sm" id="back">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
       رجوع
@@ -724,7 +742,7 @@ async function prompt(root, ctx) {
   <div class="detail-hero">
     <div class="detail-cover">
       ${p.cover ? `<img src="${esc(p.cover)}" alt="" decoding="async">`
-                : `<span class="pc-media-mark" style="font-size:80px">${esc(mark)}</span>`}
+                : `<span class="pc-media-mark" style="font-size:72px">${esc(mark)}</span>`}
     </div>
     <div class="detail-body">
       ${p.slug ? `
@@ -733,14 +751,14 @@ async function prompt(root, ctx) {
       </button>` : ''}
 
       <h1 class="detail-title">${esc(p.title)}</h1>
-      <p style="color:var(--slate);line-height:1.75;font-size:14.5px">${esc(description)}</p>
+      <p style="color:var(--slate);line-height:1.7;font-size:14px">${esc(description)}</p>
 
-      <div class="meta-row" style="margin-top:12px">
+      <div class="meta-row" style="margin-top:10px">
         <span class="chip" style="cursor:default">${timeAgo(p.createdAt)}</span>
       </div>
 
       <div class="author-bar">
-        ${avatar(p.author, 44)}
+        ${avatar(p.author, 42)}
         <div class="info">
           <span class="name">${esc(p.author?.name || 'مجهول')}${p.author?.verified ? VCHECK : ''}</span>
           <span class="handle">@${esc(p.author?.username || 'unknown')}</span>
@@ -750,7 +768,7 @@ async function prompt(root, ctx) {
             <a class="btn btn-outline btn-sm" href="#/edit/${p.id}">${ICON.edit} تعديل</a>
             <button class="btn btn-danger btn-sm" id="delete-btn">${ICON.trash}</button>
           ` : `
-            <button class="btn ${isFollowingAuthor ? 'btn-outline' : 'btn-primary'} btn-sm" id="follow-btn" data-following="${isFollowingAuthor ? '1' : '0'}">
+            <button class="btn ${isFollowingAuthor ? 'btn-soft' : 'btn-outline'} btn-sm" id="follow-btn" data-following="${isFollowingAuthor ? '1' : '0'}">
               ${isFollowingAuthor ? ICON.userCheck + ' متابَع' : ICON.userPlus + ' متابعة'}
             </button>
           `}
@@ -901,19 +919,19 @@ async function prompt(root, ctx) {
     const isNow = followBtn.dataset.following === '1';
     const newState = !isNow;
     followBtn.dataset.following = newState ? '1' : '0';
-    followBtn.className = 'btn ' + (newState ? 'btn-outline' : 'btn-primary') + ' btn-sm';
+    followBtn.className = 'btn ' + (newState ? 'btn-soft' : 'btn-outline') + ' btn-sm';
     followBtn.innerHTML = newState ? `${ICON.userCheck} متابَع` : `${ICON.userPlus} متابعة`;
     ctx.api(`/users/${p.authorId}/follow`, { method: 'POST', useCache: false })
       .then((r) => {
         const actual = !!r.following;
         followBtn.dataset.following = actual ? '1' : '0';
-        followBtn.className = 'btn ' + (actual ? 'btn-outline' : 'btn-primary') + ' btn-sm';
+        followBtn.className = 'btn ' + (actual ? 'btn-soft' : 'btn-outline') + ' btn-sm';
         followBtn.innerHTML = actual ? `${ICON.userCheck} متابَع` : `${ICON.userPlus} متابعة`;
         ctx.toast(actual ? 'تتابع الآن' : 'ألغيت المتابعة');
       })
       .catch((e) => {
         followBtn.dataset.following = isNow ? '1' : '0';
-        followBtn.className = 'btn ' + (isNow ? 'btn-outline' : 'btn-primary') + ' btn-sm';
+        followBtn.className = 'btn ' + (isNow ? 'btn-soft' : 'btn-outline') + ' btn-sm';
         followBtn.innerHTML = isNow ? `${ICON.userCheck} متابَع` : `${ICON.userPlus} متابعة`;
         ctx.toast(e.message, 'error');
       });
@@ -935,7 +953,6 @@ async function prompt(root, ctx) {
     }
   });
 
-  /* التعليقات */
   const cmList = root.querySelector('#cm-list');
   const cmMore = root.querySelector('#cm-more');
   const cmCount = root.querySelector('#cm-count');
@@ -949,7 +966,7 @@ async function prompt(root, ctx) {
     const edited = c.updatedAt && new Date(c.updatedAt) - new Date(c.createdAt) > 1000;
     return `
     <div class="comment-item" data-cid="${esc(c.id)}">
-      <div class="c-avatar">${avatar(c.author, 40)}</div>
+      <div class="c-avatar">${avatar(c.author, 38)}</div>
       <div class="c-body">
         <div class="c-head">
           <span class="c-name">${esc(c.author?.name || 'مجهول')}${c.author?.verified ? VCHECK : ''}</span>
@@ -1131,9 +1148,9 @@ async function promptForm(root, ctx, existing) {
       </div>
     </div>
 
-    <form id="np-form" class="stack gap-16">
+    <form id="np-form" class="stack gap-14">
       <div class="card">
-        <div class="stack gap-16">
+        <div class="stack gap-14">
           <div class="field">
             <label class="label">صورة الغلاف <span class="opt">(اختياري)</span></label>
             <div class="row gap-12" style="flex-wrap:wrap">
@@ -1165,7 +1182,7 @@ async function promptForm(root, ctx, existing) {
       </div>
 
       <div class="card">
-        <div class="stack gap-16">
+        <div class="stack gap-14">
           <div class="field">
             <label class="label">نص البرومبت</label>
             <textarea class="textarea code" id="body" rows="14" required
@@ -1293,20 +1310,20 @@ async function profile(root, ctx) {
       <button class="settings-btn" id="settings-btn" title="الإعدادات" aria-label="الإعدادات">${ICON.settings}</button>
     </div>` : `
     <div class="profile-actions">
-      <button class="btn ${u.isFollowing ? 'btn-outline' : 'btn-primary'} btn-sm" id="follow-btn" data-following="${u.isFollowing ? '1' : '0'}">
+      <button class="btn ${u.isFollowing ? 'btn-soft' : 'btn-outline'} btn-sm" id="follow-btn" data-following="${u.isFollowing ? '1' : '0'}">
         ${u.isFollowing ? ICON.userCheck + ' متابَع' : ICON.userPlus + ' متابعة'}
       </button>
     </div>`}
   </div>
 
   ${u.isSelf ? `
-  <div class="card hidden" id="settings-panel" style="margin-bottom:20px">
-    <div class="stack gap-16">
+  <div class="card hidden" id="settings-panel" style="margin-bottom:16px">
+    <div class="stack gap-14">
 
-      <h3 style="font-size:16px;display:flex;align-items:center;gap:8px">${ICON.settings} الإعدادات</h3>
+      <h3 style="font-size:15px;display:flex;align-items:center;gap:8px">${ICON.settings} الإعدادات</h3>
 
       <div class="row gap-12" style="flex-wrap:wrap;align-items:flex-start">
-        <div id="avatar-preview" class="profile-avatar" style="width:64px;height:64px;font-size:22px;flex-shrink:0">${avatarInner}</div>
+        <div id="avatar-preview" class="profile-avatar" style="width:60px;height:60px;font-size:22px;flex-shrink:0">${avatarInner}</div>
         <div class="stack gap-8 grow">
           <input class="input" id="edit-avatar" dir="ltr" placeholder="رابط الصورة" value="${esc(u.avatar || '')}">
           <div class="row gap-8">
@@ -1360,7 +1377,7 @@ async function profile(root, ctx) {
 
       <div class="danger-zone">
         <h4>الأمان</h4>
-        <p style="font-size:13px;color:var(--graphite);margin-bottom:12px;line-height:1.7">
+        <p style="font-size:12.5px;color:var(--graphite);margin-bottom:10px;line-height:1.65">
           إن كنت مسجّلًا على أجهزة أخرى ولا تريد ذلك، يمكنك إبطال جميع الجلسات. ستحتفظ أنت بالجلسة الحالية.
         </p>
         <div class="row gap-8" style="flex-wrap:wrap">
@@ -1407,26 +1424,26 @@ async function profile(root, ctx) {
     </div>
   </details>` : ''}
 
-  <div class="profile-tabs" id="profile-tabs">
-    <button class="profile-tab active" data-tab="prompts">
-      البرومبتات <span class="count">${prompts.length}</span>
+  <div class="tabs" id="profile-tabs">
+    <button class="tab active" data-tab="prompts">
+      البرومبتات (${prompts.length})
     </button>
     ${u.isSelf ? `
-    <button class="profile-tab" data-tab="likes">
-      الإعجابات <span class="count" id="likes-count">…</span>
+    <button class="tab" data-tab="likes">
+      الإعجابات <span id="likes-count">…</span>
     </button>` : ''}
-    <button class="profile-tab" data-tab="followers">
-      المتابعون <span class="count">${fmt(u.followers || 0)}</span>
+    <button class="tab" data-tab="followers">
+      المتابعون (${fmt(u.followers || 0)})
     </button>
-    <button class="profile-tab" data-tab="following">
-      يتابع <span class="count">${fmt(u.following || 0)}</span>
+    <button class="tab" data-tab="following">
+      يتابع (${fmt(u.following || 0)})
     </button>
   </div>
 
   <div id="profile-content"></div>`;
 
   const content = root.querySelector('#profile-content');
-  const tabButtons = root.querySelectorAll('.profile-tab');
+  const tabButtons = root.querySelectorAll('.tab');
 
   function activateTab(name) {
     tabButtons.forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
@@ -1465,7 +1482,7 @@ async function profile(root, ctx) {
   function userMiniCard(x) {
     return `
       <div class="user-mini" data-uid="${esc(x.id)}">
-        ${avatar(x, 44)}
+        ${avatar(x, 42)}
         <div class="info">
           <div class="nm">${esc(x.name)}${x.verified ? VCHECK : ''}</div>
           <div class="hn">@${esc(x.username)}</div>
@@ -1642,19 +1659,19 @@ async function profile(root, ctx) {
     const isNow = followBtn.dataset.following === '1';
     const newState = !isNow;
     followBtn.dataset.following = newState ? '1' : '0';
-    followBtn.className = 'btn ' + (newState ? 'btn-outline' : 'btn-primary') + ' btn-sm';
+    followBtn.className = 'btn ' + (newState ? 'btn-soft' : 'btn-outline') + ' btn-sm';
     followBtn.innerHTML = newState ? `${ICON.userCheck} متابَع` : `${ICON.userPlus} متابعة`;
     ctx.api(`/users/${u.id}/follow`, { method: 'POST', useCache: false })
       .then((r) => {
         const actual = !!r.following;
         followBtn.dataset.following = actual ? '1' : '0';
-        followBtn.className = 'btn ' + (actual ? 'btn-outline' : 'btn-primary') + ' btn-sm';
+        followBtn.className = 'btn ' + (actual ? 'btn-soft' : 'btn-outline') + ' btn-sm';
         followBtn.innerHTML = actual ? `${ICON.userCheck} متابَع` : `${ICON.userPlus} متابعة`;
         ctx.toast(actual ? 'تتابع الآن' : 'ألغيت المتابعة');
       })
       .catch((e) => {
         followBtn.dataset.following = isNow ? '1' : '0';
-        followBtn.className = 'btn ' + (isNow ? 'btn-outline' : 'btn-primary') + ' btn-sm';
+        followBtn.className = 'btn ' + (isNow ? 'btn-soft' : 'btn-outline') + ' btn-sm';
         followBtn.innerHTML = isNow ? `${ICON.userCheck} متابَع` : `${ICON.userPlus} متابعة`;
         ctx.toast(e.message, 'error');
       });
@@ -1842,7 +1859,7 @@ async function admin(root, ctx) {
       <div class="eyebrow"><span class="dot"></span>10 / الإدارة</div>
       <h1>لوحة التحكم</h1>
     </div>
-    <button class="btn btn-outline btn-sm" id="admin-exit">خروج من اللوحة</button>
+    <button class="btn btn-outline btn-sm" id="admin-exit">خروج</button>
   </div>
   <div class="tabs">
     <button class="tab active" data-tab="overview">نظرة عامة</button>
@@ -1881,7 +1898,7 @@ async function admin(root, ctx) {
       </div>
       <div class="two-col">
         <div class="card">
-          <h3 style="font-size:14px;margin-bottom:12px">أعلى البرومبتات</h3>
+          <h3 style="font-size:13.5px;margin-bottom:10px">أعلى البرومبتات</h3>
           <div class="list-mini">
             ${topPrompts.map((p) => `
               <div class="item">
@@ -1891,11 +1908,11 @@ async function admin(root, ctx) {
           </div>
         </div>
         <div class="card">
-          <h3 style="font-size:14px;margin-bottom:12px">أحدث المستخدمين</h3>
+          <h3 style="font-size:13.5px;margin-bottom:10px">أحدث المستخدمين</h3>
           <div class="list-mini">
             ${latestUsers.map((u) => `
               <div class="item">
-                ${avatar(u, 28)}
+                ${avatar(u, 26)}
                 <div class="grow"><div class="t">${esc(u.name)}</div><div class="s">@${esc(u.username)}</div></div>
                 <span class="v">${u.promptCount || 0}</span>
               </div>`).join('')}
@@ -1914,7 +1931,7 @@ async function admin(root, ctx) {
           <tbody>
             ${items.map((u) => `
               <tr>
-                <td><span class="td-user">${avatar(u, 28)}<span>${esc(u.name)}</span></span></td>
+                <td><span class="td-user">${avatar(u, 26)}<span>${esc(u.name)}</span></span></td>
                 <td class="mono" style="font-size:11px;color:var(--slate)" dir="ltr">${esc(u.email)}</td>
                 <td><span class="badge badge-soft mono">${u.role === 'admin' ? 'إدارة' : 'عضو'}</span></td>
                 <td>${u.verified ? '<span class="badge">موثّق</span>' : '<span class="badge badge-soft">لا</span>'}</td>
@@ -1974,20 +1991,20 @@ async function admin(root, ctx) {
       return;
     }
     body.innerHTML = `
-      <p class="hint" style="margin-bottom:14px">${items.length} مؤهّل.</p>
-      <div class="stack gap-10">
+      <p class="hint" style="margin-bottom:12px">${items.length} مؤهّل.</p>
+      <div class="stack gap-8">
         ${items.map(({ user: u }) => `
-          <div class="card row gap-14" style="flex-wrap:wrap;padding:16px">
-            ${avatar(u, 44)}
+          <div class="card row gap-14" style="flex-wrap:wrap;padding:14px">
+            ${avatar(u, 42)}
             <div class="grow">
-              <div style="font-weight:600;font-size:14.5px">${esc(u.name)}</div>
-              <div class="mono" style="font-size:11.5px;color:var(--ash)">@${esc(u.username)}</div>
+              <div style="font-weight:600;font-size:14px">${esc(u.name)}</div>
+              <div class="mono" style="font-size:11px;color:var(--ash)">@${esc(u.username)}</div>
             </div>
-            <div class="row gap-12" style="font-size:12.5px;color:var(--slate)">
+            <div class="row gap-12" style="font-size:12px;color:var(--slate)">
               <span>${u.promptCount} برومبت</span>
               <span>♥ ${fmt(u.totalLikes)}</span>
             </div>
-            <div class="row gap-8">
+            <div class="row gap-6">
               <a class="btn btn-outline btn-xs" href="#/u/${u.id}">عرض</a>
               <button class="btn btn-primary btn-xs" data-v="${u.id}">توثيق</button>
             </div>
@@ -2005,7 +2022,7 @@ async function admin(root, ctx) {
 /* ═══════════ 11 — انقطاع الاتصال ═══════════ */
 async function offline(root, ctx) {
   root.innerHTML = `
-  <div class="state" style="margin:48px auto;max-width:480px">
+  <div class="state" style="margin:40px auto;max-width:480px">
     <div class="icon">${ICON.wifiOff}</div>
     <h3>لا يوجد اتصال</h3>
     <p>تعذّر الوصول. سنعيد المحاولة عند عودة الاتصال.</p>
@@ -2015,6 +2032,7 @@ async function offline(root, ctx) {
     try {
       await ctx.api('/meta', { useCache: false });
       ctx.state.online = true;
+      ctx.state.networkFailStreak = 0;
       const strip = document.getElementById('offline-strip');
       if (strip) strip.hidden = true;
       ctx.toast('عاد الاتصال');
