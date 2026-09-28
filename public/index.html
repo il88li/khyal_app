@@ -10,13 +10,11 @@
 <meta name="description" content="خيال — منصة عربية لمشاركة برومبتات الذكاء الاصطناعي">
 <title>خيال — برومبتات الذكاء الاصطناعي بالعربية</title>
 
-<!-- Preconnect لتسريع الاتصال -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="dns-prefetch" href="https://fonts.gstatic.com">
 <link rel="dns-prefetch" href="//khyal-app.vercel.app">
 
-<!-- Fonts (مُحمّلة بشكل غير معطّل) -->
 <link rel="preload" as="style"
   href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <link rel="stylesheet"
@@ -24,7 +22,6 @@
 
 <!-- ═══════ Critical CSS — يُحمّل فورًا ═══════ -->
 <style>
-/* Reset + الأساسيات */
 *{-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;touch-action:manipulation}
 *,*::before,*::after{box-sizing:border-box}
 html,body{margin:0;padding:0}
@@ -42,11 +39,9 @@ a{color:inherit;text-decoration:none}
 button{font-family:inherit;cursor:pointer;border:none;background:none;padding:0}
 ::selection{background:#fcddcc;color:#0f0f0f}
 
-/* التخطيط الأساسي */
 .app{max-width:1240px;margin:0 auto;padding:92px 20px 0}
 @media(max-width:720px){.app{padding:88px 16px 110px}}
 
-/* الشريط العلوي */
 .topbar{
   position:fixed;top:12px;inset-inline:12px;z-index:60;
   border-radius:24px;
@@ -61,7 +56,6 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;padding:0}
   display:flex;align-items:center;gap:12px
 }
 
-/* الأزرار الأساسية */
 .btn{
   display:inline-flex;align-items:center;justify-content:center;gap:6px;
   border:1px solid transparent;border-radius:999px;
@@ -75,7 +69,6 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;padding:0}
   box-shadow:0 4px 14px -4px rgba(255,77,0,.35)
 }
 
-/* الشريط السفلي */
 .bottomnav{
   position:fixed;bottom:16px;inset-inline:12px;z-index:70;
   border-radius:28px;
@@ -89,31 +82,22 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;padding:0}
 }
 @media(max-width:720px){.bottomnav{display:block}}
 
-/* الهيكل العام */
 .section{margin:72px 0}
 .grid-cards{
   display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(340px,1fr));
-  gap:24px
+  grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
+  gap:20px
 }
-@media(max-width:720px){.grid-cards{grid-template-columns:1fr;gap:16px}}
+@media(max-width:720px){.grid-cards{grid-template-columns:1fr;gap:14px}}
 
-/* البطاقة (الحد الأدنى لمنع CLS) */
 .prompt-card{
   display:flex;flex-direction:column;
   background:#fff;border:1px solid #ececef;
-  border-radius:32px;overflow:hidden;
-  box-shadow:0 6px 20px -8px rgba(15,15,15,.10),0 1px 3px rgba(15,15,15,.03);
+  border-radius:20px;overflow:hidden;
+  box-shadow:0 1px 2px rgba(15,15,15,.03),0 4px 12px -4px rgba(15,15,15,.04);
   transition:all .4s cubic-bezier(.22,.61,.36,1)
 }
-.pc-cover-wrap{padding:0 14px 14px;background:#fff}
-.pc-cover{
-  position:relative;aspect-ratio:4/3;border-radius:22px;overflow:hidden;
-  background:linear-gradient(135deg,#fafafa 0%,#f0f0f0 60%,#ebebeb 100%);
-  display:flex;align-items:center;justify-content:center
-}
 
-/* Skeletons (لا تدع المستخدم ينتظر بلا شيء) */
 .sk{
   background:linear-gradient(90deg,#fafafa 0%,#f0f0f0 30%,#fafafa 50%,#f0f0f0 70%,#fafafa 100%);
   background-size:300% 100%;
@@ -124,12 +108,11 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;padding:0}
   0%{background-position:150% 0}
   100%{background-position:-150% 0}
 }
-.sk-cover{aspect-ratio:4/3;border-radius:22px}
+.sk-cover{aspect-ratio:16/10;border-radius:14px}
 
-/* الحالات الفارغة */
 .state{
   text-align:center;padding:72px 24px;
-  border:1.5px dashed #ececef;border-radius:32px;background:#fafafa
+  border:1.5px dashed #ececef;border-radius:20px;background:#fafafa
 }
 .spinner{
   width:24px;height:24px;border-radius:999px;
@@ -139,10 +122,9 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;padding:0}
 @keyframes spin{to{transform:rotate(360deg)}}
 </style>
 
-<!-- ═══════ Main CSS — يُحمّل بشكل غير معطّل ═══════ -->
-<link rel="preload" as="style" href="/css/style.css?v=5">
-<link rel="stylesheet" href="/css/style.css?v=5" media="print" onload="this.media='all'">
-<noscript><link rel="stylesheet" href="/css/style.css?v=5"></noscript>
+<link rel="preload" as="style" href="/css/style.css?v=6">
+<link rel="stylesheet" href="/css/style.css?v=6" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="/css/style.css?v=6"></noscript>
 </head>
 <body>
 
@@ -152,16 +134,15 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;padding:0}
 
 <header id="topbar" class="topbar"></header>
 <main id="app" class="app">
-  <!-- Initial skeleton — يظهر فورًا قبل تحميل JS -->
-  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:24px">
-    <div class="sk sk-cover" style="height:280px;border-radius:32px"></div>
-    <div class="sk sk-cover" style="height:280px;border-radius:32px"></div>
-    <div class="sk sk-cover" style="height:280px;border-radius:32px"></div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px">
+    <div class="sk sk-cover" style="height:280px;border-radius:20px"></div>
+    <div class="sk sk-cover" style="height:280px;border-radius:20px"></div>
+    <div class="sk sk-cover" style="height:280px;border-radius:20px"></div>
   </div>
 </main>
 <nav id="bottomnav" class="bottomnav"></nav>
 <div id="toasts" class="toasts" aria-live="polite"></div>
 
-<script type="module" src="/js/app.js?v=5"></script>
+<script type="module" src="/js/app.js?v=6"></script>
 </body>
 </html>
