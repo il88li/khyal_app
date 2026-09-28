@@ -1,24 +1,18 @@
 /* ═══════════════════════════════════════════════
-   خيال — Service Worker v5.1.1
+   خيال — Service Worker v9 (Self-Destruct on Update)
    ═══════════════════════════════════════════════ */
 
-// ⚠️ مهم: عدّل هذا الرقم عند كل نشر مهم
-// أو استخدم timestamp تلقائي
-const VERSION = 'khayal-5-1-1-' + '20250928';
+// ⚠️ غيّر هذا الرقم مع كل نشر مهم
+const VERSION = 'khayal-v9';
 
 const STATIC_CACHE = `${VERSION}-static`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 const DATA_CACHE = `${VERSION}-data`;
 
-// ملفات أساسية فقط — لا تفشل إن لم يوجد ملف
+// ملفات أساسية فقط
 const STATIC_ASSETS = [
   '/',
-  '/index.html',
-  '/css/style.css?v=8',
-  '/js/app.js?v=8',
-  '/js/screens.js',
-  '/js/skeleton.js',
-  '/js/cache.js'
+  '/index.html'
 ];
 
 /* ═══ التثبيت ═══ */
@@ -26,23 +20,21 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(STATIC_CACHE)
       .then(async (cache) => {
-        // ✅ استخدم add() لكل ملف منفردًا حتى لا يفشل الكل
-        const results = await Promise.allSettled(
+        // ✅ add منفصل لكل ملف حتى لا يفشل الكل
+        await Promise.allSettled(
           STATIC_ASSETS.map((url) =>
             cache.add(url).catch((err) => {
               console.warn('[SW] فشل تخزين:', url, err.message);
-              return null;
             })
           )
         );
-        return results;
       })
       .then(() => self.skipWaiting())
       .catch((err) => console.warn('[SW] فشل التثبيت:', err))
   );
 });
 
-/* ═══ التنشيط — احذف كل النسخ القديمة ═══ */
+/* ═══ التنشيط — امسح كل شيء قديم ═══ */
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
@@ -55,10 +47,7 @@ self.addEventListener('activate', (event) => {
           })
       ))
       .then(() => self.clients.claim())
-      .then(() => {
-        // ✅ أخبر كل التبويبات المفتوحة أن هناك نسخة جديدة
-        return self.clients.matchAll({ type: 'window' });
-      })
+      .then(() => self.clients.matchAll({ type: 'window' }))
       .then((clients) => {
         clients.forEach((client) => {
           try { client.postMessage({ type: 'SW_UPDATED', version: VERSION }); } catch {}
@@ -67,11 +56,10 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-/* ═══ الاستراتيجيات ═══ */
+/* ═══ استراتيجيات ═══ */
+
 function isStaticAsset(url) {
-  return /\.(css|js|woff2?|ttf|otf|png|jpg|jpeg|webp|avif|svg|ico)$/i.test(url.pathname) ||
-         url.pathname.startsWith('/css/') ||
-         url.pathname.startsWith('/js/');
+  return /\.(css|js|woff2?|ttf|otf|png|jpg|jpeg|webp|avif|svg|ico)$/i.test(url.pathname);
 }
 
 function isApiGet(url, method) {
@@ -135,32 +123,31 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return;
   if (url.origin !== self.location.origin && !url.pathname.startsWith('/')) return;
 
-  // 1. الأصول الثابتة
+  // 1. أصول ثابتة → Cache First
   if (isStaticAsset(url)) {
     event.respondWith(cacheFirst(req, STATIC_CACHE));
     return;
   }
 
-  // 2. API عام
+  // 2. API عام → Stale While Revalidate
   if (isApiGet(url, req.method) && isPublicApi(url)) {
     event.respondWith(staleWhileRevalidate(req, DATA_CACHE));
     return;
   }
 
-  // 3. API خاص
+  // 3. API خاص → Network First
   if (isApiGet(url, req.method) && isPrivateApi(url)) {
     event.respondWith(networkFirst(req, DATA_CACHE, 2500));
     return;
   }
 
-  // 4. صفحات HTML — Network First لكن لا تخزّن HTML في الكاش الدائم
+  // 4. HTML — لا تخزّن أبدًا (دع Vercel يخدمه طازجًا)
   if (req.mode === 'navigate' || req.headers.get('accept')?.includes('text/html')) {
-    // ✅ لا تخزّن HTML في SW — دع Vercel يخدمه دائمًا طازجًا
     event.respondWith(fetch(req).catch(() => caches.match('/index.html')));
     return;
   }
 
-  // 5. الباقي
+  // 5. الباقي → Fetch عادي
   event.respondWith(fetch(req));
 });
 
@@ -169,8 +156,5 @@ self.addEventListener('message', (event) => {
   if (event.data === 'SKIP_WAITING') self.skipWaiting();
   if (event.data === 'CLEAR_CACHE') {
     caches.keys().then((keys) => keys.forEach((k) => caches.delete(k)));
-  }
-  if (event.data === 'GET_VERSION') {
-    event.source?.postMessage({ type: 'VERSION', version: VERSION });
   }
 });
