@@ -1,12 +1,13 @@
 import { Router } from 'express';
 import {
   ADMIN_PASSWORD, CATEGORIES, MODELS,
-  findUser, findUserByEmail, createUser,
+  findUser, findUserByEmail, createUser, updateUser,
   listPrompts, countPrompts, getPrompt, getRelated, createPrompt,
-  incrementCopies, deletePrompt, toggleLike, getUserLikes,
+  updatePrompt, incrementCopies, deletePrompt, toggleLike, getUserLikes,
   userStats, publicUser, eligibility,
   adminStats, topPrompts, latestUsers, listUsers,
-  toggleVerify, deleteUser, eligibleUsers
+  toggleVerify, deleteUser, eligibleUsers,
+  toggleFollow, isFollowing
 } from './store.js';
 import {
   createSession, getUserId, deleteSession,
@@ -96,7 +97,7 @@ api.post('/auth/login', async (req, res, next) => {
     if (!user || user.password !== password)
       return res.status(401).json({ error: 'بيانات الدخول غير صحيحة' });
     const token = await createSession(user.id);
-    cleanupSessions(); // fire-and-forget
+    cleanupSessions();
     res.json({
       token,
       user: publicUser(user, await userStats(user.id))
@@ -117,6 +118,22 @@ api.get('/me', async (req, res, next) => {
     const u = await findUser(req.userId);
     if (!u) return res.json({ user: null });
     res.json({ user: publicUser(u, await userStats(u.id)) });
+  } catch (e) { next(e); }
+});
+
+api.patch('/me', requireAuth, async (req, res, next) => {
+  try {
+    const { name, username, bio, avatar } = req.body || {};
+    const patch = {};
+    if (name !== undefined) patch.name = String(name).trim();
+    if (username !== undefined) patch.username = String(username).trim();
+    if (bio !== undefined) patch.bio = String(bio).trim();
+    if (avatar !== undefined) patch.avatar = String(avatar);
+
+    const updated = await updateUser(req.userId, patch);
+    res.json({
+      user: publicUser(updated, await userStats(updated.id))
+    });
   } catch (e) { next(e); }
 });
 
@@ -166,6 +183,39 @@ api.post('/prompts', requireAuth, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+api.patch('/prompts/:id', requireAuth, async (req, res, next) => {
+  try {
+    const p = await getPrompt(req.params.id, req.userId);
+    if (!p) return res.status(404).json({ error: 'البرومبت غير موجود' });
+    if (p.authorId !== req.userId)
+      return res.status(403).json({ error: 'لا تملك صلاحية التعديل' });
+
+    const { title, description, body, category, tags, models, cover } = req.body || {};
+    const updated = await updatePrompt(p.id, {
+      title: title !== undefined ? String(title).trim() : undefined,
+      description: description !== undefined ? String(description).trim() : undefined,
+      body: body !== undefined ? String(body) : undefined,
+      category: category !== undefined ? String(category) : undefined,
+      tags: Array.isArray(tags) ? tags.filter(Boolean).slice(0, 8) : undefined,
+      models: Array.isArray(models) ? models.slice(0, 6) : undefined,
+      cover: cover !== undefined ? String(cover) : undefined
+    });
+    res.json({ prompt: updated });
+  } catch (e) { next(e); }
+});
+
+api.delete('/prompts/:id', requireAuth, async (req, res, next) => {
+  try {
+    const p = await getPrompt(req.params.id, req.userId);
+    if (!p) return res.status(404).json({ error: 'البرومبت غير موجود' });
+    const user = await findUser(req.userId);
+    if (p.authorId !== req.userId && user?.role !== 'admin')
+      return res.status(403).json({ error: 'لا تملك صلاحية الحذف' });
+    await deletePrompt(p.id);
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
 api.post('/prompts/:id/like', requireAuth, async (req, res, next) => {
   try {
     const p = await getPrompt(req.params.id, req.userId);
@@ -192,10 +242,27 @@ api.get('/users/:id', async (req, res, next) => {
     const stats = await userStats(u.id);
     const prompts = await listPrompts({ author: u.id, viewerId: req.userId });
     const elig = await eligibility(u.id);
+    const following = req.userId ? await isFollowing(req.userId, u.id) : false;
     res.json({
-      user: publicUser(u, { ...stats, isSelf: u.id === req.userId }),
-      prompts, eligibility: elig
+      user: publicUser(u, {
+        ...stats,
+        isSelf: u.id === req.userId,
+        isFollowing: following
+      }),
+      prompts,
+      eligibility: elig
     });
+  } catch (e) { next(e); }
+});
+
+api.post('/users/:id/follow', requireAuth, async (req, res, next) => {
+  try {
+    if (req.params.id === req.userId)
+      return res.status(400).json({ error: 'لا يمكنك متابعة نفسك' });
+    const target = await findUser(req.params.id);
+    if (!target) return res.status(404).json({ error: 'المستخدم غير موجود' });
+    const result = await toggleFollow(req.userId, req.params.id);
+    res.json(result);
   } catch (e) { next(e); }
 });
 
