@@ -1,10 +1,10 @@
 {
   "name": "khayal",
-  "version": "2.2.0",
+  "version": "5.1.2",
   "description": "خيال — منصة عربية لمشاركة برومبتات الذكاء الاصطناعي",
   "type": "module",
   "engines": {
-    "node": "20.x"
+    "node": "22.x"
   },
   "scripts": {
     "start": "node server.js",
