@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import crypto from 'node:crypto';
 import {
   ADMIN_PASSWORD, CATEGORIES, MODELS,
   findUser, findUserByEmail, findUserByUsername, createUser, updateUser, updateUserPassword,
@@ -25,7 +26,29 @@ import { healthCheck, ensureSchema, queryOne } from './db.js';
 
 const api = Router();
 
-/* ═══════════ استخراج IP الحقيقي خلف Vercel/Cloudflare ═══════════ */
+/* ═══════════ ETag + Cache middleware ═══════════ */
+api.use((req, res, next) => {
+  res.setHeader('Vary', 'Accept-Encoding, Authorization');
+
+  const originalJson = res.json.bind(res);
+
+  res.json = function (data) {
+    if (req.method === 'GET' && res.statusCode === 200) {
+      const body = JSON.stringify(data);
+      const etag = '"' + crypto.createHash('md5').update(body).digest('hex').slice(0, 16) + '"';
+
+      if (req.headers['if-none-match'] === etag) {
+        res.status(304).end();
+        return res;
+      }
+      res.setHeader('ETag', etag);
+    }
+    return originalJson(data);
+  };
+  next();
+});
+
+/* ═══════════ استخراج IP الحقيقي ═══════════ */
 function getClientIp(req) {
   const fwd = req.headers['x-forwarded-for'];
   if (typeof fwd === 'string' && fwd.length) return fwd.split(',')[0].trim();
@@ -76,7 +99,7 @@ const requireAdmin = (req, res, next) =>
     ? next()
     : res.status(401).json({ error: 'انتهت جلسة اللوحة' });
 
-/* ═══════════ الصحة والبيانات الوصفية ═══════════ */
+/* ═══════════ الصحة والميتا ═══════════ */
 api.get('/health', async (_req, res) => {
   const db = await healthCheck();
   res.status(db.ok ? 200 : 503).json({
@@ -90,7 +113,7 @@ api.get('/health', async (_req, res) => {
 api.get('/meta', async (_req, res, next) => {
   try {
     const stats = await adminStats();
-    res.set('Cache-Control', 'public, max-age=60');
+    res.set('Cache-Control', 'public, max-age=120, stale-while-revalidate=300');
     res.json({ categories: CATEGORIES, models: MODELS, stats });
   } catch (e) { next(e); }
 });
@@ -188,6 +211,7 @@ api.get('/me', async (req, res, next) => {
     if (!req.userId) return res.json({ user: null });
     const u = await findUser(req.userId);
     if (!u) return res.json({ user: null });
+    res.set('Cache-Control', 'private, no-store');
     res.json({ user: publicUser(u, await userStats(u.id)) });
   } catch (e) { next(e); }
 });
@@ -250,7 +274,13 @@ api.get('/prompts', async (req, res, next) => {
       viewerId: req.userId
     });
     const total = q || author ? result.items.length : await countPrompts();
-    res.set('Cache-Control', 'private, max-age=10');
+
+    const isDynamic = !!q || !!req.userId;
+    res.set('Cache-Control', isDynamic
+      ? 'private, max-age=15, stale-while-revalidate=30'
+      : 'public, max-age=60, stale-while-revalidate=120'
+    );
+
     res.json({
       items: result.items,
       hasMore: result.hasMore,
@@ -265,7 +295,8 @@ api.get('/prompts/:key', async (req, res, next) => {
     const prompt = await getPromptByKey(req.params.key, req.userId);
     if (!prompt) return res.status(404).json({ error: 'البرومبت غير موجود' });
     const related = await getRelated(prompt.id, prompt.category, req.userId);
-    res.set('Cache-Control', 'private, max-age=20');
+
+    res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=60');
     res.json({ prompt, related });
   } catch (e) { next(e); }
 });
@@ -365,6 +396,8 @@ api.get('/prompts/:id/comments', async (req, res, next) => {
       offset: Number(req.query.offset) || 0
     });
     const total = await countComments(p.id);
+
+    res.set('Cache-Control', 'public, max-age=20, stale-while-revalidate=60');
     res.json({ items, hasMore, total });
   } catch (e) { next(e); }
 });
@@ -427,6 +460,7 @@ api.get('/notifications', requireAuth, async (req, res, next) => {
       offset: Number(req.query.offset) || 0
     });
     const unread = await unreadNotificationsCount(req.userId);
+    res.set('Cache-Control', 'private, no-store');
     res.json({ items, hasMore, unread });
   } catch (e) { next(e); }
 });
@@ -463,6 +497,12 @@ api.get('/users/:id', async (req, res, next) => {
     const promptsResult = await listPrompts({ author: u.id, viewerId: req.userId, limit: 50 });
     const elig = await eligibility(u.id);
     const following = req.userId ? await isFollowing(req.userId, u.id) : false;
+
+    res.set('Cache-Control', req.userId
+      ? 'private, max-age=20, stale-while-revalidate=60'
+      : 'public, max-age=60, stale-while-revalidate=180'
+    );
+
     res.json({
       user: publicUser(u, { ...stats, isSelf: u.id === req.userId, isFollowing: following }),
       prompts: promptsResult.items,
@@ -490,6 +530,7 @@ api.get('/users/:id/followers', async (req, res, next) => {
       offset: Number(req.query.offset) || 0
     });
     const stats = await userStats(u.id);
+    res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=180');
     res.json({ items, total: stats.followers });
   } catch (e) { next(e); }
 });
@@ -503,13 +544,16 @@ api.get('/users/:id/following', async (req, res, next) => {
       offset: Number(req.query.offset) || 0
     });
     const stats = await userStats(u.id);
+    res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=180');
     res.json({ items, total: stats.following });
   } catch (e) { next(e); }
 });
 
 api.get('/favorites', requireAuth, async (req, res, next) => {
-  try { res.json({ items: await getUserLikes(req.userId) }); }
-  catch (e) { next(e); }
+  try {
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ items: await getUserLikes(req.userId) });
+  } catch (e) { next(e); }
 });
 
 /* ═══════════ الإدارة ═══════════ */
@@ -531,13 +575,16 @@ api.get('/admin/overview', requireAdmin, async (_req, res, next) => {
     const latestWithStats = await Promise.all(
       latest.map(async (u) => publicUser(u, await userStats(u.id)))
     );
+    res.set('Cache-Control', 'private, no-store');
     res.json({ stats, topPrompts: top, latestUsers: latestWithStats });
   } catch (e) { next(e); }
 });
 
 api.get('/admin/users', requireAdmin, async (_req, res, next) => {
-  try { res.json({ items: await listUsers() }); }
-  catch (e) { next(e); }
+  try {
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ items: await listUsers() });
+  } catch (e) { next(e); }
 });
 
 api.post('/admin/users/:id/verify', requireAdmin, async (req, res, next) => {
@@ -554,8 +601,10 @@ api.delete('/admin/users/:id', requireAdmin, async (req, res, next) => {
 });
 
 api.get('/admin/prompts', requireAdmin, async (_req, res, next) => {
-  try { res.json({ items: (await listPrompts({ limit: 50 })).items }); }
-  catch (e) { next(e); }
+  try {
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ items: (await listPrompts({ limit: 50 })).items });
+  } catch (e) { next(e); }
 });
 
 api.delete('/admin/prompts/:id', requireAdmin, async (req, res, next) => {
@@ -564,8 +613,10 @@ api.delete('/admin/prompts/:id', requireAdmin, async (req, res, next) => {
 });
 
 api.get('/admin/eligible', requireAdmin, async (_req, res, next) => {
-  try { res.json({ items: await eligibleUsers() }); }
-  catch (e) { next(e); }
+  try {
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ items: await eligibleUsers() });
+  } catch (e) { next(e); }
 });
 
 export default api;
