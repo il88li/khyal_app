@@ -1,24 +1,40 @@
 import { Router } from 'express';
 import {
   ADMIN_PASSWORD, CATEGORIES, MODELS,
-  findUser, findUserByEmail, createUser, updateUser,
+  findUser, findUserByEmail, findUserByUsername, createUser, updateUser, updateUserPassword,
+  verifyPassword, isHashed, hashPassword,
   listPrompts, countPrompts, getPrompt, getPromptByKey, getRelated,
   createPrompt, updatePrompt, incrementCopies, deletePrompt,
+  findDuplicatePrompt,
   toggleLike, getUserLikes,
   userStats, publicUser, eligibility,
   adminStats, topPrompts, latestUsers, listUsers,
   toggleVerify, deleteUser, eligibleUsers,
-  toggleFollow, isFollowing
+  toggleFollow, isFollowing,
+  getFollowers, getFollowing,
+  revokeOtherSessions,
+  listComments, countComments, createComment, updateComment, deleteComment, findComment,
+  listNotifications, unreadNotificationsCount, markNotificationRead, markAllNotificationsRead
 } from './store.js';
 import {
   createSession, getUserId, deleteSession,
-  signAdminToken, verifyAdminToken, cleanupSessions
+  signAdminToken, verifyAdminToken, cleanupSessions,
+  deleteAllSessions, countUserSessions
 } from './sessions.js';
-import { healthCheck, ensureSchema } from './db.js';
+import { healthCheck, ensureSchema, queryOne } from './db.js';
 
 const api = Router();
 
-/* ═══════════ Rate limiting بسيط (in-memory) ═══════════ */
+/* ═══════════ استخراج IP الحقيقي خلف Vercel/Cloudflare ═══════════ */
+function getClientIp(req) {
+  const fwd = req.headers['x-forwarded-for'];
+  if (typeof fwd === 'string' && fwd.length) return fwd.split(',')[0].trim();
+  const real = req.headers['x-real-ip'];
+  if (typeof real === 'string' && real.length) return real.trim();
+  return req.ip || req.socket?.remoteAddress || 'unknown';
+}
+
+/* ═══════════ Rate limiting ═══════════ */
 const RL_KEY = '__khayal_rl__';
 function rateLimit(key, max, windowMs) {
   if (!globalThis[RL_KEY]) globalThis[RL_KEY] = new Map();
@@ -82,7 +98,7 @@ api.get('/meta', async (_req, res, next) => {
 /* ═══════════ المصادقة ═══════════ */
 api.post('/auth/register', async (req, res, next) => {
   try {
-    const ip = req.ip || 'unknown';
+    const ip = getClientIp(req);
     if (!rateLimit('reg:' + ip, 5, 60000))
       return res.status(429).json({ error: 'محاولات كثيرة، انتظر قليلاً' });
 
@@ -91,28 +107,55 @@ api.post('/auth/register', async (req, res, next) => {
       return res.status(400).json({ error: 'الاسم والبريد وكلمة المرور مطلوبة' });
     if (password.length < 6)
       return res.status(400).json({ error: 'كلمة المرور 6 أحرف على الأقل' });
-    if (await findUserByEmail(email))
+
+    const emailNorm = String(email).trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailNorm))
+      return res.status(400).json({ error: 'البريد الإلكتروني غير صالح' });
+
+    if (await findUserByEmail(emailNorm))
       return res.status(409).json({ error: 'هذا البريد مسجّل مسبقاً' });
 
-    const user = await createUser({ name, email, password, username });
+    const uname = (username || emailNorm.split('@')[0]).trim();
+    if (uname.length < 3)
+      return res.status(400).json({ error: 'اسم المستخدم 3 أحرف على الأقل' });
+    if (await findUserByUsername(uname))
+      return res.status(409).json({ error: 'اسم المستخدم محجوز، جرّب غيره' });
+
+    const user = await createUser({ name: String(name).trim(), email: emailNorm, password, username: uname });
     const token = await createSession(user.id);
     res.status(201).json({
       token,
       user: publicUser(user, await userStats(user.id))
     });
-  } catch (e) { next(e); }
+  } catch (e) {
+    if (e.code === '23505') {
+      return res.status(409).json({ error: 'البريد أو اسم المستخدم محجوز مسبقاً' });
+    }
+    next(e);
+  }
 });
 
 api.post('/auth/login', async (req, res, next) => {
   try {
-    const ip = req.ip || 'unknown';
+    const ip = getClientIp(req);
     if (!rateLimit('login:' + ip, 15, 60000))
-      return res.status(429).json({ error: 'محاولات كثيرة' });
+      return res.status(429).json({ error: 'محاولات كثيرة، انتظر قليلاً' });
 
     const { email, password } = req.body || {};
-    const user = await findUserByEmail(email);
-    if (!user || user.password !== password)
-      return res.status(401).json({ error: 'بيانات الدخول غير صحيحة' });
+    if (!email || !password)
+      return res.status(400).json({ error: 'البريد وكلمة المرور مطلوبان' });
+
+    const emailNorm = String(email).trim().toLowerCase();
+    const user = await findUserByEmail(emailNorm);
+    if (!user) return res.status(401).json({ error: 'بيانات الدخول غير صحيحة' });
+
+    const ok = await verifyPassword(password, user.password);
+    if (!ok) return res.status(401).json({ error: 'بيانات الدخول غير صحيحة' });
+
+    if (!isHashed(user.password)) {
+      try { await updateUserPassword(user.id, password); } catch {}
+    }
+
     const token = await createSession(user.id);
     cleanupSessions();
     res.json({ token, user: publicUser(user, await userStats(user.id)) });
@@ -123,6 +166,20 @@ api.post('/auth/logout', async (req, res, next) => {
   try {
     if (req.token) await deleteSession(req.token);
     res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
+api.post('/auth/logout-all', requireAuth, async (req, res, next) => {
+  try {
+    const count = await deleteAllSessions(req.userId, req.token);
+    res.json({ ok: true, revoked: count });
+  } catch (e) { next(e); }
+});
+
+api.get('/auth/sessions/count', requireAuth, async (req, res, next) => {
+  try {
+    const n = await countUserSessions(req.userId);
+    res.json({ count: n });
   } catch (e) { next(e); }
 });
 
@@ -140,30 +197,69 @@ api.patch('/me', requireAuth, async (req, res, next) => {
     const { name, username, bio, avatar } = req.body || {};
     const patch = {};
     if (name !== undefined) patch.name = String(name).trim();
-    if (username !== undefined) patch.username = String(username).trim();
     if (bio !== undefined) patch.bio = String(bio).trim();
     if (avatar !== undefined) patch.avatar = String(avatar);
+
+    if (username !== undefined) {
+      const uname = String(username).trim();
+      if (uname.length < 3)
+        return res.status(400).json({ error: 'اسم المستخدم 3 أحرف على الأقل' });
+      const taken = await queryOne(
+        `SELECT 1 FROM users WHERE username = $1 AND id <> $2`,
+        [uname, req.userId]
+      );
+      if (taken)
+        return res.status(409).json({ error: 'اسم المستخدم محجوز، جرّب غيره' });
+      patch.username = uname;
+    }
+
     const updated = await updateUser(req.userId, patch);
     res.json({ user: publicUser(updated, await userStats(updated.id)) });
+  } catch (e) {
+    if (e.code === '23505')
+      return res.status(409).json({ error: 'اسم المستخدم محجوز، جرّب غيره' });
+    next(e);
+  }
+});
+
+api.patch('/auth/password', requireAuth, async (req, res, next) => {
+  try {
+    const { current, next: newPass } = req.body || {};
+    if (!current || !newPass)
+      return res.status(400).json({ error: 'كلمة المرور الحالية والجديدة مطلوبتان' });
+    if (String(newPass).length < 6)
+      return res.status(400).json({ error: 'كلمة المرور الجديدة 6 أحرف على الأقل' });
+
+    const u = await findUser(req.userId);
+    const ok = await verifyPassword(current, u.password);
+    if (!ok) return res.status(401).json({ error: 'كلمة المرور الحالية غير صحيحة' });
+
+    await updateUserPassword(req.userId, newPass);
+    res.json({ ok: true });
   } catch (e) { next(e); }
 });
 
 /* ═══════════ البرومبتات ═══════════ */
 api.get('/prompts', async (req, res, next) => {
   try {
-    const { q = '', sort = 'new', author = '', limit = '40' } = req.query;
-    const items = await listPrompts({
+    const { q = '', sort = 'new', author = '', limit = '20', offset = '0' } = req.query;
+    const result = await listPrompts({
       q: String(q).trim(), sort, author,
-      limit: Math.min(Number(limit) || 40, 100),
+      limit: Number(limit) || 20,
+      offset: Number(offset) || 0,
       viewerId: req.userId
     });
-    const total = q || author ? items.length : await countPrompts();
+    const total = q || author ? result.items.length : await countPrompts();
     res.set('Cache-Control', 'private, max-age=10');
-    res.json({ items, total });
+    res.json({
+      items: result.items,
+      hasMore: result.hasMore,
+      offset: Number(offset) || 0,
+      total
+    });
   } catch (e) { next(e); }
 });
 
-/* يقبل id أو slug */
 api.get('/prompts/:key', async (req, res, next) => {
   try {
     const prompt = await getPromptByKey(req.params.key, req.userId);
@@ -176,15 +272,28 @@ api.get('/prompts/:key', async (req, res, next) => {
 
 api.post('/prompts', requireAuth, async (req, res, next) => {
   try {
-    const ip = req.ip || 'unknown';
     if (!rateLimit('create:' + req.userId, 10, 60000))
       return res.status(429).json({ error: 'أنت تنشر بسرعة كبيرة' });
 
     const { title, description, body, category, tags = [], models = [], cover = '' } = req.body || {};
     if (!title || !body)
       return res.status(400).json({ error: 'العنوان والنص مطلوبان' });
+    if (String(body).length > 20000)
+      return res.status(400).json({ error: 'النص طويل جداً (20,000 حرف كحد أقصى)' });
+    if (String(cover).length > 3_000_000)
+      return res.status(400).json({ error: 'حجم الصورة كبير جداً' });
+
+    const cleanTitle = String(title).trim();
+    const dup = await findDuplicatePrompt(req.userId, cleanTitle);
+    if (dup) {
+      return res.status(409).json({
+        error: 'نشرت برومبتاً بنفس العنوان خلال آخر 24 ساعة',
+        existingSlug: dup.slug
+      });
+    }
+
     const prompt = await createPrompt({
-      title: String(title).trim(),
+      title: cleanTitle,
       description: String(description || '').trim(),
       body: String(body),
       category: String(category || ''),
@@ -246,18 +355,117 @@ api.post('/prompts/:id/copy', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+/* ═══════════ التعليقات ═══════════ */
+api.get('/prompts/:id/comments', async (req, res, next) => {
+  try {
+    const p = await getPrompt(req.params.id, req.userId);
+    if (!p) return res.status(404).json({ error: 'البرومبت غير موجود' });
+    const { items, hasMore } = await listComments(p.id, {
+      limit: Number(req.query.limit) || 20,
+      offset: Number(req.query.offset) || 0
+    });
+    const total = await countComments(p.id);
+    res.json({ items, hasMore, total });
+  } catch (e) { next(e); }
+});
+
+api.post('/prompts/:id/comments', requireAuth, async (req, res, next) => {
+  try {
+    if (!rateLimit('comment:' + req.userId, 20, 60000))
+      return res.status(429).json({ error: 'أنت تعلّق بسرعة كبيرة' });
+
+    const p = await getPrompt(req.params.id, req.userId);
+    if (!p) return res.status(404).json({ error: 'البرومبت غير موجود' });
+
+    const body = String(req.body?.body || '').trim();
+    if (!body) return res.status(400).json({ error: 'نص التعليق مطلوب' });
+    if (body.length > 2000)
+      return res.status(400).json({ error: 'التعليق طويل جداً (2000 حرف كحد أقصى)' });
+
+    const comment = await createComment({
+      promptId: p.id, userId: req.userId, body
+    });
+    res.status(201).json({ comment });
+  } catch (e) { next(e); }
+});
+
+api.patch('/comments/:id', requireAuth, async (req, res, next) => {
+  try {
+    const c = await findComment(req.params.id);
+    if (!c) return res.status(404).json({ error: 'التعليق غير موجود' });
+    if (c.userId !== req.userId)
+      return res.status(403).json({ error: 'لا تملك صلاحية التعديل' });
+
+    const body = String(req.body?.body || '').trim();
+    if (!body) return res.status(400).json({ error: 'نص التعليق مطلوب' });
+
+    const comment = await updateComment(c.id, req.userId, body);
+    res.json({ comment });
+  } catch (e) { next(e); }
+});
+
+api.delete('/comments/:id', requireAuth, async (req, res, next) => {
+  try {
+    const c = await findComment(req.params.id);
+    if (!c) return res.status(404).json({ error: 'التعليق غير موجود' });
+
+    const user = await findUser(req.userId);
+    const isAdmin = user?.role === 'admin';
+    if (c.userId !== req.userId && !isAdmin)
+      return res.status(403).json({ error: 'لا تملك صلاحية الحذف' });
+
+    await deleteComment(c.id, c.userId);
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
+/* ═══════════ الإشعارات ═══════════ */
+api.get('/notifications', requireAuth, async (req, res, next) => {
+  try {
+    const { items, hasMore } = await listNotifications(req.userId, {
+      limit: Number(req.query.limit) || 20,
+      offset: Number(req.query.offset) || 0
+    });
+    const unread = await unreadNotificationsCount(req.userId);
+    res.json({ items, hasMore, unread });
+  } catch (e) { next(e); }
+});
+
+api.get('/notifications/unread-count', requireAuth, async (req, res, next) => {
+  try {
+    const unread = await unreadNotificationsCount(req.userId);
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ unread });
+  } catch (e) { next(e); }
+});
+
+api.post('/notifications/:id/read', requireAuth, async (req, res, next) => {
+  try {
+    await markNotificationRead(req.params.id, req.userId);
+    const unread = await unreadNotificationsCount(req.userId);
+    res.json({ ok: true, unread });
+  } catch (e) { next(e); }
+});
+
+api.post('/notifications/read-all', requireAuth, async (req, res, next) => {
+  try {
+    const n = await markAllNotificationsRead(req.userId);
+    res.json({ ok: true, updated: n });
+  } catch (e) { next(e); }
+});
+
 /* ═══════════ المستخدمون ═══════════ */
 api.get('/users/:id', async (req, res, next) => {
   try {
     const u = await findUser(req.params.id);
     if (!u) return res.status(404).json({ error: 'المستخدم غير موجود' });
     const stats = await userStats(u.id);
-    const prompts = await listPrompts({ author: u.id, viewerId: req.userId, limit: 100 });
+    const promptsResult = await listPrompts({ author: u.id, viewerId: req.userId, limit: 50 });
     const elig = await eligibility(u.id);
     const following = req.userId ? await isFollowing(req.userId, u.id) : false;
     res.json({
       user: publicUser(u, { ...stats, isSelf: u.id === req.userId, isFollowing: following }),
-      prompts,
+      prompts: promptsResult.items,
       eligibility: elig
     });
   } catch (e) { next(e); }
@@ -273,6 +481,32 @@ api.post('/users/:id/follow', requireAuth, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+api.get('/users/:id/followers', async (req, res, next) => {
+  try {
+    const u = await findUser(req.params.id);
+    if (!u) return res.status(404).json({ error: 'المستخدم غير موجود' });
+    const items = await getFollowers(u.id, {
+      limit: Number(req.query.limit) || 50,
+      offset: Number(req.query.offset) || 0
+    });
+    const stats = await userStats(u.id);
+    res.json({ items, total: stats.followers });
+  } catch (e) { next(e); }
+});
+
+api.get('/users/:id/following', async (req, res, next) => {
+  try {
+    const u = await findUser(req.params.id);
+    if (!u) return res.status(404).json({ error: 'المستخدم غير موجود' });
+    const items = await getFollowing(u.id, {
+      limit: Number(req.query.limit) || 50,
+      offset: Number(req.query.offset) || 0
+    });
+    const stats = await userStats(u.id);
+    res.json({ items, total: stats.following });
+  } catch (e) { next(e); }
+});
+
 api.get('/favorites', requireAuth, async (req, res, next) => {
   try { res.json({ items: await getUserLikes(req.userId) }); }
   catch (e) { next(e); }
@@ -280,7 +514,7 @@ api.get('/favorites', requireAuth, async (req, res, next) => {
 
 /* ═══════════ الإدارة ═══════════ */
 api.post('/admin/unlock', (req, res) => {
-  const ip = req.ip || 'unknown';
+  const ip = getClientIp(req);
   if (!rateLimit('admin:' + ip, 5, 300000))
     return res.status(429).json({ error: 'محاولات كثيرة، انتظر 5 دقائق' });
   const { password } = req.body || {};
@@ -320,7 +554,7 @@ api.delete('/admin/users/:id', requireAdmin, async (req, res, next) => {
 });
 
 api.get('/admin/prompts', requireAdmin, async (_req, res, next) => {
-  try { res.json({ items: await listPrompts({ limit: 500 }) }); }
+  try { res.json({ items: (await listPrompts({ limit: 50 })).items }); }
   catch (e) { next(e); }
 });
 
