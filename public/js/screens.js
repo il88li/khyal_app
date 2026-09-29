@@ -22,7 +22,6 @@ function timeAgo(iso) {
 }
 
 const avatar = (u, size = 32) => {
-  // ✅ v5.1: افتراضيًا استخدم الأحرف الأولى — لا صور غريبة
   const inner = u?.avatar
     ? `<img src="${esc(u.avatar)}" alt="" loading="lazy" decoding="async">`
     : esc(initials(u?.name || '؟'));
@@ -58,7 +57,7 @@ const ICON = {
 };
 
 /* ═══════════════════════════════════════════════
-   بطاقة البرومبت v5.1
+   بطاقة البرومبت v6
    ═══════════════════════════════════════════════ */
 function promptCard(p, idx = 0) {
   const mark = (p.category || p.title || 'خ').charAt(0);
@@ -66,6 +65,7 @@ function promptCard(p, idx = 0) {
   const isOwner = (window.__khayal_user_id === p.authorId);
   const isFollowing = !!p.isFollowingAuthor;
   const tags = (p.tags || []).slice(0, 3);
+  const desc = p.description || p.body.replace(/\s+/g, ' ').slice(0, 100);
 
   const coverContent = p.cover
     ? `<img class="pc-media-img" src="${esc(p.cover)}" alt="" loading="lazy" decoding="async">`
@@ -85,7 +85,7 @@ function promptCard(p, idx = 0) {
           <span>${esc(p.author?.name || 'مجهول')}</span>
           ${p.author?.verified ? VCHECK : ''}
         </a>
-        <span class="pc-handle">@${esc(p.author?.username || 'unknown')} · ${timeAgo(p.createdAt)}</span>
+        <span class="pc-handle">@${esc(p.author?.username || 'unknown')}</span>
       </div>
       ${isOwner
         ? `<span class="pc-self">أنت</span>`
@@ -101,6 +101,11 @@ function promptCard(p, idx = 0) {
 
     <div class="pc-info">
       <a class="pc-title" href="#/p/${esc(slugPath)}">${esc(p.title)}</a>
+      ${desc ? `<p class="pc-desc">${esc(desc)}</p>` : ''}
+      <div class="pc-meta">
+        <span>${timeAgo(p.createdAt)}</span>
+        ${p.copies ? `<span class="dot-sep"></span><span>${fmt(p.copies)} نسخ</span>` : ''}
+      </div>
       ${tags.length ? `
       <div class="pc-tags">
         ${tags.map((t) => `<span class="pc-tag">${esc(t)}</span>`).join('')}
@@ -155,6 +160,7 @@ const grid = (items) => `<div class="grid-cards">${items.map((p, i) => promptCar
 function bindCards(root, ctx) {
   window.__khayal_user_id = ctx.state.user?.id || null;
 
+  /* ─── إعجاب ─── */
   root.querySelectorAll('[data-like]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -196,6 +202,7 @@ function bindCards(root, ctx) {
     });
   });
 
+  /* ─── متابعة ─── */
   root.querySelectorAll('[data-follow]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -228,6 +235,7 @@ function bindCards(root, ctx) {
     });
   });
 
+  /* ─── نسخ ─── */
   root.querySelectorAll('[data-copy]').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -260,6 +268,7 @@ function bindCards(root, ctx) {
     });
   });
 
+  /* ─── مشاركة ─── */
   root.querySelectorAll('[data-share]').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -279,6 +288,7 @@ function bindCards(root, ctx) {
     });
   });
 
+  /* ─── توسيع ─── */
   root.querySelectorAll('[data-expand]').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -301,6 +311,7 @@ function bindCards(root, ctx) {
     });
   });
 
+  /* ─── Prefetch ─── */
   root.querySelectorAll('.prompt-card').forEach((card) => {
     let hoverTimer;
     const startPrefetch = () => {
@@ -320,6 +331,9 @@ function bindCards(root, ctx) {
   });
 }
 
+/* ═══════════════════════════════════════════════
+   تعليقات البطاقة
+   ═══════════════════════════════════════════════ */
 async function loadInlineComments(box, promptId, ctx) {
   try {
     const { items, total } = await ctx.api(`/prompts/${promptId}/comments?limit=3&offset=0`);
@@ -540,8 +554,14 @@ async function register(root, ctx) {
 
 /* ═══════════ 3 — الرئيسية ═══════════ */
 async function home(root, ctx) {
-  // ✅ v5.1: تصنيفات مختصرة
-  const quickCats = ['كتابة', 'برمجة', 'تصميم', 'تسويق', 'تعليم'];
+  const categories = [
+    { name: 'كتابة', icon: '✍️' },
+    { name: 'برمجة', icon: '💻' },
+    { name: 'تصميم', icon: '🎨' },
+    { name: 'تسويق', icon: '📢' },
+    { name: 'تعليم', icon: '📚' },
+    { name: 'تحليل بيانات', icon: '📊' }
+  ];
 
   root.innerHTML = `
   <section class="hero">
@@ -549,7 +569,6 @@ async function home(root, ctx) {
     <h1>برومبتات عربية <span class="hl">مكتوبة بإتقان</span> لأدوات الذكاء الاصطناعي</h1>
     <p class="hero-sub">مكتبة مفتوحة لمشاركة أوامر الذكاء الاصطناعي بالعربية — اكتشف، انسخ، وانشر.</p>
 
-    <!-- ✅ v5.1: شريط البحث في الصفحة الرئيسية -->
     <form class="hero-search" id="hero-search-form">
       <div class="search-wrap">
         ${ICON.search}
@@ -557,18 +576,17 @@ async function home(root, ctx) {
       </div>
     </form>
 
-    <!-- ✅ v5.1: تصنيفات سريعة -->
     <div class="hero-cats">
-      ${quickCats.map((c) =>
-        `<a class="chip" href="#/explore?q=${encodeURIComponent(c)}">${esc(c)}</a>`
+      ${categories.map((c) =>
+        `<a class="hero-cat" href="#/explore?q=${encodeURIComponent(c.name)}">
+          <span class="hero-cat-icon">${c.icon}</span>
+          <span>${esc(c.name)}</span>
+        </a>`
       ).join('')}
     </div>
-
-    <div class="hero-actions" style="margin-top:20px">
-      <a class="btn btn-primary btn-lg" href="#/explore">استكشف كل البرومبتات</a>
-      <a class="btn btn-outline btn-lg" href="#/new">انشر برومبتك</a>
-    </div>
   </section>
+
+  <section class="section" id="daily-section" hidden></section>
 
   <section class="section">
     <div class="head-row">
@@ -597,6 +615,49 @@ async function home(root, ctx) {
 
   try {
     const latest = await ctx.api('/prompts?sort=new&limit=12');
+
+    const daily = latest.items[0];
+    if (daily) {
+      const dailySection = root.querySelector('#daily-section');
+      dailySection.hidden = false;
+      dailySection.innerHTML = `
+        <div class="daily-widget" data-slug="${esc(daily.slug || daily.id)}">
+          <div class="daily-widget-head">
+            <span class="daily-widget-icon">🔥</span>
+            <span class="daily-widget-label">برومبت اليوم</span>
+            <span class="daily-widget-sub">مختار بعناية</span>
+          </div>
+          <div class="daily-widget-body">
+            <div class="daily-widget-media">
+              ${daily.cover
+                ? `<img src="${esc(daily.cover)}" alt="">`
+                : `<span class="pc-media-mark">${esc((daily.category || daily.title || 'خ').charAt(0))}</span>`}
+            </div>
+            <div class="daily-widget-content">
+              ${daily.category ? `<span class="daily-widget-cat">${esc(daily.category)}</span>` : ''}
+              <h3 class="daily-widget-title">${esc(daily.title)}</h3>
+              <p class="daily-widget-desc">${esc(daily.description || daily.body.replace(/\s+/g, ' ').slice(0, 120))}</p>
+              <div class="daily-widget-author">
+                <span class="avatar ${daily.author?.verified ? 'verified' : ''}" style="--s:24px">
+                  ${daily.author?.avatar
+                    ? `<img src="${esc(daily.author.avatar)}" alt="">`
+                    : esc(initials(daily.author?.name || '؟'))}
+                </span>
+                <span class="daily-widget-author-name">${esc(daily.author?.name || 'مجهول')}</span>
+              </div>
+              <div class="daily-widget-actions">
+                <a class="btn btn-primary btn-sm" href="#/p/${esc(daily.slug || daily.id)}">اقرأ الآن</a>
+              </div>
+            </div>
+          </div>
+        </div>`;
+
+      dailySection.querySelector('.daily-widget').addEventListener('click', (e) => {
+        if (e.target.closest('a, button')) return;
+        ctx.navigate('#/p/' + (daily.slug || daily.id));
+      });
+    }
+
     const el = root.querySelector('#home-latest');
     el.innerHTML = latest.items.length
       ? grid(latest.items)
