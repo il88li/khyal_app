@@ -4,15 +4,14 @@ import { prefetchPrompt, idbGet, idbSet, idbClear, cleanupOldEntries } from './c
 const TOKEN_KEY = 'khayal_token';
 const ADMIN_KEY = 'khayal_admin';
 
-export const APP_VERSION = '5.1.2';
+export const APP_VERSION = '6.0.0';
 
 export const state = {
   user: null,
   meta: { categories: [], models: [], stats: {} },
-  online: navigator.onLine,
+  online: true,  // ✅ افترض الاتصال حتى يثبت العكس
   adminToken: sessionStorage.getItem(ADMIN_KEY) || null,
   unreadCount: 0,
-  // ✅ عدّاد فشل الشبكة — لا نُظهر الشريط إلا بعد 3 فشلات متتالية
   networkFailStreak: 0
 };
 
@@ -25,7 +24,7 @@ export class ApiError extends Error {
 }
 
 /* ═══════════════════════════════════════════════
-   حالة الاتصال — منطق محسّن
+   حالة الاتصال — لا نثق بـ navigator.onLine
    ═══════════════════════════════════════════════ */
 
 function showOfflineStrip(show) {
@@ -34,16 +33,13 @@ function showOfflineStrip(show) {
   strip.hidden = !show;
 }
 
-/* ✅ يُستدعى عند نجاح أي طلب — يُخفي الشريط فورًا */
 function markReachable() {
   const wasOffline = !state.online;
   state.networkFailStreak = 0;
   state.online = true;
 
   const strip = document.getElementById('offline-strip');
-  if (strip && !strip.hidden) {
-    showOfflineStrip(false);
-  }
+  if (strip && !strip.hidden) showOfflineStrip(false);
 
   if (wasOffline) {
     renderTopbar();
@@ -51,7 +47,6 @@ function markReachable() {
   }
 }
 
-/* ✅ يُستدعى عند فشل شبكة — يحتاج 3 فشلات متتالية */
 function markUnreachable() {
   state.networkFailStreak++;
   if (state.networkFailStreak < 3) return;
@@ -67,7 +62,7 @@ function markUnreachable() {
 }
 
 /* ═══════════════════════════════════════════════
-   API — مع دعم IndexedDB و markReachable
+   API
    ═══════════════════════════════════════════════ */
 export async function api(path, { method = 'GET', body, admin = false, useCache = true } = {}) {
   const isGet = method === 'GET';
@@ -94,10 +89,8 @@ export async function api(path, { method = 'GET', body, admin = false, useCache 
       method, headers,
       body: body ? JSON.stringify(body) : undefined
     });
-    // ✅ أي استجابة (حتى 500) تعني أن الخادم متاح
     markReachable();
   } catch {
-    // ✅ فشل الشبكة الحقيقي فقط
     markUnreachable();
     if (isGet && isPublicPath) {
       const cached = await idbGet('api:' + cacheKey);
@@ -123,7 +116,6 @@ async function _bgRefresh(path, admin) {
     if (t) headers['Authorization'] = 'Bearer ' + t;
     if (admin && state.adminToken) headers['x-admin-token'] = state.adminToken;
     const res = await fetch('/api' + path, { headers });
-    // ✅ إذا نجح التجديد في الخلفية، اعتبر الشبكة متاحة
     markReachable();
     if (res.ok) {
       const data = await res.json();
@@ -336,7 +328,7 @@ function renderTopbar() {
 }
 
 /* ═══════════════════════════════════════════════
-   Bottom nav (mobile)
+   Bottom nav
    ═══════════════════════════════════════════════ */
 function renderBottomNav() {
   const { parts } = parseRoute();
@@ -383,7 +375,7 @@ function renderFooter() {
 }
 
 /* ═══════════════════════════════════════════════
-   Render (router)
+   Render
    ═══════════════════════════════════════════════ */
 let _rendering = false;
 async function render() {
@@ -399,7 +391,6 @@ async function render() {
     renderBottomNav();
     renderFooter();
 
-    // ✅ ننتقل لشاشة offline فقط إذا فشل الاتصال 3 مرات
     if (!state.online && state.networkFailStreak >= 3 && currentScreen() !== 'offline') {
       location.hash = '#/offline';
       return;
@@ -516,35 +507,30 @@ function setupWebViewBridge() {
 }
 
 /* ═══════════════════════════════════════════════
-   Service Worker — مع تحديث تلقائي
+   Service Worker
    ═══════════════════════════════════════════════ */
 async function registerSW() {
   if (!('serviceWorker' in navigator)) return;
-
   try {
     const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
 
-    // ✅ إذا كان هناك SW جديد في انتظار التفعيل، فعّله فورًا
     reg.addEventListener('updatefound', () => {
       const newWorker = reg.installing;
       if (!newWorker) return;
       newWorker.addEventListener('statechange', () => {
         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-          console.log('[SW] نسخة جديدة جاهزة — تحديث فوري');
           newWorker.postMessage('SKIP_WAITING');
           setTimeout(() => location.reload(), 500);
         }
       });
     });
 
-    // ✅ استمع لرسائل SW
     navigator.serviceWorker.addEventListener('message', (event) => {
       if (event.data?.type === 'SW_UPDATED') {
-        console.log('[SW] تم التحديث إلى', event.data.version);
+        console.log('[SW] updated to', event.data.version);
       }
     });
 
-    // فحص التحديثات كل ساعة
     setInterval(() => reg.update().catch(() => {}), 3600000);
   } catch (err) {
     console.warn('SW registration failed:', err);
@@ -552,7 +538,7 @@ async function registerSW() {
 }
 
 /* ═══════════════════════════════════════════════
-   Unread notifications
+   Unread
    ═══════════════════════════════════════════════ */
 async function refreshUnread() {
   if (!localStorage.getItem(TOKEN_KEY) || !state.user) {
@@ -576,12 +562,13 @@ async function boot() {
   registerSW();
   cleanupOldEntries();
 
-  // ✅ الشريط يتبع navigator.onLine فقط
+  // ✅ الشريط مخفي افتراضيًا — لا نستخدم navigator.onLine
   const strip = document.getElementById('offline-strip');
-  if (strip) strip.hidden = navigator.onLine;
-  state.online = navigator.onLine;
+  if (strip) strip.hidden = true;
+  state.online = true;
+  state.networkFailStreak = 0;
 
-  api('/meta').then(m => state.meta = m).catch(() => {});
+  api('/meta').then(m => { state.meta = m; }).catch(() => {});
 
   if (localStorage.getItem(TOKEN_KEY)) {
     api('/me', { useCache: false })
@@ -595,50 +582,41 @@ async function boot() {
 
   window.addEventListener('hashchange', render);
 
+  // ✅ عند online: أعد الفحص بطلب حقيقي
   window.addEventListener('online', () => {
     state.networkFailStreak = 0;
-    state.online = true;
-    showOfflineStrip(false);
-    renderTopbar();
-    toast('عاد الاتصال');
-    if (currentScreen() === 'offline') navigate('#/');
-    if (localStorage.getItem(TOKEN_KEY) && !state.user) {
-      api('/me', { useCache: false }).then(r => {
-        state.user = r.user;
-        renderTopbar(); renderSidebar(); renderBottomNav();
-        refreshUnread();
-      }).catch(() => {});
-    } else {
-      refreshUnread();
-    }
-  });
-
-  window.addEventListener('offline', () => {
-    state.networkFailStreak = 3;
-    state.online = false;
-    showOfflineStrip(true);
-    renderTopbar();
-    toast('انقطع الاتصال', 'error');
-    if (currentScreen() !== 'offline') navigate('#/offline');
-  });
-
-  // ✅ كل 30 ثانية — يخفي الشريط إذا رجع الاتصال
-  setInterval(() => {
-    if (navigator.onLine && !state.online) {
+    api('/meta', { useCache: false }).then(() => {
       markReachable();
-    }
-  }, 30000);
+      toast('عاد الاتصال');
+      refreshUnread();
+    }).catch(() => {});
+  });
+
+  // ✅ عند offline: لا نفعل شيئًا — ننتظر فشل الطلبات الحقيقية
+  // (لأن navigator.onLine غير موثوق على بعض الأجهزة)
 
   refreshUnread();
   setInterval(() => {
     if (state.online && state.user && !document.hidden) refreshUnread();
   }, 45000);
 
-  // ✅ عند رجوع المستخدم للتطبيق، أعد فحص الاتصال فورًا
+  // فحص دوري عند الشك في الاتصال
+  setInterval(() => {
+    if (!state.online) {
+      api('/meta', { useCache: false })
+        .then(() => markReachable())
+        .catch(() => {});
+    }
+  }, 15000);
+
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
-      if (navigator.onLine) markReachable();
       if (state.user) refreshUnread();
+      if (!state.online) {
+        api('/meta', { useCache: false })
+          .then(() => markReachable())
+          .catch(() => {});
+      }
     }
   });
 
