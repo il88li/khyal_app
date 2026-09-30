@@ -41,7 +41,7 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(` خيال يعمل على المنفذ ${PORT}`);
+  console.log(`🔥 خيال يعمل على المنفذ ${PORT}`);
 });
 
 export default app;
