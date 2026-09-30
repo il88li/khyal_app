@@ -10,7 +10,6 @@ import {
 const esc = (s = '') => String(s).replace(/[&<>"']/g,
   (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-/* escape للسمات — يمنع كسر data-* بأي قيمة */
 const attr = (s) => String(s ?? '')
   .replace(/&/g, '&amp;')
   .replace(/</g, '&lt;')
@@ -96,7 +95,6 @@ function promptCard(p, idx = 0) {
 
   return `
   <article class="prompt-card" data-prompt="${attr(p.id)}" data-slug="${attr(slugPath)}" data-author="${attr(p.authorId)}">
-
     <div class="pc-media-split">
       ${coverContent}
       ${p.category ? `<span class="pc-badge">${esc(p.category)}</span>` : ''}
@@ -110,7 +108,6 @@ function promptCard(p, idx = 0) {
     </div>
 
     <div class="pc-body-split">
-
       <div class="pc-head">
         <a class="pc-name" href="#/u/${attr(p.authorId)}">
           <span>${esc(p.author?.name || 'مجهول')}</span>
@@ -190,8 +187,6 @@ const grid = (items) => `<div class="grid-cards">${items.map((p, i) => promptCar
    bindCards — ربط الأحداث بالبطاقات
    ═══════════════════════════════════════════════ */
 function bindCards(root, ctx) {
-
-  /* ─── إعجاب ─── */
   root.querySelectorAll('[data-like]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -207,7 +202,6 @@ function bindCards(root, ctx) {
       const newLiked = !wasLiked;
       const newCount = Math.max(0, wasCount + (newLiked ? 1 : -1));
 
-      // تحديث متفائل
       btn.dataset.liked = newLiked ? '1' : '0';
       btn.classList.toggle('liked', newLiked);
       if (newLiked) {
@@ -237,7 +231,6 @@ function bindCards(root, ctx) {
     });
   });
 
-  /* ─── متابعة ─── */
   root.querySelectorAll('[data-follow]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -271,7 +264,6 @@ function bindCards(root, ctx) {
     });
   });
 
-  /* ─── نسخ ─── */
   root.querySelectorAll('[data-copy]').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -304,7 +296,6 @@ function bindCards(root, ctx) {
     });
   });
 
-  /* ─── مشاركة ─── */
   root.querySelectorAll('[data-share]').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -324,7 +315,6 @@ function bindCards(root, ctx) {
     });
   });
 
-  /* ─── توسيع ─── */
   root.querySelectorAll('[data-expand]').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -351,7 +341,6 @@ function bindCards(root, ctx) {
     });
   });
 
-  /* ─── Prefetch ─── */
   root.querySelectorAll('.prompt-card').forEach((card) => {
     let hoverTimer;
     const startPrefetch = () => {
@@ -617,18 +606,18 @@ async function register(root, ctx) {
         </div>
         <div class="field">
           <label class="label">البريد الإلكتروني</label>
-          <input class="input" id="email" type="email" dir="ltr" placeholder="you@example.com" required>
+          <input class="input" id="reg-email" type="email" dir="ltr" placeholder="you@example.com" autocomplete="email" required>
         </div>
         <div class="field">
           <label class="label">كلمة المرور</label>
-          <input class="input" id="password" type="password" dir="ltr" placeholder="6 أحرف على الأقل" required>
+          <input class="input" id="reg-password" type="password" dir="ltr" placeholder="6 أحرف على الأقل" required>
         </div>
         <p class="err-text" id="reg-err" hidden></p>
-        <button class="btn btn-primary btn-block btn-lg" type="submit" id="reg-btn">إنشاء الحساب</button>
+        <button class="btn btn-primary btn-block btn-lg" type="submit" id="reg-btn">إنشاء حساب</button>
       </div>
     </form>
     <p style="text-align:center;margin-top:14px;font-size:13px;color:var(--slate)">
-      لديك حساب؟ <a href="#/login" style="color:var(--orange);font-weight:600">سجّل الدخول</a>
+      لديك حساب بالفعل؟ <a href="#/login" style="color:var(--orange);font-weight:600">سجّل دخولك</a>
     </p>
   </div>`;
 
@@ -643,815 +632,365 @@ async function register(root, ctx) {
         method: 'POST',
         body: {
           name: form.name.value.trim(),
-          username: form.username.value.trim(),
-          email: form.email.value.trim(),
-          password: form.password.value
+          username: form.username.value.trim() || undefined,
+          email: form.querySelector('#reg-email').value.trim(),
+          password: form.querySelector('#reg-password').value
         },
         useCache: false
       });
       ctx.setToken(token);
       ctx.state.user = user;
-      ctx.toast('أهلاً بك في خيال');
+      ctx.toast('تم إنشاء الحساب');
       ctx.navigate('#/');
+      ctx.refreshUnread();
     } catch (ex) {
       err.textContent = ex.message; err.hidden = false;
     } finally {
-      btn.disabled = false; btn.textContent = 'إنشاء الحساب';
+      btn.disabled = false; btn.textContent = 'إنشاء حساب';
     }
   });
 }
 
 /* ═══════════ 3 — الرئيسية ═══════════ */
 async function home(root, ctx) {
-  const categories = [
-    { name: 'كتابة', icon: '✍️' },
-    { name: 'برمجة', icon: '💻' },
-    { name: 'تصميم', icon: '🎨' },
-    { name: 'تسويق', icon: '📢' },
-    { name: 'تعليم', icon: '📚' },
-    { name: 'تحليل بيانات', icon: '📊' }
-  ];
-
   root.innerHTML = `
-  <section class="hero">
-    <div class="hero-badge"><span class="badge">جديد · برومبتات كل أسبوع</span></div>
-    <h1>برومبتات عربية <span class="hl">مكتوبة بإتقان</span> لأدوات الذكاء الاصطناعي</h1>
-    <p class="hero-sub">مكتبة مفتوحة لمشاركة أوامر الذكاء الاصطناعي بالعربية — اكتشف، انسخ، وانشر.</p>
-
-    <form class="hero-search" id="hero-search-form">
-      <div class="search-wrap">
-        ${ICON.search}
-        <input class="input" id="hero-search-q" placeholder="ابحث عن برومبت… مثال: تحرير نصوص" autocomplete="off">
-      </div>
-    </form>
-
-    <div class="hero-cats">
-      ${categories.map((c) =>
-        `<a class="hero-cat" href="#/explore?q=${encodeURIComponent(c.name)}">
-          <span class="hero-cat-icon">${c.icon}</span>
-          <span>${esc(c.name)}</span>
-        </a>`
-      ).join('')}
+    <div class="section" style="margin-top:0">
+      ${sectionHead('01', 'الرئيسية', 'أحدث <span class="hl">البرومبتات</span>')}
     </div>
-  </section>
-
-  <section class="section" id="daily-section" hidden></section>
-
-  <section class="section">
-    <div class="head-row">
-      <div>
-        <div class="eyebrow"><span class="dot"></span>01 / وصل حديثاً</div>
-        <h2 class="section-title">أحدث البرومبتات</h2>
-      </div>
-      <a class="btn btn-ghost btn-sm" href="#/explore?sort=new">عرض الكل ←</a>
-    </div>
-    <div id="home-latest">${skeletonGrid(6)}</div>
-  </section>
-
-  <section class="section">
-    <div class="card card-lg" style="text-align:center;background:var(--vellum);border-color:transparent">
-      <h2 class="section-title" style="font-size:20px">لديك برومبت يعمل جيداً؟</h2>
-      <p class="section-sub" style="max-width:42ch;margin:6px auto 16px">شاركه مع المجتمع.</p>
-      <a class="btn btn-primary btn-lg" href="#/new">انشر برومبتاً</a>
-    </div>
-  </section>`;
-
-  root.querySelector('#hero-search-form').addEventListener('submit', (e) => {
-    e.preventDefault();
-    const q = root.querySelector('#hero-search-q').value.trim();
-    ctx.navigate(q ? `#/explore?q=${encodeURIComponent(q)}` : '#/explore');
-  });
-
+    <div id="home-results">${skeletonGrid(4)}</div>`;
+  
   try {
-    const latest = await ctx.api('/prompts?sort=new&limit=12');
-
-    const daily = latest.items[0];
-    if (daily) {
-      const dailySection = root.querySelector('#daily-section');
-      dailySection.hidden = false;
-      dailySection.innerHTML = `
-        <div class="daily-widget" data-slug="${attr(daily.slug || daily.id)}">
-          <div class="daily-widget-head">
-            <span class="daily-widget-icon">🔥</span>
-            <span class="daily-widget-label">برومبت اليوم</span>
-            <span class="daily-widget-sub">مختار بعناية</span>
-          </div>
-          <div class="daily-widget-body">
-            <div class="daily-widget-media">
-              ${daily.cover
-                ? `<img src="${esc(daily.cover)}" alt="">`
-                : `<span class="pc-media-mark">${esc((daily.category || daily.title || 'خ').charAt(0))}</span>`}
-            </div>
-            <div class="daily-widget-content">
-              ${daily.category ? `<span class="daily-widget-cat">${esc(daily.category)}</span>` : ''}
-              <h3 class="daily-widget-title">${esc(daily.title)}</h3>
-              <p class="daily-widget-desc">${esc(daily.description || daily.body.replace(/\s+/g, ' ').slice(0, 120))}</p>
-              <div class="daily-widget-author">
-                <span class="avatar ${daily.author?.verified ? 'verified' : ''}" style="--s:24px">
-                  ${daily.author?.avatar
-                    ? `<img src="${esc(daily.author.avatar)}" alt="">`
-                    : esc(initials(daily.author?.name || '؟'))}
-                </span>
-                <span class="daily-widget-author-name">${esc(daily.author?.name || 'مجهول')}</span>
-              </div>
-              <div class="daily-widget-actions">
-                <a class="btn btn-primary btn-sm" href="#/p/${attr(daily.slug || daily.id)}">اقرأ الآن</a>
-              </div>
-            </div>
-          </div>
-        </div>`;
-
-      dailySection.querySelector('.daily-widget').addEventListener('click', (e) => {
-        if (e.target.closest('a, button')) return;
-        ctx.navigate('#/p/' + (daily.slug || daily.id));
-      });
+    const { items } = await ctx.api('/prompts?sort=latest&limit=20');
+    const container = root.querySelector('#home-results');
+    if (!items.length) {
+      container.innerHTML = emptyState(ICON.empty, 'لا توجد برومبتات بعد',
+        'كن أول من يشارك إبداعه مع المجتمع.',
+        `<a class="btn btn-primary" href="#/new">انشر برومبتاً</a>`);
+      return;
     }
-
-    const el = root.querySelector('#home-latest');
-    el.innerHTML = latest.items.length
-      ? grid(latest.items)
-      : emptyState(ICON.empty, 'لا توجد برومبتات بعد', 'كن أول من ينشر.');
-    bindCards(root, ctx);
+    container.innerHTML = grid(items);
+    bindCards(container, ctx);
   } catch (e) {
-    root.querySelector('#home-latest').innerHTML = emptyState(ICON.empty, 'تعذّر التحميل', e.message);
+    root.querySelector('#home-results').innerHTML = emptyState(ICON.empty, 'تعذّر التحميل', e.message);
   }
 }
 
-/* ═══════════ 4 — الاستكشاف ═══════════ */
+/* ═══════════ 4 — استكشف ═══════════ */
 async function explore(root, ctx) {
   const q = ctx.params.q || '';
-  const sort = ctx.params.sort || 'new';
-  const sortOptions = [['new', 'الأحدث'], ['likes', 'الأعلى إعجاباً'], ['copies', 'الأكثر نسخاً']];
-
   root.innerHTML = `
-  <div class="section" style="margin-top:0">
-    <div class="head-row">
-      <div>
-        <div class="eyebrow"><span class="dot"></span>02 / الاستكشاف</div>
-        <h2 class="section-title">تصفّح <span class="hl">المكتبة</span></h2>
+    <div class="section" style="margin-top:0">
+      ${sectionHead('02', 'استكشف', q ? `نتائج البحث: <span class="hl">${esc(q)}</span>` : 'تصفح <span class="hl">المكتبة</span>')}
+      <div class="search-box" style="margin-top:16px">
+        <form id="search-form" class="row gap-8">
+          <div class="field grow" style="margin:0">
+            <input class="input" id="search-input" type="text" placeholder="ابحث عن برومبت، فئة، أو كاتب…" value="${esc(q)}">
+          </div>
+          <button class="btn btn-primary" type="submit">${ICON.search}</button>
+        </form>
       </div>
-      <span class="badge badge-soft" id="result-count" style="font-family:var(--font-mono);font-size:11.5px">…</span>
     </div>
-  </div>
+    <div id="explore-results">${skeletonGrid(4)}</div>`;
 
-  <div class="filter-bar">
-    <div class="search-wrap">
-      ${ICON.search}
-      <input class="input" id="x-q" value="${esc(q)}" placeholder="ابحث بالعنوان أو الوسم أو النص…" autocomplete="off">
-    </div>
-    <div class="filter-row">
-      <span class="lbl">الترتيب</span>
-      ${sortOptions.map(([k, l]) => `<button class="chip ${sort === k ? 'active' : ''}" data-s="${k}">${l}</button>`).join('')}
-    </div>
-  </div>
-
-  <div id="x-results"></div>
-  <div id="x-more"></div>`;
-
-  const results = root.querySelector('#x-results');
-  const moreBox = root.querySelector('#x-more');
-  const countEl = root.querySelector('#result-count');
-
-  const PAGE = 12;
-  let offset = 0;
-  let allItems = [];
-  let loading = false;
-
-  async function loadPage(reset = false) {
-    if (loading) return;
-    loading = true;
-    if (reset) {
-      offset = 0; allItems = [];
-      results.innerHTML = skeletonGrid(6);
-      moreBox.innerHTML = '';
-    }
-    if (!reset) {
-      moreBox.innerHTML = `<div class="load-more-wrap"><button class="load-more-btn" disabled><span class="spinner" style="width:14px;height:14px;border-width:2px;margin:0"></span> جارٍ التحميل…</button></div>`;
-    }
-
-    const params = new URLSearchParams();
-    if (q) params.set('q', q);
-    params.set('sort', sort);
-    params.set('limit', String(PAGE));
-    params.set('offset', String(offset));
-
-    try {
-      const { items, hasMore, total } = await ctx.api('/prompts?' + params.toString());
-      if (reset && !items.length) {
-        results.innerHTML = emptyState(ICON.empty, 'لا توجد نتائج', 'جرّب كلمات مختلفة.',
-          `<button class="btn btn-outline" id="x-reset">إعادة تعيين</button>`);
-        results.querySelector('#x-reset')?.addEventListener('click', () => ctx.navigate('#/explore'));
-        countEl.textContent = '0 نتيجة';
-        moreBox.innerHTML = '';
-        return;
-      }
-      allItems = reset ? items : allItems.concat(items);
-      offset = allItems.length;
-      results.innerHTML = grid(allItems);
-      bindCards(results, ctx);
-      countEl.textContent = `${total || allItems.length} نتيجة`;
-
-      if (hasMore) {
-        moreBox.innerHTML = `<div class="load-more-wrap"><button class="load-more-btn" id="lm-btn">تحميل المزيد ↓</button></div>`;
-        moreBox.querySelector('#lm-btn').addEventListener('click', () => loadPage(false));
-      } else {
-        moreBox.innerHTML = allItems.length > PAGE
-          ? `<div class="all-loaded">وصلت إلى النهاية · ${allItems.length} برومبت</div>` : '';
-      }
-    } catch (e) {
-      results.innerHTML = emptyState(ICON.empty, 'تعذّر التحميل', e.message);
-      moreBox.innerHTML = '';
-    } finally { loading = false; }
-  }
-
-  let timer;
-  const input = root.querySelector('#x-q');
-  const sync = (patch = {}) => {
-    const next = { q: input.value.trim(), sort, ...patch };
-    const p = new URLSearchParams();
-    if (next.q) p.set('q', next.q);
-    if (next.sort && next.sort !== 'new') p.set('sort', next.sort);
-    const qs = p.toString();
-    ctx.navigate('#/explore' + (qs ? '?' + qs : ''));
-  };
-  input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => sync(), 400); });
-  root.querySelectorAll('.chip[data-s]').forEach((chip) => {
-    chip.addEventListener('click', () => sync({ sort: chip.dataset.s }));
+  const form = root.querySelector('#search-form');
+  const input = root.querySelector('#search-input');
+  
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const val = input.value.trim();
+    ctx.navigate(val ? `#/explore?q=${encodeURIComponent(val)}` : '#/explore');
   });
 
-  await loadPage(true);
+  try {
+    const path = q ? `/prompts?search=${encodeURIComponent(q)}&limit=40` : '/prompts?sort=latest&limit=40';
+    const { items } = await ctx.api(path);
+    const container = root.querySelector('#explore-results');
+    if (!items.length) {
+      container.innerHTML = emptyState(ICON.search, 'لا توجد نتائج',
+        q ? `لم نجد شيئاً يطابق "${esc(q)}"` : 'المكتبة فارغة حالياً.',
+        q ? `<a class="btn btn-outline" href="#/explore">مسح البحث</a>` : '');
+      return;
+    }
+    container.innerHTML = grid(items);
+    bindCards(container, ctx);
+  } catch (e) {
+    root.querySelector('#explore-results').innerHTML = emptyState(ICON.empty, 'تعذّر التحميل', e.message);
+  }
 }
 
 /* ═══════════ 5 — تفاصيل البرومبت ═══════════ */
 async function prompt(root, ctx) {
-  root.innerHTML = `
-    <div style="padding:6px 0">
-      <button class="btn btn-ghost btn-sm" onclick="history.back()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-        رجوع
-      </button>
-    </div>
-    ${skeletonPromptDetail()}`;
+  const id = ctx.id;
+  if (!id) return ctx.navigate('#/');
 
-  const { prompt: p, related } = await ctx.api('/prompts/' + ctx.id);
-  const mark = (p.category || p.title || 'خ').charAt(0);
-  const description = p.description || p.body.replace(/\s+/g, ' ').slice(0, 150);
-  const isLong = p.body.length > 400;
-  const isOwner = ctx.state.user?.id === p.authorId;
-  const slugPath = p.slug || p.id;
-  const isFollowingAuthor = !!p.isFollowingAuthor;
-
-  root.innerHTML = `
-  <div style="padding:6px 0">
-    <button class="btn btn-ghost btn-sm" id="back">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-      رجوع
-    </button>
-  </div>
-
-  <div class="detail-hero">
-    <div class="detail-cover">
-      ${p.cover ? `<img src="${esc(p.cover)}" alt="" decoding="async">`
-                : `<span class="pc-media-mark" style="font-size:72px">${esc(mark)}</span>`}
-    </div>
-    <div class="detail-body">
-      ${p.slug ? `
-      <button class="detail-slug" id="copy-slug" title="انسخ الرابط">
-        ${ICON.link} /p/${esc(p.slug)}
-      </button>` : ''}
-
-      <h1 class="detail-title">${esc(p.title)}</h1>
-      <p style="color:var(--slate);line-height:1.7;font-size:14px">${esc(description)}</p>
-
-      <div class="meta-row" style="margin-top:10px">
-        <span class="chip" style="cursor:default">${timeAgo(p.createdAt)}</span>
-      </div>
-
-      <div class="author-bar">
-        ${avatar(p.author, 42)}
-        <div class="info">
-          <span class="name">${esc(p.author?.name || 'مجهول')}${p.author?.verified ? VCHECK : ''}</span>
-          <span class="handle">@${esc(p.author?.username || 'unknown')}</span>
+  root.innerHTML = skeletonPromptDetail();
+  try {
+    const { prompt: p, comments } = await ctx.api(`/prompts/${id}`);
+    const isOwner = ctx.state.user?.id === p.authorId;
+    const tags = (p.tags || []).slice(0, 5);
+    
+    root.innerHTML = `
+    <div class="prompt-detail">
+      <div class="pd-header">
+        <div class="pd-author">
+          ${avatar(p.author, 48)}
+          <div>
+            <a class="pd-name" href="#/u/${attr(p.authorId)}">
+              ${esc(p.author?.name || 'مجهول')}
+              ${p.author?.verified ? VCHECK : ''}
+            </a>
+            <div class="pd-time">${timeAgo(p.createdAt)}</div>
+          </div>
         </div>
-        <div class="acts">
+        <div class="pd-actions">
           ${isOwner ? `
             <a class="btn btn-outline btn-sm" href="#/edit/${attr(p.id)}">${ICON.edit} تعديل</a>
-            <button class="btn btn-danger btn-sm" id="delete-btn">${ICON.trash}</button>
-          ` : `
-            <button class="btn ${isFollowingAuthor ? 'btn-soft' : 'btn-outline'} btn-sm" id="follow-btn" data-following="${isFollowingAuthor ? '1' : '0'}">
-              ${isFollowingAuthor ? ICON.userCheck + ' متابَع' : ICON.userPlus + ' متابعة'}
-            </button>
-          `}
+          ` : ''}
+          <button class="btn btn-outline btn-sm" id="pd-share">${ICON.share} مشاركة</button>
         </div>
       </div>
 
-      <div class="code-window">
-        <div class="code-head">
-          <span class="traffic"><i></i><i></i><i></i></span>
-          <span class="code-name">prompt.txt</span>
-          <button class="btn btn-ghost btn-xs" id="copy-head">${ICON.copy} نسخ</button>
-        </div>
-        <pre class="code-body ${isLong ? 'clamped' : ''}" id="prompt-body">${esc(p.body)}</pre>
-        ${isLong ? `<button class="collapse-toggle" id="toggle-body">عرض النص كاملاً ↓</button>` : ''}
-      </div>
-
-      <div class="row gap-10" style="flex-wrap:wrap;justify-content:space-between;margin-top:14px">
-        <div class="row gap-8" style="flex-wrap:wrap">
-          <button class="btn btn-outline btn-sm" id="like-btn" data-liked="${p.liked ? '1' : '0'}">
-            <span id="like-ic">${p.liked ? ICON.heartFill : ICON.heart}</span>
-            <span id="like-n">${p.likes}</span>
-          </button>
-          <button class="btn btn-outline btn-sm" id="share-btn">${ICON.share} مشاركة</button>
-        </div>
-        <button class="btn btn-primary btn-sm" id="copy-bottom">${ICON.copy} نسخ النص</button>
-      </div>
-
-      ${(p.tags || []).length ? `
-      <div class="pc-tags-new" style="margin-top:16px">
-        ${(p.tags || []).map((t) => `<a class="pc-tag" href="#/explore?q=${encodeURIComponent(t)}">#${esc(t)}</a>`).join('')}
+      <h1 class="pd-title">${esc(p.title)}</h1>
+      ${p.description ? `<p class="pd-desc">${esc(p.description)}</p>` : ''}
+      
+      ${tags.length ? `
+      <div class="pd-tags">
+        ${tags.map((t) => `<a class="pd-tag" href="#/explore?q=${encodeURIComponent(t)}">#${esc(t)}</a>`).join('')}
       </div>` : ''}
-    </div>
-  </div>
 
-  ${related.length ? `
-  <section class="section">
-    ${sectionHead('03', 'ذات صلة', 'برومبتات مشابهة')}
-    ${grid(related)}
-  </section>` : ''}
-
-  <section class="comments-section">
-    <div class="comments-head">
-      <h3>
-        ${ICON.chat}
-        التعليقات
-        <span class="cnt ${!p.commentsCount ? 'empty' : ''}" id="cm-count">
-          ${p.commentsCount || 0}
-        </span>
-      </h3>
-    </div>
-
-    ${ctx.state.user ? `
-    <div class="comment-form" id="cm-form">
-      <textarea id="cm-input" placeholder="شارك رأيك أو سؤالاً…" maxlength="2000"></textarea>
-      <div class="submit-row">
-        <span class="hint mono" id="cm-char">0 / 2000</span>
-        <button class="btn btn-primary btn-sm" id="cm-submit" disabled>${ICON.send} إرسال</button>
-      </div>
-    </div>` : `
-    <div class="comments-empty" style="margin-bottom:16px">
-      <strong>شارك رأيك</strong>
-      <a href="#/login">سجّل الدخول</a> لتتمكن من التعليق.
-    </div>`}
-
-    <div class="comments-list" id="cm-list"></div>
-    <div id="cm-more"></div>
-  </section>`;
-
-  root.querySelector('#back').addEventListener('click', () => history.back());
-  bindCards(root, ctx);
-
-  root.querySelector('#copy-slug')?.addEventListener('click', async () => {
-    const url = location.origin + '/#/p/' + slugPath;
-    try {
-      await navigator.clipboard.writeText(url);
-      ctx.toast('تم نسخ الرابط');
-    } catch { ctx.toast('تعذّر النسخ', 'error'); }
-  });
-
-  const toggleBtn = root.querySelector('#toggle-body');
-  const bodyEl = root.querySelector('#prompt-body');
-  toggleBtn?.addEventListener('click', () => {
-    const clamped = bodyEl.classList.toggle('clamped');
-    toggleBtn.textContent = clamped ? 'عرض النص كاملاً ↓' : 'إخفاء ↑';
-  });
-
-  async function doCopy(btn) {
-    try { await navigator.clipboard.writeText(p.body); }
-    catch {
-      const ta = document.createElement('textarea');
-      ta.value = p.body;
-      ta.style.position = 'fixed'; ta.style.opacity = '0';
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      ta.remove();
-    }
-    ctx.toast('تم النسخ');
-    ctx.api(`/prompts/${p.id}/copy`, { method: 'POST', useCache: false }).catch(() => {});
-    if (btn) {
-      const old = btn.innerHTML;
-      btn.innerHTML = `${ICON.check} تم`;
-      setTimeout(() => { btn.innerHTML = old; }, 1400);
-    }
-  }
-  ['copy-head', 'copy-bottom'].forEach((id) => {
-    root.querySelector('#' + id)?.addEventListener('click', (e) => doCopy(e.currentTarget));
-  });
-
-  const likeBtn = root.querySelector('#like-btn');
-  likeBtn.addEventListener('click', () => {
-    if (!ctx.state.user) {
-      ctx.toast('سجّل الدخول للإعجاب', 'error');
-      return ctx.navigate('#/login');
-    }
-    const wasLiked = likeBtn.dataset.liked === '1';
-    const wasCount = parseInt(root.querySelector('#like-n').textContent) || 0;
-    const newLiked = !wasLiked;
-    const newCount = wasCount + (newLiked ? 1 : -1);
-    likeBtn.dataset.liked = newLiked ? '1' : '0';
-    root.querySelector('#like-ic').innerHTML = newLiked ? ICON.heartFill : ICON.heart;
-    root.querySelector('#like-n').textContent = newCount;
-    ctx.api(`/prompts/${p.id}/like`, { method: 'POST', useCache: false })
-      .then((real) => {
-        likeBtn.dataset.liked = real.liked ? '1' : '0';
-        root.querySelector('#like-ic').innerHTML = real.liked ? ICON.heartFill : ICON.heart;
-        root.querySelector('#like-n').textContent = real.likes;
-      })
-      .catch((e) => {
-        likeBtn.dataset.liked = wasLiked ? '1' : '0';
-        root.querySelector('#like-ic').innerHTML = wasLiked ? ICON.heartFill : ICON.heart;
-        root.querySelector('#like-n').textContent = wasCount;
-        ctx.toast(e.message, 'error');
-      });
-  });
-
-  root.querySelector('#share-btn').addEventListener('click', async () => {
-    const url = location.origin + '/#/p/' + slugPath;
-    if (navigator.share) {
-      try { await navigator.share({ title: p.title, text: description, url }); return; } catch {}
-    }
-    try {
-      await navigator.clipboard.writeText(url);
-      ctx.toast('تم نسخ الرابط');
-    } catch { ctx.toast('تعذّر النسخ', 'error'); }
-  });
-
-  const followBtn = root.querySelector('#follow-btn');
-  followBtn?.addEventListener('click', () => {
-    if (!ctx.state.user) {
-      ctx.toast('سجّل الدخول للمتابعة', 'error');
-      return ctx.navigate('#/login');
-    }
-    const isNow = followBtn.dataset.following === '1';
-    const newState = !isNow;
-    followBtn.dataset.following = newState ? '1' : '0';
-    followBtn.className = 'btn ' + (newState ? 'btn-soft' : 'btn-outline') + ' btn-sm';
-    followBtn.innerHTML = newState ? `${ICON.userCheck} متابَع` : `${ICON.userPlus} متابعة`;
-    ctx.api(`/users/${p.authorId}/follow`, { method: 'POST', useCache: false })
-      .then((r) => {
-        const actual = !!r.following;
-        followBtn.dataset.following = actual ? '1' : '0';
-        followBtn.className = 'btn ' + (actual ? 'btn-soft' : 'btn-outline') + ' btn-sm';
-        followBtn.innerHTML = actual ? `${ICON.userCheck} متابَع` : `${ICON.userPlus} متابعة`;
-        ctx.toast(actual ? 'تتابع الآن' : 'ألغيت المتابعة');
-      })
-      .catch((e) => {
-        followBtn.dataset.following = isNow ? '1' : '0';
-        followBtn.className = 'btn ' + (isNow ? 'btn-soft' : 'btn-outline') + ' btn-sm';
-        followBtn.innerHTML = isNow ? `${ICON.userCheck} متابَع` : `${ICON.userPlus} متابعة`;
-        ctx.toast(e.message, 'error');
-      });
-  });
-
-  root.querySelector('#delete-btn')?.addEventListener('click', async () => {
-    if (!confirm('سيُحذف البرومبت نهائياً. متابعة؟')) return;
-    const btn = root.querySelector('#delete-btn');
-    btn.disabled = true;
-    btn.style.opacity = '.5';
-    try {
-      await ctx.api(`/prompts/${p.id}`, { method: 'DELETE', useCache: false });
-      ctx.toast('تم الحذف');
-      ctx.navigate('#/profile');
-    } catch (e) {
-      btn.disabled = false;
-      btn.style.opacity = '1';
-      ctx.toast(e.message, 'error');
-    }
-  });
-
-  const cmList = root.querySelector('#cm-list');
-  const cmMore = root.querySelector('#cm-more');
-  const cmCount = root.querySelector('#cm-count');
-  let cmOffset = 0, cmAll = [], cmHasMore = true, cmLoading = false;
-  const CM_PAGE = 10;
-
-  function updateCount(n) {
-    cmCount.textContent = n;
-    cmCount.classList.toggle('empty', n === 0);
-  }
-
-  function commentItem(c) {
-    const isOwn = ctx.state.user?.id === c.userId;
-    const isPromptOwner = ctx.state.user?.id === p.authorId;
-    const canDelete = isOwn || isPromptOwner || ctx.state.user?.role === 'admin';
-    const edited = c.updatedAt && new Date(c.updatedAt) - new Date(c.createdAt) > 1000;
-    return `
-    <div class="comment-item" data-cid="${attr(c.id)}">
-      <div class="c-avatar">${avatar(c.author, 42)}</div>
-      <div class="c-body">
-        <div class="c-head">
-          <a class="c-name" href="#/u/${attr(c.userId)}">
-            ${esc(c.author?.name || 'مجهول')}
-            ${c.author?.verified ? VCHECK : ''}
-          </a>
-          <span class="c-time">${timeAgo(c.createdAt)}${edited ? ' · معدّل' : ''}</span>
-          ${isOwn || canDelete ? `
-          <div class="c-actions">
-            ${isOwn ? `<button data-edit="${attr(c.id)}" aria-label="تعديل">تعديل</button>` : ''}
-            ${canDelete ? `<button class="danger" data-del="${attr(c.id)}" aria-label="حذف">حذف</button>` : ''}
-          </div>` : ''}
+      <div class="pd-prompt-box">
+        <div class="pd-prompt-head">
+          <span class="pd-dots"><i></i><i></i><i></i></span>
+          <span class="pd-prompt-name">prompt.txt</span>
+          <button class="btn btn-outline btn-xs" id="pd-copy">${ICON.copy} نسخ</button>
         </div>
-        <div class="c-text" data-body="${attr(c.id)}">${esc(c.body)}</div>
+        <pre class="pd-prompt-text">${esc(p.body)}</pre>
+      </div>
+
+      <div class="pd-stats">
+        <button class="pd-stat-btn ${p.liked ? 'liked' : ''}" id="pd-like" data-liked="${p.liked ? '1' : '0'}">
+          ${p.liked ? ICON.heartFill : ICON.heart}
+          <span>${fmt(p.likes)} إعجاب</span>
+        </button>
+        <span class="pd-stat-btn">
+          ${ICON.chat}
+          <span>${fmt(p.commentsCount || 0)} تعليق</span>
+        </span>
+        <span class="pd-stat-btn">
+          ${ICON.copy}
+          <span>${fmt(p.copies || 0)} نسخة</span>
+        </span>
+      </div>
+
+      <div class="pd-comments-section">
+        <h3>التعليقات</h3>
+        ${ctx.state.user ? `
+        <div class="pd-comment-form">
+          <textarea class="textarea" id="pd-comment-input" placeholder="اكتب تعليقاً…" rows="3" maxlength="500"></textarea>
+          <div class="row" style="justify-content:flex-end;margin-top:8px">
+            <button class="btn btn-primary btn-sm" id="pd-comment-send" disabled>${ICON.send} إرسال</button>
+          </div>
+        </div>` : `
+        <div class="pd-comment-form-locked">
+          <p>سجّل الدخول للمشاركة في النقاش.</p>
+          <a class="btn btn-outline btn-sm" href="#/login">تسجيل الدخول</a>
+        </div>`}
+
+        <div class="pd-comments-list" id="pd-comments-list">
+          ${comments.items.length ? comments.items.map((c) => `
+            <div class="pd-comment-item">
+              ${avatar(c.author, 32)}
+              <div class="pd-comment-body">
+                <div class="pd-comment-name">
+                  ${esc(c.author?.name || 'مجهول')}
+                  ${c.author?.verified ? VCHECK : ''}
+                  <span class="pd-comment-time">${timeAgo(c.createdAt)}</span>
+                </div>
+                <div class="pd-comment-text">${esc(c.body)}</div>
+              </div>
+            </div>
+          `).join('') : '<p class="hint">لا توجد تعليقات بعد.</p>'}
+        </div>
       </div>
     </div>`;
-  }
 
-  async function loadComments(reset = false) {
-    if (cmLoading) return;
-    cmLoading = true;
-    if (reset) {
-      cmOffset = 0; cmAll = []; cmHasMore = true;
-      cmList.innerHTML = skeletonComments(3);
-      cmMore.innerHTML = '';
+    // ربط الأحداث
+    root.querySelector('#pd-copy')?.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(p.body); } catch {}
+      ctx.api(`/prompts/${p.id}/copy`, { method: 'POST', useCache: false }).catch(() => {});
+      ctx.toast('تم النسخ');
+    });
+
+    root.querySelector('#pd-share')?.addEventListener('click', async () => {
+      const url = location.origin + '/#/p/' + (p.slug || p.id);
+      if (navigator.share) {
+        try { await navigator.share({ title: p.title, url }); return; } catch {}
+      }
+      try { await navigator.clipboard.writeText(url); ctx.toast('تم نسخ الرابط'); } catch {}
+    });
+
+    root.querySelector('#pd-like')?.addEventListener('click', async () => {
+      if (!ctx.state.user) { ctx.toast('سجّل الدخول للإعجاب', 'error'); return ctx.navigate('#/login'); }
+      const btn = root.querySelector('#pd-like');
+      const wasLiked = btn.dataset.liked === '1';
+      const newLiked = !wasLiked;
+      
+      btn.dataset.liked = newLiked ? '1' : '0';
+      btn.classList.toggle('liked', newLiked);
+      btn.querySelector('svg')?.replaceWith(newLiked ? ICON.heartFill : ICON.heart);
+      
+      try {
+        const r = await ctx.api(`/prompts/${p.id}/like`, { method: 'POST', useCache: false });
+        btn.dataset.liked = r.liked ? '1' : '0';
+        btn.classList.toggle('liked', r.liked);
+        btn.querySelector('span').textContent = `${fmt(r.likes)} إعجاب`;
+        btn.querySelector('svg')?.replaceWith(r.liked ? ICON.heartFill : ICON.heart);
+      } catch (ex) {
+        btn.dataset.liked = wasLiked ? '1' : '0';
+        btn.classList.toggle('liked', wasLiked);
+        ctx.toast(ex.message, 'error');
+      }
+    });
+
+    const commentInput = root.querySelector('#pd-comment-input');
+    const commentSend = root.querySelector('#pd-comment-send');
+    if (commentInput && commentSend) {
+      commentInput.addEventListener('input', () => {
+        commentSend.disabled = commentInput.value.trim().length === 0;
+      });
+      commentSend.addEventListener('click', async () => {
+        const body = commentInput.value.trim();
+        if (!body) return;
+        commentSend.disabled = true;
+        commentSend.innerHTML = '<span class="spinner" style="width:12px;height:12px;border-width:2px"></span>';
+        try {
+          await ctx.api(`/prompts/${p.id}/comments`, { method: 'POST', body: { body }, useCache: false });
+          ctx.toast('تم إرسال التعليق');
+          prompt(root, ctx); // إعادة التحميل
+        } catch (ex) {
+          ctx.toast(ex.message, 'error');
+          commentSend.disabled = false;
+          commentSend.innerHTML = `${ICON.send} إرسال`;
+        }
+      });
     }
-    try {
-      const { items, hasMore, total } = await ctx.api(
-        `/prompts/${p.id}/comments?limit=${CM_PAGE}&offset=${cmOffset}`
-      );
-      cmAll = reset ? items : cmAll.concat(items);
-      cmOffset = cmAll.length;
-      cmHasMore = hasMore;
-      updateCount(total);
-      if (!cmAll.length) {
-        cmList.innerHTML = `
-          <div class="comments-empty">
-            <strong>لا توجد تعليقات بعد</strong>
-            كن أول من يشارك رأيه.
-          </div>`;
-        cmMore.innerHTML = '';
-        return;
-      }
-      cmList.innerHTML = cmAll.map(commentItem).join('');
-      bindCommentActions();
-      if (cmHasMore) {
-        cmMore.innerHTML = `<div class="load-more-wrap"><button class="load-more-btn" id="cm-lm">عرض المزيد ↓</button></div>`;
-        cmMore.querySelector('#cm-lm').addEventListener('click', () => loadComments(false));
-      } else {
-        cmMore.innerHTML = cmAll.length > CM_PAGE
-          ? `<div class="all-loaded">نهاية التعليقات · ${cmAll.length}</div>` : '';
-      }
-    } catch (e) {
-      cmList.innerHTML = `<div class="comments-empty">${esc(e.message)}</div>`;
-      cmMore.innerHTML = '';
-    } finally { cmLoading = false; }
-  }
 
-  function bindCommentActions() {
-    cmList.querySelectorAll('[data-edit]').forEach((btn) => {
-      btn.addEventListener('click', () => startEdit(btn.dataset.edit));
-    });
-    cmList.querySelectorAll('[data-del]').forEach((btn) => {
-      btn.addEventListener('click', () => deleteComment(btn.dataset.del));
-    });
+  } catch (e) {
+    root.innerHTML = emptyState(ICON.empty, 'تعذّر تحميل البرومبت', e.message, `<a class="btn btn-primary" href="#/">العودة للرئيسية</a>`);
+    if (e instanceof ctx.ApiError && e.status === 404) {
+      root.innerHTML = emptyState(ICON.empty, 'غير موجود', 'هذا البرومبت غير موجود أو تم حذفه.', `<a class="btn btn-primary" href="#/">العودة للرئيسية</a>`);
+    }
   }
-
-  function startEdit(cid) {
-    const item = cmList.querySelector(`[data-cid="${cid}"]`);
-    if (!item) return;
-    const c = cmAll.find((x) => x.id === cid);
-    if (!c) return;
-    const bodyEl = item.querySelector(`[data-body="${cid}"]`);
-    const actionsEl = item.querySelector('.c-actions');
-    if (actionsEl) actionsEl.style.display = 'none';
-    bodyEl.innerHTML = `
-      <div class="c-edit-form">
-        <textarea data-edit-input="${attr(cid)}" maxlength="2000">${esc(c.body)}</textarea>
-        <div class="row-actions">
-          <button class="btn btn-ghost btn-xs" data-edit-cancel="${attr(cid)}">إلغاء</button>
-          <button class="btn btn-primary btn-xs" data-edit-save="${attr(cid)}">حفظ</button>
-        </div>
-      </div>`;
-    item.querySelector(`[data-edit-cancel="${cid}"]`).addEventListener('click', () => {
-      bodyEl.textContent = c.body;
-      if (actionsEl) actionsEl.style.display = '';
-    });
-    item.querySelector(`[data-edit-save="${cid}"]`).addEventListener('click', async () => {
-      const newBody = item.querySelector(`[data-edit-input="${cid}"]`).value.trim();
-      if (!newBody) return ctx.toast('النص مطلوب', 'error');
-      try {
-        const { comment } = await ctx.api(`/comments/${cid}`, {
-          method: 'PATCH', body: { body: newBody }, useCache: false
-        });
-        const idx = cmAll.findIndex((x) => x.id === cid);
-        if (idx >= 0) cmAll[idx] = comment;
-        cmList.innerHTML = cmAll.map(commentItem).join('');
-        bindCommentActions();
-        ctx.toast('تم التعديل');
-      } catch (e) { ctx.toast(e.message, 'error'); }
-    });
-  }
-
-  async function deleteComment(cid) {
-    if (!confirm('حذف هذا التعليق؟')) return;
-    try {
-      await ctx.api(`/comments/${cid}`, { method: 'DELETE', useCache: false });
-      cmAll = cmAll.filter((x) => x.id !== cid);
-      cmOffset = cmAll.length;
-      updateCount(Math.max(0, parseInt(cmCount.textContent || '0') - 1));
-      if (!cmAll.length) {
-        cmList.innerHTML = `
-          <div class="comments-empty">
-            <strong>لا توجد تعليقات بعد</strong>
-            كن أول من يشارك رأيه.
-          </div>`;
-      } else {
-        cmList.innerHTML = cmAll.map(commentItem).join('');
-        bindCommentActions();
-      }
-      ctx.toast('تم الحذف');
-    } catch (e) { ctx.toast(e.message, 'error'); }
-  }
-
-  const cmInput = root.querySelector('#cm-input');
-  const cmSubmit = root.querySelector('#cm-submit');
-  const cmChar = root.querySelector('#cm-char');
-  if (cmInput) {
-    cmInput.addEventListener('input', () => {
-      const len = cmInput.value.length;
-      cmChar.textContent = `${len} / 2000`;
-      cmChar.classList.toggle('warn', len > 1500 && len <= 1900);
-      cmChar.classList.toggle('danger', len > 1900);
-      cmSubmit.disabled = cmInput.value.trim().length === 0;
-    });
-    cmSubmit.addEventListener('click', async () => {
-      if (!ctx.requireOnline()) return;
-      const body = cmInput.value.trim();
-      if (!body) return;
-      cmSubmit.disabled = true;
-      cmSubmit.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px;margin:0"></span>';
-      try {
-        const { comment } = await ctx.api(`/prompts/${p.id}/comments`, {
-          method: 'POST', body: { body }, useCache: false
-        });
-        cmAll.unshift(comment);
-        cmOffset = cmAll.length;
-        cmInput.value = '';
-        cmChar.textContent = '0 / 2000';
-        cmChar.classList.remove('warn', 'danger');
-        updateCount(parseInt(cmCount.textContent || '0') + 1);
-        cmList.innerHTML = cmAll.map(commentItem).join('');
-        bindCommentActions();
-        ctx.toast('تم إرسال التعليق');
-      } catch (e) {
-        ctx.toast(e.message, 'error');
-      } finally {
-        cmSubmit.disabled = false;
-        cmSubmit.innerHTML = `${ICON.send} إرسال`;
-      }
-    });
-  }
-
-  await loadComments(true);
 }
 
-/* ═══════════ 6 — نشر/تعديل برومبت ═══════════ */
+/* ═══════════ 6 — نشر / تعديل ═══════════ */
 async function newPrompt(root, ctx) {
-  if (!ctx.state.user) {
-    ctx.toast('سجّل الدخول للنشر', 'error');
-    return ctx.navigate('#/login');
-  }
-  return promptForm(root, ctx, null);
+  if (!ctx.state.user) { ctx.toast('سجّل الدخول', 'error'); return ctx.navigate('#/login'); }
+  renderPromptForm(root, ctx, null);
 }
 
 async function editPrompt(root, ctx) {
-  if (!ctx.state.user) return ctx.navigate('#/login');
-  const { prompt: existing } = await ctx.api('/prompts/' + ctx.id);
-  if (existing.authorId !== ctx.state.user.id) {
-    ctx.toast('لا تملك الصلاحية', 'error');
-    return ctx.navigate('#/p/' + (existing.slug || existing.id));
+  if (!ctx.state.user) { ctx.toast('سجّل الدخول', 'error'); return ctx.navigate('#/login'); }
+  const id = ctx.id;
+  if (!id) return ctx.navigate('#/');
+
+  root.innerHTML = skeletonSectionHead();
+  try {
+    const { prompt: p } = await ctx.api(`/prompts/${id}`);
+    if (p.authorId !== ctx.state.user.id) {
+      ctx.toast('غير مسموح', 'error');
+      return ctx.navigate('#/p/' + id);
+    }
+    renderPromptForm(root, ctx, p);
+  } catch (e) {
+    root.innerHTML = emptyState(ICON.empty, 'تعذّر التحميل', e.message);
   }
-  return promptForm(root, ctx, existing);
 }
 
-async function promptForm(root, ctx, existing) {
-  const isEdit = !!existing;
+function renderPromptForm(root, ctx, p) {
+  const isEdit = !!p;
   root.innerHTML = `
-  <div class="section" style="margin-top:0">
-    <div class="head-row">
-      <div>
-        <div class="eyebrow"><span class="dot"></span>${isEdit ? 'تعديل' : 'نشر'} / برومبت</div>
-        <h2 class="section-title">${isEdit ? 'تعديل' : 'شارك'} <span class="hl">برومبت</span></h2>
-      </div>
+  <div style="max-width:640px;margin:0 auto">
+    <div class="section-head" style="margin-bottom:20px">
+      <div class="eyebrow"><span class="dot"></span>06 / ${isEdit ? 'تعديل' : 'نشر'}</div>
+      <h2 class="section-title">${isEdit ? 'تعديل البرومبت' : 'نشر برومبت جديد'}</h2>
+      <p class="section-sub">${isEdit ? 'حدّث تفاصيل البرومبت' : 'شارك إبداعك مع المجتمع'}</p>
     </div>
 
-    <form id="np-form" class="stack gap-14">
-      <div class="card">
-        <div class="stack gap-14">
-          <div class="field">
-            <label class="label">صورة الغلاف <span class="opt">(اختياري)</span></label>
-            <div class="row gap-12" style="flex-wrap:wrap">
-              <div id="cover-preview" style="width:140px;height:96px;border:1.5px solid var(--grid);border-radius:var(--r-lg);background:var(--vellum);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">
-                <span class="pc-media-mark" style="font-size:32px">؟</span>
-              </div>
-              <div class="stack gap-8 grow">
-                <input class="input" id="cover-url" dir="ltr" placeholder="https://…" value="${esc(existing?.cover || '')}">
-                <div class="row gap-8">
-                  <input type="file" id="cover-file" accept="image/*" hidden>
-                  <button type="button" class="btn btn-outline btn-xs" id="cover-pick">رفع</button>
-                  <button type="button" class="btn btn-ghost btn-xs" id="cover-clear">إزالة</button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="field">
-            <label class="label">العنوان</label>
-            <input class="input" id="title" value="${esc(existing?.title || '')}" placeholder="محرر نصوص عربي" required maxlength="90">
-          </div>
-
-          <div class="field">
-            <label class="label">الوسوم <span class="opt">(اختياري)</span></label>
-            <input class="input" id="tags" value="${esc((existing?.tags || []).join(', '))}" placeholder="تحرير، لغة عربية">
-            <span class="hint">افصل بفاصلة — 8 وسوم كحد أقصى</span>
-          </div>
+    <form class="card card-white" id="prompt-form">
+      <div class="stack gap-14">
+        <div class="field">
+          <label class="label">العنوان</label>
+          <input class="input" id="p-title" value="${esc(p?.title || '')}" required maxlength="120">
         </div>
-      </div>
-
-      <div class="card">
-        <div class="stack gap-14">
-          <div class="field">
-            <label class="label">نص البرومبت</label>
-            <textarea class="textarea code" id="body" rows="14" required
-              placeholder="اكتب البرومبت…">${esc(existing?.body || '')}</textarea>
-            <div class="row" style="justify-content:space-between">
-              <span class="hint">استخدم <span class="mono">{{ }}</span> للمتغيرات</span>
-              <span class="hint mono" id="body-count">${(existing?.body || '').length} حرف</span>
-            </div>
-          </div>
+        
+        <div class="field">
+          <label class="label">الفئة</label>
+          <select class="input" id="p-category">
+            <option value="">اختر فئة…</option>
+            ${(ctx.state.meta.categories || []).map(c => `<option value="${esc(c)}" ${p?.category === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}
+          </select>
         </div>
-      </div>
 
-      <p class="err-text" id="np-err" hidden></p>
+        <div class="field">
+          <label class="label">نموذج الذكاء الاصطناعي</label>
+          <select class="input" id="p-model">
+            <option value="">عام / غير محدد</option>
+            ${(ctx.state.meta.models || []).map(m => `<option value="${esc(m)}" ${p?.model === m ? 'selected' : ''}>${esc(m)}</option>`).join('')}
+          </select>
+        </div>
 
-      <div class="row gap-10" style="flex-wrap:wrap;justify-content:flex-end">
-        <button type="button" class="btn btn-ghost" id="cancel">إلغاء</button>
-        <button type="submit" class="btn btn-primary btn-lg" id="publish">${isEdit ? 'حفظ' : 'نشر البرومبت'}</button>
+        <div class="field">
+          <label class="label">البرومبت (الأمر)</label>
+          <textarea class="textarea" id="p-body" rows="10" required maxlength="4000" style="font-family:var(--font-mono);font-size:13px">${esc(p?.body || '')}</textarea>
+        </div>
+
+        <div class="field">
+          <label class="label">الوصف المختصر <span class="opt">(اختياري)</span></label>
+          <input class="input" id="p-desc" value="${esc(p?.description || '')}" maxlength="200" placeholder="شرح موجز لما يفعله هذا البرومبت">
+        </div>
+
+        <div class="field">
+          <label class="label">الوسوم <span class="opt">(اختياري)</span></label>
+          <input class="input" id="p-tags" value="${esc((p?.tags || []).join(', '))}" placeholder="مثال: كتابة, تسويق, ChatGPT" maxlength="100">
+        </div>
+
+        <p class="err-text" id="p-err" hidden></p>
+
+        <div class="row gap-8" style="justify-content:flex-end;margin-top:8px">
+          <button type="button" class="btn btn-ghost btn-sm" onclick="history.back()">إلغاء</button>
+          <button type="submit" class="btn btn-primary btn-sm" id="p-btn">${isEdit ? 'حفظ التعديلات' : 'نشر البرومبت'}</button>
+        </div>
       </div>
     </form>
   </div>`;
 
-  let cover = existing?.cover || '';
-  const preview = root.querySelector('#cover-preview');
-  const urlInput = root.querySelector('#cover-url');
-  const fileInput = root.querySelector('#cover-file');
-  const setCover = (v) => {
-    cover = v;
-    preview.innerHTML = v
-      ? `<img src="${esc(v)}" style="width:100%;height:100%;object-fit:cover" alt="">`
-      : `<span class="pc-media-mark" style="font-size:32px">؟</span>`;
-  };
-  if (cover) setCover(cover);
-  urlInput.addEventListener('input', () => setCover(urlInput.value.trim()));
-  root.querySelector('#cover-pick').addEventListener('click', () => fileInput.click());
-  root.querySelector('#cover-clear').addEventListener('click', () => {
-    urlInput.value = ''; fileInput.value = ''; setCover('');
-  });
-  fileInput.addEventListener('change', () => {
-    const f = fileInput.files?.[0];
-    if (!f) return;
-    if (f.size > 2 * 1024 * 1024) return ctx.toast('حجم الصورة > 2MB', 'error');
-    const r = new FileReader();
-    r.onload = () => { urlInput.value = ''; setCover(r.result); };
-    r.readAsDataURL(f);
-  });
+  // إصلاح onclick في زر الإلغاء
+  root.querySelector('.btn-ghost')?.addEventListener('click', () => history.back());
 
-  const bodyEl = root.querySelector('#body');
-  bodyEl.addEventListener('input', () => {
-    root.querySelector('#body-count').textContent = `${bodyEl.value.length} حرف`;
-  });
-
-  root.querySelector('#cancel').addEventListener('click', () => history.back());
-
-  const form = root.querySelector('#np-form');
-  const err = root.querySelector('#np-err');
-  const btn = root.querySelector('#publish');
+  const form = root.querySelector('#prompt-form');
+  const err = root.querySelector('#p-err');
+  const btn = root.querySelector('#p-btn');
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (!ctx.requireOnline()) return;
-    err.hidden = true;
-    const title = root.querySelector('#title').value.trim();
-    const tags = root.querySelector('#tags').value.split(',').map((t) => t.trim()).filter(Boolean);
-    const body = bodyEl.value.trim();
+    err.hidden = true; btn.disabled = true; btn.textContent = 'جارٍ الحفظ…';
+    
+    const tagsRaw = root.querySelector('#p-tags').value;
+    const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
 
-    if (!title || !body) { err.textContent = 'العنوان والنص مطلوبان'; err.hidden = false; return; }
-    if (body.length < 40) { err.textContent = 'النص قصير جداً'; err.hidden = false; return; }
+    const payload = {
+      title: root.querySelector('#p-title').value.trim(),
+      category: root.querySelector('#p-category').value || null,
+      model: root.querySelector('#p-model').value || null,
+      body: root.querySelector('#p-body').value.trim(),
+      description: root.querySelector('#p-desc').value.trim() || null,
+      tags
+    };
 
-    btn.disabled = true; btn.textContent = '…';
     try {
-      const payload = { title, tags, body, cover, description: '', category: '', models: [] };
       if (isEdit) {
-        const { prompt: updated } = await ctx.api('/prompts/' + existing.id, { method: 'PATCH', body: payload, useCache: false });
+        const { prompt: updated } = await ctx.api(`/prompts/${p.id}`, { method: 'PATCH', body: payload, useCache: false });
         ctx.toast('تم الحفظ');
         ctx.navigate('#/p/' + (updated.slug || updated.id));
       } else {
@@ -1513,9 +1052,7 @@ async function profile(root, ctx) {
   ${u.isSelf ? `
   <div class="card hidden" id="settings-panel" style="margin-bottom:16px">
     <div class="stack gap-14">
-
       <h3 style="font-size:15px;display:flex;align-items:center;gap:8px">${ICON.settings} الإعدادات</h3>
-
       <div class="row gap-12" style="flex-wrap:wrap;align-items:flex-start">
         <div id="avatar-preview" class="profile-avatar" style="width:60px;height:60px;font-size:22px;flex-shrink:0">${avatarInner}</div>
         <div class="stack gap-8 grow">
@@ -1526,7 +1063,6 @@ async function profile(root, ctx) {
           </div>
         </div>
       </div>
-
       <div class="field">
         <label class="label">الاسم</label>
         <input class="input" id="edit-name" value="${esc(u.name)}" required>
@@ -1539,14 +1075,11 @@ async function profile(root, ctx) {
         <label class="label">نبذة تعريفية</label>
         <textarea class="textarea" id="edit-bio" rows="3" maxlength="200">${esc(u.bio || '')}</textarea>
       </div>
-
       <p class="err-text" id="edit-err" hidden></p>
-
       <div class="row gap-8" style="justify-content:flex-end">
         <button type="button" class="btn btn-ghost btn-sm" id="edit-cancel">إلغاء</button>
         <button type="button" class="btn btn-primary btn-sm" id="edit-save">حفظ البيانات</button>
       </div>
-
       <div class="password-section">
         <h4>${ICON.lock} تغيير كلمة المرور</h4>
         <div class="stack gap-10">
@@ -1568,22 +1101,16 @@ async function profile(root, ctx) {
           </button>
         </div>
       </div>
-
       <div class="danger-zone">
         <h4>الأمان</h4>
         <p style="font-size:12.5px;color:var(--graphite);margin-bottom:10px;line-height:1.65">
           إن كنت مسجّلًا على أجهزة أخرى ولا تريد ذلك، يمكنك إبطال جميع الجلسات. ستحتفظ أنت بالجلسة الحالية.
         </p>
         <div class="row gap-8" style="flex-wrap:wrap">
-          <button type="button" class="btn btn-danger btn-sm" id="logout-all">
-            إبطال الجلسات الأخرى
-          </button>
-          <button type="button" class="btn btn-ghost btn-sm" id="logout">
-            تسجيل الخروج
-          </button>
+          <button type="button" class="btn btn-danger btn-sm" id="logout-all">إبطال الجلسات الأخرى</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="logout">تسجيل الخروج</button>
         </div>
       </div>
-
     </div>
   </div>` : ''}
 
@@ -1602,19 +1129,10 @@ async function profile(root, ctx) {
   ${u.isSelf && eligibility ? renderVerifyCard(eligibility) : ''}
 
   <div class="tabs" id="profile-tabs">
-    <button class="tab active" data-tab="prompts">
-      البرومبتات (${prompts.length})
-    </button>
-    ${u.isSelf ? `
-    <button class="tab" data-tab="likes">
-      الإعجابات <span id="likes-count">…</span>
-    </button>` : ''}
-    <button class="tab" data-tab="followers">
-      المتابعون (${fmt(u.followers || 0)})
-    </button>
-    <button class="tab" data-tab="following">
-      يتابع (${fmt(u.following || 0)})
-    </button>
+    <button class="tab active" data-tab="prompts">البرومبتات (${prompts.length})</button>
+    ${u.isSelf ? `<button class="tab" data-tab="likes">الإعجابات <span id="likes-count">…</span></button>` : ''}
+    <button class="tab" data-tab="followers">المتابعون (${fmt(u.followers || 0)})</button>
+    <button class="tab" data-tab="following">يتابع (${fmt(u.following || 0)})</button>
   </div>
 
   <div id="profile-content"></div>`;
@@ -1644,9 +1162,7 @@ async function profile(root, ctx) {
       const el = root.querySelector('#likes-count');
       if (el) el.textContent = items.length;
       if (!items.length) {
-        content.innerHTML = emptyState(ICON.heart, 'لا توجد إعجابات',
-          'اضغط زر الإعجاب في أي برومبت.',
-          `<a class="btn btn-primary" href="#/explore">استكشف</a>`);
+        content.innerHTML = emptyState(ICON.heart, 'لا توجد إعجابات', 'اضغط زر الإعجاب في أي برومبت.', `<a class="btn btn-primary" href="#/explore">استكشف</a>`);
         return;
       }
       content.innerHTML = grid(items);
