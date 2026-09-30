@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import {
   ADMIN_PASSWORD, CATEGORIES, MODELS,
   findUser, findUserByEmail, findUserByUsername, createUser, updateUser, updateUserPassword,
-  verifyPassword, isHashed, hashPassword,
+  verifyPassword, isHashed,
   listPrompts, countPrompts, getPrompt, getPromptByKey, getRelated,
   createPrompt, updatePrompt, incrementCopies, deletePrompt,
   findDuplicatePrompt,
@@ -20,23 +20,22 @@ import {
 import {
   createSession, getUserId, deleteSession,
   signAdminToken, verifyAdminToken, cleanupSessions,
-  deleteAllSessions, countUserSessions
+  deleteAllSessions, countUserSessions,
+  setAuthCookies, clearAuthCookies, safeEqual
 } from './sessions.js';
-import { healthCheck, ensureSchema, queryOne } from './db.js';
+import { healthCheck, ensureSchema, queryOne, query } from './db.js';
 
 const api = Router();
 
-/* ═══════════ ETag + Cache middleware ═══════════ */
+/* ═══════════ ETag + Cache ═══════════ */
 api.use((req, res, next) => {
-  res.setHeader('Vary', 'Accept-Encoding, Authorization');
+  res.setHeader('Vary', 'Accept-Encoding, Authorization, Cookie');
 
   const originalJson = res.json.bind(res);
-
   res.json = function (data) {
     if (req.method === 'GET' && res.statusCode === 200) {
       const body = JSON.stringify(data);
       const etag = '"' + crypto.createHash('md5').update(body).digest('hex').slice(0, 16) + '"';
-
       if (req.headers['if-none-match'] === etag) {
         res.status(304).end();
         return res;
@@ -48,7 +47,22 @@ api.use((req, res, next) => {
   next();
 });
 
-/* ═══════════ استخراج IP الحقيقي ═══════════ */
+/* ═══════════ CSRF — طلبات التعديل فقط ═══════════ */
+api.use((req, res, next) => {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
+  if (req.headers.authorization?.startsWith('Bearer ')) return next();
+  if (/^\/auth\/(register|login)$/.test(req.path)) return next();
+  if (req.path.startsWith('/cron/')) return next();
+
+  const header = req.headers['x-csrf-token'];
+  const cookie = req.cookies?.kh_csrf;
+  if (!header || !cookie || header !== cookie) {
+    return res.status(403).json({ error: 'طلب غير مصرّح به' });
+  }
+  next();
+});
+
+/* ═══════════ IP ═══════════ */
 function getClientIp(req) {
   const fwd = req.headers['x-forwarded-for'];
   if (typeof fwd === 'string' && fwd.length) return fwd.split(',')[0].trim();
@@ -82,11 +96,14 @@ api.use(async (_req, res, next) => {
   catch (e) { res.status(503).json({ error: 'قاعدة البيانات غير مهيأة: ' + e.message }); }
 });
 
-/* ═══════════ المصادقة ═══════════ */
+/* ═══════════ المصادقة — Cookie أو Bearer ═══════════ */
 api.use(async (req, _res, next) => {
   const h = req.headers.authorization || '';
-  const t = h.startsWith('Bearer ') ? h.slice(7) : null;
+  const bearer = h.startsWith('Bearer ') ? h.slice(7) : null;
+  const cookieToken = req.cookies?.kh_token;
+  const t = bearer || cookieToken || null;
   req.token = t;
+  req.authSource = bearer ? 'bearer' : (cookieToken ? 'cookie' : null);
   req.userId = t ? await getUserId(t) : null;
   next();
 });
@@ -98,6 +115,33 @@ const requireAdmin = (req, res, next) =>
   verifyAdminToken(req.headers['x-admin-token'])
     ? next()
     : res.status(401).json({ error: 'انتهت جلسة اللوحة' });
+
+/* ═══════════ Cron ═══════════ */
+const requireCron = (req, res, next) => {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) return res.status(503).json({ error: 'Cron غير مهيأ' });
+  const auth = req.headers.authorization || '';
+  if (!safeEqual(auth, `Bearer ${secret}`)) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+  next();
+};
+
+api.get('/cron/cleanup-sessions', requireCron, async (_req, res, next) => {
+  try {
+    const n = await cleanupSessions();
+    res.json({ ok: true, deleted: n });
+  } catch (e) { next(e); }
+});
+
+api.get('/cron/cleanup-notifications', requireCron, async (_req, res, next) => {
+  try {
+    const r = await query(
+      `DELETE FROM notifications WHERE created_at < NOW() - INTERVAL '90 days'`
+    );
+    res.json({ ok: true, deleted: r.rowCount });
+  } catch (e) { next(e); }
+});
 
 /* ═══════════ الصحة والميتا ═══════════ */
 api.get('/health', async (_req, res) => {
@@ -144,16 +188,18 @@ api.post('/auth/register', async (req, res, next) => {
     if (await findUserByUsername(uname))
       return res.status(409).json({ error: 'اسم المستخدم محجوز، جرّب غيره' });
 
-    const user = await createUser({ name: String(name).trim(), email: emailNorm, password, username: uname });
+    const user = await createUser({
+      name: String(name).trim(), email: emailNorm, password, username: uname
+    });
     const token = await createSession(user.id);
+    setAuthCookies(res, token);
     res.status(201).json({
       token,
       user: publicUser(user, await userStats(user.id))
     });
   } catch (e) {
-    if (e.code === '23505') {
+    if (e.code === '23505')
       return res.status(409).json({ error: 'البريد أو اسم المستخدم محجوز مسبقاً' });
-    }
     next(e);
   }
 });
@@ -180,6 +226,7 @@ api.post('/auth/login', async (req, res, next) => {
     }
 
     const token = await createSession(user.id);
+    setAuthCookies(res, token);
     cleanupSessions();
     res.json({ token, user: publicUser(user, await userStats(user.id)) });
   } catch (e) { next(e); }
@@ -188,6 +235,7 @@ api.post('/auth/login', async (req, res, next) => {
 api.post('/auth/logout', async (req, res, next) => {
   try {
     if (req.token) await deleteSession(req.token);
+    clearAuthCookies(res);
     res.json({ ok: true });
   } catch (e) { next(e); }
 });
@@ -220,14 +268,24 @@ api.patch('/me', requireAuth, async (req, res, next) => {
   try {
     const { name, username, bio, avatar } = req.body || {};
     const patch = {};
-    if (name !== undefined) patch.name = String(name).trim();
-    if (bio !== undefined) patch.bio = String(bio).trim();
-    if (avatar !== undefined) patch.avatar = String(avatar);
+    if (name !== undefined) patch.name = String(name).trim().slice(0, 60);
+    if (bio !== undefined) patch.bio = String(bio).trim().slice(0, 200);
+
+    if (avatar !== undefined) {
+      const a = String(avatar || '');
+      if (a && !/^(https?:\/\/|data:image\/(png|jpe?g|webp|gif);base64,)/.test(a))
+        return res.status(400).json({ error: 'صيغة صورة غير مدعومة' });
+      if (a.length > 3_000_000)
+        return res.status(413).json({ error: 'حجم الصورة كبير جداً' });
+      patch.avatar = a;
+    }
 
     if (username !== undefined) {
       const uname = String(username).trim();
       if (uname.length < 3)
         return res.status(400).json({ error: 'اسم المستخدم 3 أحرف على الأقل' });
+      if (!/^[A-Za-z0-9_\u0600-\u06FF]{3,30}$/.test(uname))
+        return res.status(400).json({ error: 'اسم المستخدم يحتوي رموزاً غير مسموحة' });
       const taken = await queryOne(
         `SELECT 1 FROM users WHERE username = $1 AND id <> $2`,
         [uname, req.userId]
@@ -562,7 +620,7 @@ api.post('/admin/unlock', (req, res) => {
   if (!rateLimit('admin:' + ip, 5, 300000))
     return res.status(429).json({ error: 'محاولات كثيرة، انتظر 5 دقائق' });
   const { password } = req.body || {};
-  if (password !== ADMIN_PASSWORD)
+  if (!safeEqual(String(password || ''), ADMIN_PASSWORD))
     return res.status(401).json({ error: 'كلمة المرور غير صحيحة' });
   res.json({ token: signAdminToken() });
 });
