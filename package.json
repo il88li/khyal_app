@@ -1,6 +1,6 @@
 {
   "name": "khayal",
-  "version": "5.1.2",
+  "version": "6.0.0",
   "description": "خيال — منصة عربية لمشاركة برومبتات الذكاء الاصطناعي",
   "type": "module",
   "engines": {
@@ -9,7 +9,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "db:setup": "node src/seed.js"
+    "db:setup": "node src/seed.js",
+    "test": "node --test"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
