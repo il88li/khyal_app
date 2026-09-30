@@ -35,10 +35,6 @@ function buildConfig() {
 
 /* ═══════════════════════════════════════════════
    Pool مُحسّن لـ Serverless
-   ─────────────────────────────────────────────
-   ملاحظة: على Vercel، لا نستخدم allowExitOnIdle
-   لأن Vercel يتولى تجميد Lambda تلقائياً، وترك
-   الاتصالات مفتوحة يسبب استنزاف Aiven بسرعة.
    ═══════════════════════════════════════════════ */
 
 const POOL_KEY = '__khayal_pg_pool__';
@@ -108,7 +104,6 @@ export async function query(sql, params = []) {
   let limitAttempt = 0;
   let lastErr;
 
-  // حلقة نظيفة: كل نوع محاولات له عدّاده المستقل
   while (transientAttempt < TRANSIENT_DELAYS.length) {
     if (TRANSIENT_DELAYS[transientAttempt]) {
       await sleep(TRANSIENT_DELAYS[transientAttempt]);
@@ -127,7 +122,7 @@ export async function query(sql, params = []) {
         const delay = LIMIT_DELAYS[limitAttempt++];
         console.warn(`[db] الاتصالات ممتلئة — انتظار ${delay}ms`);
         await sleep(delay);
-        continue; // نفس transientAttempt — لم نستهلك محاولة عابرة
+        continue;
       }
 
       if (!isTransient(err)) throw err;
@@ -162,8 +157,7 @@ export async function transaction(fn) {
 }
 
 /* ═══════════════════════════════════════════════
-   Cache في الذاكرة (للاستخدام المحلي — على Vercel
-   استبدله بـ Upstash Redis للإنتاج)
+   Cache في الذاكرة
    ═══════════════════════════════════════════════ */
 
 const CACHE_KEY = '__khayal_cache__';
@@ -236,28 +230,51 @@ ALTER TABLE prompts ADD COLUMN IF NOT EXISTS models TEXT[] DEFAULT '{}';
 ALTER TABLE prompts ADD COLUMN IF NOT EXISTS cover TEXT DEFAULT '';
 CREATE UNIQUE INDEX IF NOT EXISTS idx_prompts_slug ON prompts(slug) WHERE slug IS NOT NULL;
 
--- ⭐ عمود البحث النصي (Generated — PostgreSQL 12+)
-ALTER TABLE prompts ADD COLUMN IF NOT EXISTS search_tsv tsvector
-  GENERATED ALWAYS AS (
-    to_tsvector('simple',
-      COALESCE(title, '') || ' ' ||
-      COALESCE(description, '') || ' ' ||
-      COALESCE(body, '') || ' ' ||
-      COALESCE(category, '') || ' ' ||
-      array_to_string(COALESCE(tags, '{}'), ' ')
-    )
-  ) STORED;
+-- ═══════════════════════════════════════════════
+-- Full-Text Search — عمود عادي + trigger
+-- (لا يمكن استخدام GENERATED مع to_tsvector لأنها ليست IMMUTABLE)
+-- ═══════════════════════════════════════════════
+
+ALTER TABLE prompts ADD COLUMN IF NOT EXISTS search_tsv tsvector;
+
+CREATE OR REPLACE FUNCTION prompts_search_tsv_update() RETURNS trigger AS $$
+BEGIN
+  NEW.search_tsv :=
+    setweight(to_tsvector('simple'::regconfig, COALESCE(NEW.title, '')),       'A') ||
+    setweight(to_tsvector('simple'::regconfig, COALESCE(NEW.category, '')),    'B') ||
+    setweight(to_tsvector('simple'::regconfig, COALESCE(NEW.description, '')), 'C') ||
+    setweight(to_tsvector('simple'::regconfig, COALESCE(NEW.body, '')),        'D');
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS prompts_search_tsv_trigger ON prompts;
+CREATE TRIGGER prompts_search_tsv_trigger
+  BEFORE INSERT OR UPDATE OF title, description, body, category
+  ON prompts
+  FOR EACH ROW
+  EXECUTE FUNCTION prompts_search_tsv_update();
+
+-- تعبئة الصفوف الموجودة مسبقاً (مرة واحدة)
+UPDATE prompts SET search_tsv =
+  setweight(to_tsvector('simple'::regconfig, COALESCE(title, '')),       'A') ||
+  setweight(to_tsvector('simple'::regconfig, COALESCE(category, '')),    'B') ||
+  setweight(to_tsvector('simple'::regconfig, COALESCE(description, '')), 'C') ||
+  setweight(to_tsvector('simple'::regconfig, COALESCE(body, '')),        'D')
+WHERE search_tsv IS NULL;
 
 CREATE INDEX IF NOT EXISTS idx_prompts_search ON prompts USING GIN(search_tsv);
 
--- ⭐ pg_trgm للبحث الضبابي (اختياري — قد يفشل بدون superuser)
+-- pg_trgm للبحث الضبابي (اختياري — قد يفشل بدون صلاحيات superuser)
 DO $$ BEGIN
   CREATE EXTENSION IF NOT EXISTS pg_trgm;
-  CREATE INDEX IF NOT EXISTS idx_prompts_title_trgm
-    ON prompts USING GIN (title gin_trgm_ops);
 EXCEPTION WHEN OTHERS THEN
   RAISE NOTICE 'pg_trgm غير متاح — تخطّي';
 END $$;
+
+-- ═══════════════════════════════════════════════
+-- جداول مساعدة
+-- ═══════════════════════════════════════════════
 
 CREATE TABLE IF NOT EXISTS likes (
   user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
