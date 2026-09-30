@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "regions": ["fra1"],
   "functions": {
     "api/index.js": {
       "maxDuration": 30,
@@ -8,5 +9,9 @@
   },
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index" }
+  ],
+  "crons": [
+    { "path": "/api/cron/cleanup-sessions", "schedule": "0 3 * * *" },
+    { "path": "/api/cron/cleanup-notifications", "schedule": "0 4 * * *" }
   ]
 }
