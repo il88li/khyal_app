@@ -6,29 +6,32 @@
   <meta name="description" content="خيال — منصة عربية لمشاركة برومبتات الذكاء الاصطناعي">
   <meta name="theme-color" content="#ffffff">
   
-  <!-- Content Security Policy - السماح بالـ modules -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https:;">
+  <!-- Content Security Policy: يسمح بالـ modules والـ inline styles فقط -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https:;">
   
   <title>خيال | برومبتات عربية للذكاء الاصطناعي</title>
   
-  <!-- Preload Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap">
-  
-  <!-- CSS -->
-  <link rel="preload" as="style" href="/css/style.css?v=8">
-  <link rel="stylesheet" href="/css/style.css?v=8" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="/css/style.css?v=8"></noscript>
-  
-  <!-- Favicon -->
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'></text></svg>">
+  <!-- Favicon (SVG inline - لا يحتاج ملف خارجي) -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%3C/text%3E%3C/svg%3E">
   
   <!-- Manifest -->
   <link rel="manifest" href="/manifest.json">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap">
+  
+  <!-- CSS -->
+  <link rel="stylesheet" href="/css/style.css?v=8">
 </head>
 <body>
+  <!-- Offline Strip -->
+  <div id="offline-strip" class="offline-strip" hidden>
+    <span class="dot"></span>
+    <span>أنت غير متصل بالإنترنت</span>
+  </div>
+
   <div class="layout">
     <!-- Sidebar -->
     <aside id="sidebar" class="sidebar" aria-label="القائمة الرئيسية">
@@ -53,9 +56,7 @@
       </div>
 
       <!-- Main App Container -->
-      <main id="app" class="app" role="main">
-        <!-- المحتوى يُحقن هنا ديناميكياً -->
-      </main>
+      <main id="app" class="app" role="main"></main>
 
       <!-- Footer -->
       <footer class="site-footer" id="site-footer" role="contentinfo"></footer>
@@ -68,13 +69,7 @@
   <!-- Toasts Container -->
   <div id="toasts" class="toasts"></div>
 
-  <!-- Offline Strip -->
-  <div id="offline-strip" class="offline-strip" hidden>
-    <span class="dot"></span>
-    <span>أنت غير متصل بالإنترنت</span>
-  </div>
-
-  <!-- Script -->
-  <script type="module" src="/js/app.js?v=8" defer></script>
+  <!-- Script (بدون defer مع type=module) -->
+  <script type="module" src="/js/app.js?v=8"></script>
 </body>
 </html>
