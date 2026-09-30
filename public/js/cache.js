@@ -5,7 +5,7 @@
 const DB_NAME = 'khayal_db';
 const DB_VERSION = 1;
 const STORE = 'api_cache';
-const MAX_AGE_MS = 5 * 60 * 1000; // 5 دقائق
+const MAX_AGE_MS = 5 * 60 * 1000;
 
 let _db = null;
 
@@ -34,7 +34,6 @@ export async function idbGet(key) {
       req.onsuccess = () => {
         const entry = req.result;
         if (!entry) return resolve(null);
-        // تحقق من الصلاحية
         if (Date.now() - entry.timestamp > MAX_AGE_MS) {
           idbDelete(key);
           return resolve(null);
@@ -51,11 +50,7 @@ export async function idbSet(key, value) {
     const db = await openDB();
     return new Promise((resolve) => {
       const tx = db.transaction(STORE, 'readwrite');
-      tx.objectStore(STORE).put({
-        key,
-        value,
-        timestamp: Date.now()
-      });
+      tx.objectStore(STORE).put({ key, value, timestamp: Date.now() });
       tx.oncomplete = () => resolve(true);
       tx.onerror = () => resolve(false);
     });
@@ -87,29 +82,26 @@ export async function idbClear() {
 }
 
 /* ═══════════════════════════════════════════════
-   Prefetch — تحميل مسبق لبيانات البرومبتات
+   Prefetch — تحميل مسبق للبرومبتات
    ═══════════════════════════════════════════════ */
 
 const _prefetched = new Set();
 
-export function prefetchPrompt(slug, token = null) {
+export function prefetchPrompt(slug) {
   if (!slug || _prefetched.has(slug)) return;
   _prefetched.add(slug);
 
-  const headers = {};
-  if (token) headers['Authorization'] = 'Bearer ' + token;
-
-  // نستخدم fetch ثم نتجاهل النتيجة (تعمل مع SW caching)
-  fetch('/api/prompts/' + slug, { headers, priority: 'low' })
+  fetch('/api/prompts/' + slug, {
+    credentials: 'include',
+    priority: 'low'
+  })
     .then((r) => r.ok ? r.json() : null)
-    .then((data) => {
-      if (data) idbSet('prompt:' + slug, data);
-    })
+    .then((data) => { if (data) idbSet('prompt:' + slug, data); })
     .catch(() => {});
 }
 
 /* ═══════════════════════════════════════════════
-   مسح دوري للبيانات القديمة
+   تنظيف دوري
    ═══════════════════════════════════════════════ */
 
 export async function cleanupOldEntries() {
