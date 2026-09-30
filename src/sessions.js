@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { query, queryOne } from './db.js';
 
 const SESSION_DAYS = 30;
+const ADMIN_TOKEN_TTL_MS = 8 * 3600 * 1000; // 8 ساعات
 
 export function generateToken() {
   return crypto.randomBytes(24).toString('base64url');
@@ -32,7 +33,6 @@ export async function deleteSession(token) {
   await query(`DELETE FROM sessions WHERE token = $1`, [token]);
 }
 
-/* ← حذف كل جلسات المستخدم (اختياريًا مع استثناء الجلسة الحالية) */
 export async function deleteAllSessions(userId, exceptToken = null) {
   if (!userId) return 0;
   if (exceptToken) {
@@ -46,7 +46,6 @@ export async function deleteAllSessions(userId, exceptToken = null) {
   return r.rowCount;
 }
 
-/* ← عدّ الجلسات النشطة */
 export async function countUserSessions(userId) {
   const row = await queryOne(
     `SELECT COUNT(*)::int AS n FROM sessions
@@ -58,26 +57,80 @@ export async function countUserSessions(userId) {
 
 export async function cleanupSessions() {
   try {
-    await query(`DELETE FROM sessions WHERE expires_at < NOW()`);
-  } catch { /* تجاهل */ }
+    const r = await query(`DELETE FROM sessions WHERE expires_at < NOW()`);
+    return r.rowCount;
+  } catch { return 0; }
 }
 
-/* ═══════════ توكن الإدارة — HMAC ═══════════ */
+/* ═══════════ Cookies (HttpOnly + CSRF) ═══════════ */
+
+const COOKIE_MAX_AGE = SESSION_DAYS * 24 * 3600 * 1000;
+const IS_PROD = () => process.env.NODE_ENV === 'production';
+
+export function setAuthCookies(res, token) {
+  const csrf = crypto.randomBytes(24).toString('base64url');
+
+  res.cookie('kh_token', token, {
+    httpOnly: true,
+    secure: IS_PROD(),
+    sameSite: 'lax',
+    maxAge: COOKIE_MAX_AGE,
+    path: '/'
+  });
+  res.cookie('kh_csrf', csrf, {
+    httpOnly: false, // يقرأه JS لإرساله في الهيدر
+    secure: IS_PROD(),
+    sameSite: 'lax',
+    maxAge: COOKIE_MAX_AGE,
+    path: '/'
+  });
+}
+
+export function clearAuthCookies(res) {
+  res.clearCookie('kh_token', { path: '/' });
+  res.clearCookie('kh_csrf', { path: '/' });
+}
+
+/* ═══════════ توكن الإدارة — HMAC عشوائي بصلاحية ═══════════ */
+
 export function signAdminToken() {
   const secret = process.env.ADMIN_PASSWORD || 'khayal-admin';
-  return crypto.createHmac('sha256', secret)
-    .update('khayal-admin-session-v1')
-    .digest('hex');
+  const nonce = crypto.randomBytes(16).toString('hex');
+  const expiry = Date.now() + ADMIN_TOKEN_TTL_MS;
+  const payload = `${nonce}.${expiry}`;
+  const sig = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+  return `${payload}.${sig}`;
 }
 
 export function verifyAdminToken(token) {
   if (!token || typeof token !== 'string') return false;
-  const expected = signAdminToken();
-  if (token.length !== expected.length) return false;
+  const parts = token.split('.');
+  if (parts.length !== 3) return false;
+
+  const [nonce, expiryStr, sig] = parts;
+  const expiry = Number(expiryStr);
+  if (!Number.isFinite(expiry) || expiry < Date.now()) return false;
+
+  const secret = process.env.ADMIN_PASSWORD || 'khayal-admin';
+  const expected = crypto.createHmac('sha256', secret)
+    .update(`${nonce}.${expiryStr}`)
+    .digest('hex');
+
+  if (sig.length !== expected.length) return false;
   try {
     return crypto.timingSafeEqual(
-      Buffer.from(token, 'hex'),
+      Buffer.from(sig, 'hex'),
       Buffer.from(expected, 'hex')
     );
   } catch { return false; }
+}
+
+/* ═══════════ مقارنة ثابتة الزمن ═══════════ */
+
+export function safeEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const A = Buffer.from(a);
+  const B = Buffer.from(b);
+  if (A.length !== B.length) return false;
+  return crypto.timingSafeEqual(A, B);
 }
