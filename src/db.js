@@ -20,10 +20,7 @@ function buildConfig() {
   }
 
   if (connectionString) {
-    return {
-      connectionString,
-      ssl: { rejectUnauthorized: false }
-    };
+    return { connectionString, ssl: { rejectUnauthorized: false } };
   }
 
   return {
@@ -37,60 +34,36 @@ function buildConfig() {
 }
 
 /* ═══════════════════════════════════════════════
-   Pool مُحسّن لـ Serverless (Vercel Lambda)
+   Pool مُحسّن لـ Serverless
    ─────────────────────────────────────────────
-   ⚠️ الحرجة: عدد الاتصالات قليل جدًا في Aiven Free
-   كل Lambda instance يجب ألا يفتح أكثر من اتصالين.
+   ملاحظة: على Vercel، لا نستخدم allowExitOnIdle
+   لأن Vercel يتولى تجميد Lambda تلقائياً، وترك
+   الاتصالات مفتوحة يسبب استنزاف Aiven بسرعة.
    ═══════════════════════════════════════════════ */
 
 const POOL_KEY = '__khayal_pg_pool__';
 
 function getPool() {
   if (!globalThis[POOL_KEY]) {
-    console.log('[db] إنشاء pool جديد لـ Serverless');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[db] إنشاء pool جديد');
+    }
 
     const pool = new Pool({
       ...buildConfig(),
-
-      // ⭐⭐⭐ التعديلات الحرجة ⭐⭐⭐
-      max: 2,                              // ← كان 8! الآن 2 فقط
-      min: 0,                              // لا اتصالات دائمة
-
-      // ⭐ إغلاق سريع للاتصالات الخاملة
-      idleTimeoutMillis: 5000,             // ← كان 8s
-      connectionTimeoutMillis: 6000,       // ← كان 8s
-
-      // ⭐⭐⭐ مهم جدًا لـ Vercel: اسمح للـ pool بإغلاق نفسه
-      allowExitOnIdle: true,               // ← جديد! يُغلق pool عند تجمد Lambda
-
-      // ⭐ إعادة استخدام الاتصال حتى 50 مرة ثم إغلاقه
-      maxUses: 50,                         // ← جديد! يمنع تسريب الاتصالات
-
-      // ⭐ إعدادات الشبكة
+      max: 4,
+      min: 0,
+      idleTimeoutMillis: 8000,
+      connectionTimeoutMillis: 6000,
       keepAlive: true,
       keepAliveInitialDelayMillis: 5000,
-
-      // ⭐ تقليل المهلة من 15s إلى 8s لتجنب 504
-      statement_timeout: 8000,             // ← كان 15s
-      query_timeout: 8000,                 // ← كان 15s
-
-      application_name: 'khayal-serverless'
+      statement_timeout: 8000,
+      query_timeout: 8000,
+      application_name: 'khayal'
     });
 
     pool.on('error', (err) => {
       console.error('[db] خطأ اتصال خامل:', err.message);
-    });
-
-    pool.on('connect', () => {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[db] اتصال جديد — إجمالي:', pool.totalCount);
-      }
-    });
-
-    pool.on('remove', () => {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[db] اتصال مُغلق — إجمالي:', pool.totalCount);
-      }
     });
 
     globalThis[POOL_KEY] = pool;
@@ -101,10 +74,7 @@ function getPool() {
 export const pool = getPool();
 
 /* ═══════════════════════════════════════════════
-   إعادة المحاولة الذكية
-   ─────────────────────────────────────────────
-   ⭐ يعالج خطأ "remaining connection slots"
-   ⭐ يعالج timeout والمشاكل العابرة
+   إعادة المحاولة الذكية — حلقة نظيفة بدون i--
    ═══════════════════════════════════════════════ */
 
 const TRANSIENT_PATTERNS = [
@@ -128,40 +98,42 @@ const isConnectionLimit = (err) =>
   CONNECTION_LIMIT_PATTERNS.some((p) =>
     (err?.message || '').toLowerCase().includes(p.toLowerCase()));
 
-// ⭐ للاتصالات المحدودة: انتظر أطول قليلاً
-const RETRY_DELAYS = [0, 200, 800, 2000, 4000];
-const CONNECTION_LIMIT_DELAYS = [1000, 2000, 3000, 5000];
+const TRANSIENT_DELAYS = [0, 200, 800, 2000, 4000];
+const LIMIT_DELAYS = [1000, 2000, 3000, 5000];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export async function query(sql, params = []) {
+  let transientAttempt = 0;
+  let limitAttempt = 0;
   let lastErr;
-  let connectionAttempt = 0;
 
-  for (let i = 0; i < RETRY_DELAYS.length; i++) {
-    if (RETRY_DELAYS[i]) await sleep(RETRY_DELAYS[i]);
+  // حلقة نظيفة: كل نوع محاولات له عدّاده المستقل
+  while (transientAttempt < TRANSIENT_DELAYS.length) {
+    if (TRANSIENT_DELAYS[transientAttempt]) {
+      await sleep(TRANSIENT_DELAYS[transientAttempt]);
+    }
 
     try {
       return await pool.query(sql, params);
     } catch (err) {
       lastErr = err;
 
-      // ⭐ إذا القاعدة مليئة بالاتصالات — انتظر ثم أعد المحاولة
       if (isConnectionLimit(err)) {
-        if (connectionAttempt < CONNECTION_LIMIT_DELAYS.length) {
-          const delay = CONNECTION_LIMIT_DELAYS[connectionAttempt++];
-          console.warn(`[db] الاتصالات ممتلئة — انتظار ${delay}ms (محاولة ${connectionAttempt})`);
-          await sleep(delay);
-          i--; // كرّر نفس الفهرس
-          continue;
+        if (limitAttempt >= LIMIT_DELAYS.length) {
+          console.error('[db] فشلت كل محاولات الاتصال بالقاعدة');
+          throw err;
         }
-        console.error('[db] فشلت كل محاولات الاتصال');
-        throw err;
+        const delay = LIMIT_DELAYS[limitAttempt++];
+        console.warn(`[db] الاتصالات ممتلئة — انتظار ${delay}ms`);
+        await sleep(delay);
+        continue; // نفس transientAttempt — لم نستهلك محاولة عابرة
       }
 
-      // أخطاء عابرة — أعِد المحاولة
       if (!isTransient(err)) throw err;
-      console.warn(`[db] محاولة ${i + 1} فشلت: ${err.message}`);
+
+      console.warn(`[db] محاولة ${transientAttempt + 1} فشلت: ${err.message}`);
+      transientAttempt++;
     }
   }
 
@@ -190,7 +162,8 @@ export async function transaction(fn) {
 }
 
 /* ═══════════════════════════════════════════════
-   Cache في الذاكرة
+   Cache في الذاكرة (للاستخدام المحلي — على Vercel
+   استبدله بـ Upstash Redis للإنتاج)
    ═══════════════════════════════════════════════ */
 
 const CACHE_KEY = '__khayal_cache__';
@@ -210,10 +183,7 @@ export function cacheGet(key) {
 export function cacheSet(key, value, ttlMs = 30000) {
   const c = getCache();
   c.set(key, { value, expires: Date.now() + ttlMs });
-  if (c.size > 500) {
-    const firstKey = c.keys().next().value;
-    c.delete(firstKey);
-  }
+  if (c.size > 500) c.delete(c.keys().next().value);
 }
 
 export function cacheClear(prefix = '') {
@@ -223,7 +193,7 @@ export function cacheClear(prefix = '') {
 }
 
 /* ═══════════════════════════════════════════════
-   المخطط — كل الجداول
+   المخطط + الترحيلات
    ═══════════════════════════════════════════════ */
 
 const SCHEMA = `
@@ -265,6 +235,29 @@ ALTER TABLE prompts ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}';
 ALTER TABLE prompts ADD COLUMN IF NOT EXISTS models TEXT[] DEFAULT '{}';
 ALTER TABLE prompts ADD COLUMN IF NOT EXISTS cover TEXT DEFAULT '';
 CREATE UNIQUE INDEX IF NOT EXISTS idx_prompts_slug ON prompts(slug) WHERE slug IS NOT NULL;
+
+-- ⭐ عمود البحث النصي (Generated — PostgreSQL 12+)
+ALTER TABLE prompts ADD COLUMN IF NOT EXISTS search_tsv tsvector
+  GENERATED ALWAYS AS (
+    to_tsvector('simple',
+      COALESCE(title, '') || ' ' ||
+      COALESCE(description, '') || ' ' ||
+      COALESCE(body, '') || ' ' ||
+      COALESCE(category, '') || ' ' ||
+      array_to_string(COALESCE(tags, '{}'), ' ')
+    )
+  ) STORED;
+
+CREATE INDEX IF NOT EXISTS idx_prompts_search ON prompts USING GIN(search_tsv);
+
+-- ⭐ pg_trgm للبحث الضبابي (اختياري — قد يفشل بدون superuser)
+DO $$ BEGIN
+  CREATE EXTENSION IF NOT EXISTS pg_trgm;
+  CREATE INDEX IF NOT EXISTS idx_prompts_title_trgm
+    ON prompts USING GIN (title gin_trgm_ops);
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'pg_trgm غير متاح — تخطّي';
+END $$;
 
 CREATE TABLE IF NOT EXISTS likes (
   user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
