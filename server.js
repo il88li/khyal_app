@@ -31,7 +31,7 @@ app.use(express.static(path.join(__dirname, 'public'), {
 // API routes
 app.use('/api', apiRouter);
 
-// SPA fallback - serve index.html for all non-API routes
+// SPA fallback
 app.get('*', (req, res) => {
   if (!req.path.startsWith('/api')) {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -41,7 +41,7 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🔥 خيال يعمل على المنفذ ${PORT}`);
+  console.log(` خيال يعمل على المنفذ ${PORT}`);
 });
 
 export default app;
