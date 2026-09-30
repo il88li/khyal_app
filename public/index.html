@@ -6,6 +6,9 @@
 <meta name="theme-color" content="#ffffff">
 <meta name="color-scheme" content="light">
 
+<meta http-equiv="Content-Security-Policy"
+  content="default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';">
+
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -16,6 +19,18 @@
 <meta name="description" content="خيال — منصة عربية لمشاركة برومبتات الذكاء الاصطناعي">
 <title>خيال — برومبتات الذكاء الاصطناعي بالعربية</title>
 
+<!-- OG / Twitter -->
+<meta property="og:title" content="خيال — برومبتات الذكاء الاصطناعي بالعربية">
+<meta property="og:description" content="مكتبة عربية مفتوحة لمشاركة أوامر الذكاء الاصطناعي — اكتشف، انسخ، وانشر.">
+<meta property="og:image" content="/og-cover.png">
+<meta property="og:url" content="https://khyal-app.vercel.app/">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="ar_SA">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="خيال — برومبتات الذكاء الاصطناعي بالعربية">
+<meta name="twitter:description" content="مكتبة عربية مفتوحة لمشاركة أوامر الذكاء الاصطناعي">
+<meta name="twitter:image" content="/og-cover.png">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="dns-prefetch" href="https://fonts.gstatic.com">
@@ -24,44 +39,6 @@
   href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet"
   href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
-
-<!-- ═══════════════════════════════════════════════
-     Cache Killer — يعمل قبل تحميل أي شيء آخر
-     ═══════════════════════════════════════════════ -->
-<script>
-(function () {
-  // رقم هذه النسخة — غيّره عند الحاجة لمسح قسري
-  var KILL_VERSION = '2025-09-28-v2';
-  var KEY = 'khayal_kill_version';
-
-  var stored = null;
-  try { stored = localStorage.getItem(KEY); } catch (e) {}
-
-  if (stored !== KILL_VERSION) {
-    // امسح Service Workers
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(function (regs) {
-        regs.forEach(function (r) { r.unregister(); });
-      });
-    }
-
-    // امسح Cache Storage
-    if ('caches' in window) {
-      caches.keys().then(function (keys) {
-        keys.forEach(function (k) { caches.delete(k); });
-      });
-    }
-
-    // امسح sessionStorage
-    try { sessionStorage.clear(); } catch (e) {}
-
-    // سجّل النسخة الجديدة
-    try { localStorage.setItem(KEY, KILL_VERSION); } catch (e) {}
-
-    console.log('[cache-killer] تم تنظيف الكاش — النسخة:', KILL_VERSION);
-  }
-})();
-</script>
 
 <style>
 :root{
@@ -91,7 +68,6 @@ p{margin:0}a{color:inherit;text-decoration:none}
 button{font-family:inherit;cursor:pointer;border:none;background:none;padding:0;color:inherit}
 ::selection{background:var(--glow);color:var(--ink)}
 
-/* Layout الأساسي */
 .layout{display:flex;min-height:100vh;max-width:100%}
 .main{flex:1;min-width:0;display:flex;flex-direction:column;min-height:100vh;padding-top:var(--topbar-h)}
 .app{flex:1;width:100%;max-width:1440px;margin:0 auto;padding:20px 24px 56px}
@@ -140,9 +116,9 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;padding:0;
 @keyframes spin{to{transform:rotate(360deg)}}
 </style>
 
-<link rel="preload" as="style" href="/css/style.css?v=9">
-<link rel="stylesheet" href="/css/style.css?v=9" media="print" onload="this.media='all'">
-<noscript><link rel="stylesheet" href="/css/style.css?v=9"></noscript>
+<link rel="preload" as="style" href="/css/style.css?v=10">
+<link rel="stylesheet" href="/css/style.css?v=10" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="/css/style.css?v=10"></noscript>
 </head>
 <body>
 
@@ -187,6 +163,6 @@ button{font-family:inherit;cursor:pointer;border:none;background:none;padding:0;
   <div class="route-loading-bar"></div>
 </div>
 
-<script type="module" src="/js/app.js?v=9"></script>
+<script type="module" src="/js/app.js?v=10"></script>
 </body>
 </html>
