@@ -3,49 +3,78 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="description" content="خيال — منصة عربية لمشاركة برومبتات الذكاء الاصطناعي بأعلى جودة">
+  <meta name="description" content="خيال — منصة عربية لمشاركة برومبتات الذكاء الاصطناعي">
   <meta name="theme-color" content="#ffffff">
+  
+  <!-- Content Security Policy - السماح بالـ modules -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https:;">
   
   <title>خيال | برومبتات عربية للذكاء الاصطناعي</title>
   
-  <!-- Performance: Preload Critical Assets -->
+  <!-- Preload Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap">
   
+  <!-- CSS -->
   <link rel="preload" as="style" href="/css/style.css?v=8">
   <link rel="stylesheet" href="/css/style.css?v=8" media="print" onload="this.media='all'">
   <noscript><link rel="stylesheet" href="/css/style.css?v=8"></noscript>
   
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'></text></svg>">
+  
+  <!-- Manifest -->
   <link rel="manifest" href="/manifest.json">
 </head>
 <body>
   <div class="layout">
-    <header class="topbar" role="banner">
-      <div class="topbar-inner">
-        <a href="#/" class="brand-logo" aria-label="الصفحة الرئيسية">خيال</a>
-        <nav role="navigation" aria-label="التنقل الرئيسي">
-          <!-- يمكن إضافة روابط تنقل هنا -->
-        </nav>
-        <div class="topbar-actions">
-          <a href="#/new" class="btn btn-primary" style="padding: 10px 20px;">نشر برومبت</a>
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar" aria-label="القائمة الرئيسية">
+      <div class="sidebar-inner">
+        <div class="sidebar-brand">
+          <span>🔥</span>
+          <span>خيال</span>
         </div>
+        <nav id="sidebar-nav" class="sidebar-nav"></nav>
+        <div id="sidebar-foot" class="sidebar-foot"></div>
       </div>
-    </header>
+    </aside>
 
-    <main class="main">
-      <div id="app" class="app" role="main">
-        <!-- يتم حقن المحتوى هنا ديناميكياً -->
-      </div>
+    <!-- Main Content -->
+    <div class="main">
+      <!-- Topbar -->
+      <header id="topbar" class="topbar" role="banner"></header>
       
-      <footer class="site-footer" role="contentinfo" style="text-align: center; padding: 48px 24px; color: var(--color-foggy); font-size: 14px; border-top: 1px solid var(--color-bebe); margin-top: auto;">
-        <p>© 2026 خيال. جميع الحقوق محفوظة.</p>
-      </footer>
-    </main>
+      <!-- Route Loading Indicator -->
+      <div id="route-loading" class="route-loading" hidden>
+        <div class="route-loading-bar"></div>
+      </div>
+
+      <!-- Main App Container -->
+      <main id="app" class="app" role="main">
+        <!-- المحتوى يُحقن هنا ديناميكياً -->
+      </main>
+
+      <!-- Footer -->
+      <footer class="site-footer" id="site-footer" role="contentinfo"></footer>
+    </div>
   </div>
 
-  <!-- Performance: Module script deferred -->
+  <!-- Bottom Navigation -->
+  <nav id="bottomnav" class="bottomnav" aria-label="التنقل السفلي"></nav>
+
+  <!-- Toasts Container -->
+  <div id="toasts" class="toasts"></div>
+
+  <!-- Offline Strip -->
+  <div id="offline-strip" class="offline-strip" hidden>
+    <span class="dot"></span>
+    <span>أنت غير متصل بالإنترنت</span>
+  </div>
+
+  <!-- Script -->
   <script type="module" src="/js/app.js?v=8" defer></script>
 </body>
 </html>
