@@ -1,5 +1,5 @@
-/* ══════════════════════════════════════════════
-   خيال v8.0 — Screens (Airbnb Style)
+/* ═══════════════════════════════════════════════
+   خيال v9.0 — Futuristic Screens
    ═══════════════════════════════════════════════ */
 
 /* ── Helpers ─── */
@@ -65,7 +65,7 @@ const ICON = {
   empty: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 15s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>`
 };
 
-const VCHECK = `<svg width="14" height="14" viewBox="0 0 24 24" fill="#ff385c" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L3 7v6c0 5 4 9 9 10 5-1 9-5 9-10V7l-9-5z"/><path d="m9 12 2 2 4-4"/></svg>`;
+const VCHECK = `<svg width="14" height="14" viewBox="0 0 24 24" fill="#6366f1" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L3 7v6c0 5 4 9 9 10 5-1 9-5 9-10V7l-9-5z"/><path d="m9 12 2 2 4-4"/></svg>`;
 
 /* ── Skeletons ─── */
 function skeletonGrid(n = 6) {
@@ -89,28 +89,28 @@ function skeletonPromptDetail() {
 
 function emptyState(icon, title, sub) {
   return `
-    <div style="text-align:center;padding:64px 24px;color:var(--color-foggy)">
-      <div style="width:64px;height:64px;margin:0 auto 16px;opacity:0.4">${icon}</div>
-      <h3 style="font-size:18px;margin-bottom:8px;color:var(--color-hof)">${esc(title)}</h3>
-      <p style="font-size:14px">${esc(sub)}</p>
+    <div style="text-align:center;padding:64px 24px;color:var(--color-text-muted)">
+      <div style="width:80px;height:80px;margin:0 auto 24px;background:var(--color-bg-elevated);border-radius:var(--radius-full);display:flex;align-items:center;justify-content:center;opacity:0.5">${icon}</div>
+      <h3 style="font-size:var(--text-xl);margin-bottom:8px;color:var(--color-text-primary)">${esc(title)}</h3>
+      <p style="font-size:var(--text-sm)">${esc(sub)}</p>
     </div>`;
 }
 
 function sectionHead(num, title, sub) {
   return `
-    <div class="head-row" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-6)">
       <div>
-        <div class="eyebrow" style="font-size:11px;color:var(--color-foggy);margin-bottom:4px">
-          <span class="dot" style="display:inline-block;width:6px;height:6px;border-radius:999px;background:var(--color-rausch);margin-inline-end:6px"></span>
+        <div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-bottom:4px">
+          <span style="display:inline-block;width:6px;height:6px;border-radius:var(--radius-full);background:var(--color-primary);margin-inline-end:6px;box-shadow:0 0 10px var(--color-primary)"></span>
           ${num} / ${esc(sub)}
         </div>
-        <h2 class="section-title" style="font-size:22px;margin:0">${esc(title)}</h2>
+        <h2 style="font-size:var(--text-2xl);margin:0;font-weight:700">${esc(title)}</h2>
       </div>
     </div>`;
 }
 
 /* ═══════════════════════════════════════════════
-   بطاقة البرومبت v8.0 — Airbnb Style Card
+   بطاقة البرومبت v9.0 — Futuristic Card
    ═══════════════════════════════════════════════ */
 function promptCard(p, idx = 0) {
   const mark = (p.category || p.title || 'خ').charAt(0);
@@ -131,7 +131,7 @@ function promptCard(p, idx = 0) {
               data-like="${attr(p.id)}" 
               data-liked="${p.liked ? '1' : '0'}"
               aria-label="إضافة للمفضلة">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="${p.liked ? 'var(--color-rausch)' : 'rgba(255,255,255,0.8)'}" stroke="${p.liked ? 'var(--color-rausch)' : '#ffffff'}" stroke-width="2">
+        <svg viewBox="0 0 24 24" fill="${p.liked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2">
           <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
         </svg>
       </button>
@@ -159,10 +159,10 @@ function bindCards(root, ctx) {
       try {
         const res = await ctx.api('/prompts/' + id + '/like', { method: 'POST' });
         btn.dataset.liked = res.liked ? '1' : '0';
+        btn.classList.toggle('liked', res.liked);
         const svg = btn.querySelector('svg');
         if (svg) {
-          svg.setAttribute('fill', res.liked ? 'var(--color-rausch)' : 'rgba(255,255,255,0.8)');
-          svg.setAttribute('stroke', res.liked ? 'var(--color-rausch)' : '#ffffff');
+          svg.setAttribute('fill', res.liked ? 'currentColor' : 'none');
         }
       } catch (err) {
         ctx.toast(err.message, 'error');
@@ -185,15 +185,15 @@ async function home(root, ctx) {
     { name: 'كتابة', icon: '✍️' },
     { name: 'برمجة', icon: '💻' },
     { name: 'تصميم', icon: '🎨' },
-    { name: 'تسويق', icon: '📢' },
+    { name: 'تسويق', icon: '' },
     { name: 'تعليم', icon: '📚' },
-    { name: 'تحليل بيانات', icon: '📊' }
+    { name: 'تحليل بيانات', icon: '' }
   ];
 
   root.innerHTML = `
   <section class="hero">
-    <h1>اكتشف برومبتات عربية <span style="color: var(--color-rausch);">مكتوبة بإتقان</span></h1>
-    <p>مكتبة مفتوحة لمشاركة أوامر الذكاء الاصطناعي — اكتشف، انسخ، وانشر.</p>
+    <h1>اكتشف برومبتات عربية <span style="background:linear-gradient(135deg,var(--color-primary),var(--color-accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">مستقبلية</span></h1>
+    <p>منصة متقدمة لمشاركة أوامر الذكاء الاصطناعي — اكتشف، انسخ، وانشر.</p>
     
     <form class="search-capsule" id="hero-search-form">
       <div class="search-field">
@@ -207,10 +207,7 @@ async function home(root, ctx) {
   </section>
 
   <section class="section">
-    <div class="section-title">
-      <span>أحدث البرومبتات</span>
-      <a class="btn btn-ghost btn-sm" href="#/explore?sort=new">عرض الكل ←</a>
-    </div>
+    ${sectionHead('01', 'أحدث البرومبتات', 'وصل حديثاً')}
     <div id="home-latest">${skeletonGrid(6)}</div>
   </section>`;
 
@@ -239,22 +236,22 @@ async function home(root, ctx) {
 /* ═══════════ 2 — تسجيل الدخول ═══════════ */
 async function login(root, ctx) {
   root.innerHTML = `
-    <div style="max-width:400px;margin:48px auto;padding:32px;background:var(--color-white);border-radius:12px;box-shadow:var(--shadow-subtle)">
-      <h2 style="font-size:22px;margin-bottom:8px">تسجيل الدخول</h2>
-      <p style="color:var(--color-foggy);margin-bottom:24px">أهلاً بعودتك إلى خيال</p>
-      <form id="login-form" style="display:flex;flex-direction:column;gap:16px">
+    <div style="max-width:420px;margin:48px auto;padding:40px;background:var(--color-bg-card);border:1px solid var(--color-border);border-radius:var(--radius-xl);box-shadow:var(--shadow-lg)">
+      <h2 style="font-size:var(--text-2xl);margin-bottom:8px;background:linear-gradient(135deg,var(--color-primary),var(--color-accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">تسجيل الدخول</h2>
+      <p style="color:var(--color-text-secondary);margin-bottom:32px">أهلاً بعودتك إلى خيال</p>
+      <form id="login-form" style="display:flex;flex-direction:column;gap:20px">
         <div>
-          <label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px">البريد الإلكتروني</label>
-          <input type="email" name="email" required style="width:100%;padding:12px 16px;border:1px solid var(--color-bebe);border-radius:8px;font-size:14px;font-family:var(--font-sans)">
+          <label style="display:block;font-size:var(--text-xs);font-weight:600;margin-bottom:8px;color:var(--color-text-secondary)">البريد الإلكتروني</label>
+          <input type="email" name="email" required style="width:100%;padding:14px 18px;background:var(--color-bg-elevated);border:1px solid var(--color-border);border-radius:var(--radius-md);font-size:var(--text-sm);font-family:var(--font-sans);color:var(--color-text-primary);transition:all 0.3s" onfocus="this.style.borderColor='var(--color-primary)';this.style.boxShadow='var(--shadow-glow)'" onblur="this.style.borderColor='var(--color-border)';this.style.boxShadow='none'">
         </div>
         <div>
-          <label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px">كلمة المرور</label>
-          <input type="password" name="password" required style="width:100%;padding:12px 16px;border:1px solid var(--color-bebe);border-radius:8px;font-size:14px;font-family:var(--font-sans)">
+          <label style="display:block;font-size:var(--text-xs);font-weight:600;margin-bottom:8px;color:var(--color-text-secondary)">كلمة المرور</label>
+          <input type="password" name="password" required style="width:100%;padding:14px 18px;background:var(--color-bg-elevated);border:1px solid var(--color-border);border-radius:var(--radius-md);font-size:var(--text-sm);font-family:var(--font-sans);color:var(--color-text-primary);transition:all 0.3s" onfocus="this.style.borderColor='var(--color-primary)';this.style.boxShadow='var(--shadow-glow)'" onblur="this.style.borderColor='var(--color-border)';this.style.boxShadow='none'">
         </div>
-        <button type="submit" class="btn btn-primary" style="width:100%">دخول</button>
+        <button type="submit" class="btn btn-primary" style="width:100%;padding:16px">دخول</button>
       </form>
-      <p style="text-align:center;margin-top:20px;font-size:14px;color:var(--color-foggy)">
-        ليس لديك حساب؟ <a href="#/register" style="color:var(--color-rausch);font-weight:600">سجّل الآن</a>
+      <p style="text-align:center;margin-top:24px;font-size:var(--text-sm);color:var(--color-text-secondary)">
+        ليس لديك حساب؟ <a href="#/register" style="color:var(--color-primary);font-weight:600">سجّل الآن</a>
       </p>
     </div>`;
 
@@ -276,30 +273,30 @@ async function login(root, ctx) {
 /* ══════════ 3 — تسجيل حساب جديد ═══════════ */
 async function register(root, ctx) {
   root.innerHTML = `
-    <div style="max-width:400px;margin:48px auto;padding:32px;background:var(--color-white);border-radius:12px;box-shadow:var(--shadow-subtle)">
-      <h2 style="font-size:22px;margin-bottom:8px">حساب جديد</h2>
-      <p style="color:var(--color-foggy);margin-bottom:24px">انضم إلى مجتمع خيال</p>
-      <form id="register-form" style="display:flex;flex-direction:column;gap:16px">
+    <div style="max-width:420px;margin:48px auto;padding:40px;background:var(--color-bg-card);border:1px solid var(--color-border);border-radius:var(--radius-xl);box-shadow:var(--shadow-lg)">
+      <h2 style="font-size:var(--text-2xl);margin-bottom:8px;background:linear-gradient(135deg,var(--color-primary),var(--color-accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">حساب جديد</h2>
+      <p style="color:var(--color-text-secondary);margin-bottom:32px">انضم إلى مجتمع خيال</p>
+      <form id="register-form" style="display:flex;flex-direction:column;gap:20px">
         <div>
-          <label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px">الاسم</label>
-          <input type="text" name="name" required style="width:100%;padding:12px 16px;border:1px solid var(--color-bebe);border-radius:8px;font-size:14px;font-family:var(--font-sans)">
+          <label style="display:block;font-size:var(--text-xs);font-weight:600;margin-bottom:8px;color:var(--color-text-secondary)">الاسم</label>
+          <input type="text" name="name" required style="width:100%;padding:14px 18px;background:var(--color-bg-elevated);border:1px solid var(--color-border);border-radius:var(--radius-md);font-size:var(--text-sm);font-family:var(--font-sans);color:var(--color-text-primary);transition:all 0.3s" onfocus="this.style.borderColor='var(--color-primary)';this.style.boxShadow='var(--shadow-glow)'" onblur="this.style.borderColor='var(--color-border)';this.style.boxShadow='none'">
         </div>
         <div>
-          <label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px">اسم المستخدم</label>
-          <input type="text" name="username" required pattern="[a-zA-Z0-9_]+" style="width:100%;padding:12px 16px;border:1px solid var(--color-bebe);border-radius:8px;font-size:14px;font-family:var(--font-sans)">
+          <label style="display:block;font-size:var(--text-xs);font-weight:600;margin-bottom:8px;color:var(--color-text-secondary)">اسم المستخدم</label>
+          <input type="text" name="username" required pattern="[a-zA-Z0-9_]+" style="width:100%;padding:14px 18px;background:var(--color-bg-elevated);border:1px solid var(--color-border);border-radius:var(--radius-md);font-size:var(--text-sm);font-family:var(--font-sans);color:var(--color-text-primary);transition:all 0.3s" onfocus="this.style.borderColor='var(--color-primary)';this.style.boxShadow='var(--shadow-glow)'" onblur="this.style.borderColor='var(--color-border)';this.style.boxShadow='none'">
         </div>
         <div>
-          <label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px">البريد الإلكتروني</label>
-          <input type="email" name="email" required style="width:100%;padding:12px 16px;border:1px solid var(--color-bebe);border-radius:8px;font-size:14px;font-family:var(--font-sans)">
+          <label style="display:block;font-size:var(--text-xs);font-weight:600;margin-bottom:8px;color:var(--color-text-secondary)">البريد الإلكتروني</label>
+          <input type="email" name="email" required style="width:100%;padding:14px 18px;background:var(--color-bg-elevated);border:1px solid var(--color-border);border-radius:var(--radius-md);font-size:var(--text-sm);font-family:var(--font-sans);color:var(--color-text-primary);transition:all 0.3s" onfocus="this.style.borderColor='var(--color-primary)';this.style.boxShadow='var(--shadow-glow)'" onblur="this.style.borderColor='var(--color-border)';this.style.boxShadow='none'">
         </div>
         <div>
-          <label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px">كلمة المرور</label>
-          <input type="password" name="password" required minlength="6" style="width:100%;padding:12px 16px;border:1px solid var(--color-bebe);border-radius:8px;font-size:14px;font-family:var(--font-sans)">
+          <label style="display:block;font-size:var(--text-xs);font-weight:600;margin-bottom:8px;color:var(--color-text-secondary)">كلمة المرور</label>
+          <input type="password" name="password" required minlength="6" style="width:100%;padding:14px 18px;background:var(--color-bg-elevated);border:1px solid var(--color-border);border-radius:var(--radius-md);font-size:var(--text-sm);font-family:var(--font-sans);color:var(--color-text-primary);transition:all 0.3s" onfocus="this.style.borderColor='var(--color-primary)';this.style.boxShadow='var(--shadow-glow)'" onblur="this.style.borderColor='var(--color-border)';this.style.boxShadow='none'">
         </div>
-        <button type="submit" class="btn btn-primary" style="width:100%">إنشاء الحساب</button>
+        <button type="submit" class="btn btn-primary" style="width:100%;padding:16px">إنشاء الحساب</button>
       </form>
-      <p style="text-align:center;margin-top:20px;font-size:14px;color:var(--color-foggy)">
-        لديك حساب؟ <a href="#/login" style="color:var(--color-rausch);font-weight:600">سجّل دخولك</a>
+      <p style="text-align:center;margin-top:24px;font-size:var(--text-sm);color:var(--color-text-secondary)">
+        لديك حساب؟ <a href="#/login" style="color:var(--color-primary);font-weight:600">سجّل دخولك</a>
       </p>
     </div>`;
 
@@ -324,9 +321,9 @@ async function explore(root, ctx) {
   const sort = ctx.params.sort || 'new';
   
   root.innerHTML = `
-    <section class="hero" style="padding:32px 0">
-      <h1 style="font-size:28px">استكشف البرومبتات</h1>
-      <form class="search-capsule" id="explore-search" style="margin-top:24px">
+    <section class="hero" style="padding:var(--space-8) 0">
+      <h1 style="font-size:var(--text-3xl)">استكشف البرومبتات</h1>
+      <form class="search-capsule" id="explore-search" style="margin-top:var(--space-6)">
         <div class="search-field">
           <input id="explore-q" value="${esc(q)}" placeholder="ابحث..." autocomplete="off">
         </div>
@@ -334,6 +331,7 @@ async function explore(root, ctx) {
       </form>
     </section>
     <section class="section">
+      ${sectionHead('02', 'النتائج', q ? `بحث: ${q}` : 'جميع البرومبتات')}
       <div id="explore-results">${skeletonGrid(6)}</div>
     </section>`;
 
@@ -357,7 +355,7 @@ async function explore(root, ctx) {
 /* ═══════════ 5 — تفاصيل البرومبت ═══════════ */
 async function prompt(root, ctx) {
   root.innerHTML = `
-    <div style="padding:6px 0">
+    <div style="padding:var(--space-2) 0">
       <button class="btn btn-ghost btn-sm" id="back-btn">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
         رجوع
@@ -375,69 +373,70 @@ async function prompt(root, ctx) {
     const isFollowingAuthor = !!p.isFollowingAuthor;
 
     root.innerHTML = `
-    <div style="padding:6px 0">
+    <div style="padding:var(--space-2) 0">
       <button class="btn btn-ghost btn-sm" id="back-btn">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
         رجوع
       </button>
     </div>
 
-    <div style="margin-top:24px">
-      <div style="position:relative;aspect-ratio:16/9;background:var(--color-faint);border-radius:12px;overflow:hidden;margin-bottom:24px">
+    <div style="margin-top:var(--space-6)">
+      <div style="position:relative;aspect-ratio:16/9;background:var(--color-bg-elevated);border-radius:var(--radius-xl);overflow:hidden;margin-bottom:var(--space-6);border:1px solid var(--color-border)">
         ${p.cover 
           ? `<img src="${esc(p.cover)}" alt="" style="width:100%;height:100%;object-fit:cover">`
-          : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:72px;font-weight:700;color:var(--color-grey-500)">${esc(mark)}</div>`}
+          : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:96px;font-weight:800;background:linear-gradient(135deg,var(--color-bg-elevated),var(--color-bg-card));color:var(--color-text-muted)">${esc(mark)}</div>`}
       </div>
 
-      <h1 style="font-size:28px;font-weight:700;margin-bottom:12px">${esc(p.title)}</h1>
-      <p style="color:var(--color-foggy);line-height:1.7;font-size:14px;margin-bottom:16px">${esc(description)}</p>
+      <h1 style="font-size:var(--text-3xl);font-weight:800;margin-bottom:var(--space-4);background:linear-gradient(135deg,var(--color-text-primary),var(--color-primary));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">${esc(p.title)}</h1>
+      <p style="color:var(--color-text-secondary);line-height:1.8;font-size:var(--text-base);margin-bottom:var(--space-6)">${esc(description)}</p>
 
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap">
-        ${avatar(p.author, 42)}
+      <div style="display:flex;align-items:center;gap:var(--space-4);margin-bottom:var(--space-6);flex-wrap:wrap;padding:var(--space-4);background:var(--color-bg-card);border:1px solid var(--color-border);border-radius:var(--radius-lg)">
+        ${avatar(p.author, 48)}
         <div style="flex:1">
-          <div style="font-size:14px;font-weight:600">${esc(p.author?.name || 'مجهول')}${p.author?.verified ? VCHECK : ''}</div>
-          <div style="font-size:12px;color:var(--color-foggy);font-family:var(--font-mono)">@${esc(p.author?.username || 'unknown')}</div>
+          <div style="font-size:var(--text-base);font-weight:600">${esc(p.author?.name || 'مجهول')}${p.author?.verified ? VCHECK : ''}</div>
+          <div style="font-size:var(--text-xs);color:var(--color-text-muted);font-family:var(--font-mono)">@${esc(p.author?.username || 'unknown')}</div>
         </div>
-        <div style="display:flex;gap:8px">
+        <div style="display:flex;gap:var(--space-2)">
           ${isOwner 
-            ? `<a class="btn btn-ghost btn-sm" href="#/edit/${attr(p.id)}">${ICON.edit} تعديل</a>`
-            : `<button class="btn btn-ghost btn-sm" id="follow-btn" data-following="${isFollowingAuthor ? '1' : '0'}">
+            ? `<a class="btn btn-secondary btn-sm" href="#/edit/${attr(p.id)}">${ICON.edit} تعديل</a>`
+            : `<button class="btn btn-secondary btn-sm" id="follow-btn" data-following="${isFollowingAuthor ? '1' : '0'}">
                 ${isFollowingAuthor ? ICON.userCheck + ' متابَع' : ICON.userPlus + ' متابعة'}
               </button>`}
         </div>
       </div>
 
-      <div style="background:var(--color-white);border:1px solid var(--color-bebe);border-radius:12px;padding:20px;margin-bottom:24px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-          <span style="font-size:12px;font-family:var(--font-mono);color:var(--color-foggy)">prompt.txt</span>
+      <div style="background:var(--color-bg-card);border:1px solid var(--color-border);border-radius:var(--radius-xl);padding:var(--space-6);margin-bottom:var(--space-6);position:relative;overflow:hidden">
+        <div style="position:absolute;top:0;inset-inline:0;height:3px;background:linear-gradient(90deg,var(--color-primary),var(--color-accent))"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-4)">
+          <span style="font-size:var(--text-xs);font-family:var(--font-mono);color:var(--color-text-muted)">prompt.txt</span>
           <button class="btn btn-ghost btn-sm" id="copy-btn">${ICON.copy} نسخ</button>
         </div>
-        <pre id="prompt-body" style="margin:0;font-family:var(--font-mono);font-size:13px;line-height:1.7;white-space:pre-wrap;word-break:break-word;color:var(--color-hof)">${esc(p.body)}</pre>
+        <pre id="prompt-body" style="margin:0;font-family:var(--font-mono);font-size:var(--text-sm);line-height:1.8;white-space:pre-wrap;word-break:break-word;color:var(--color-text-primary);background:var(--color-bg-elevated);padding:var(--space-4);border-radius:var(--radius-md);border:1px solid var(--color-border)">${esc(p.body)}</pre>
       </div>
 
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px">
-        <button class="btn btn-ghost btn-sm" id="like-btn" data-liked="${p.liked ? '1' : '0'}">
+      <div style="display:flex;gap:var(--space-2);flex-wrap:wrap;margin-bottom:var(--space-6)">
+        <button class="btn btn-secondary btn-sm" id="like-btn" data-liked="${p.liked ? '1' : '0'}">
           <span id="like-ic">${p.liked ? ICON.heartFill : ICON.heart}</span>
           <span id="like-n">${p.likes}</span>
         </button>
-        <button class="btn btn-ghost btn-sm" id="share-btn">${ICON.share} مشاركة</button>
+        <button class="btn btn-secondary btn-sm" id="share-btn">${ICON.share} مشاركة</button>
         <button class="btn btn-primary btn-sm" id="copy-bottom">${ICON.copy} نسخ النص</button>
       </div>
 
       ${(p.tags || []).length ? `
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px">
-        ${(p.tags || []).map((t) => `<a class="btn btn-ghost btn-sm" href="#/explore?q=${encodeURIComponent(t)}" style="border-radius:9999px">#${esc(t)}</a>`).join('')}
+      <div style="display:flex;gap:var(--space-2);flex-wrap:wrap;margin-bottom:var(--space-6)">
+        ${(p.tags || []).map((t) => `<a class="btn btn-ghost btn-sm" href="#/explore?q=${encodeURIComponent(t)}" style="border-radius:var(--radius-full)">#${esc(t)}</a>`).join('')}
       </div>` : ''}
     </div>
 
     ${related.length ? `
-    <section class="section" style="margin-top:48px">
+    <section class="section" style="margin-top:var(--space-12)">
       ${sectionHead('03', 'ذات صلة', 'برومبتات مشابهة')}
       ${grid(related)}
     </section>` : ''}
 
-    <section class="comments-section" style="margin-top:48px">
-      <h3 style="font-size:20px;margin-bottom:20px">${ICON.chat} التعليقات <span style="color:var(--color-foggy);font-size:14px">(${p.commentsCount || 0})</span></h3>
+    <section class="comments-section" style="margin-top:var(--space-12)">
+      <h3 style="font-size:var(--text-xl);margin-bottom:var(--space-6)">${ICON.chat} التعليقات <span style="color:var(--color-text-muted);font-size:var(--text-sm)">(${p.commentsCount || 0})</span></h3>
       <div id="cm-list"></div>
     </section>`;
 
@@ -504,31 +503,31 @@ async function newPrompt(root, ctx) {
 
   root.innerHTML = `
     <div style="max-width:640px;margin:0 auto">
-      <h1 style="font-size:28px;margin-bottom:8px">نشر برومبت جديد</h1>
-      <p style="color:var(--color-foggy);margin-bottom:32px">شارك إبداعك مع المجتمع</p>
+      <h1 style="font-size:var(--text-3xl);margin-bottom:var(--space-2);background:linear-gradient(135deg,var(--color-primary),var(--color-accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">نشر برومبت جديد</h1>
+      <p style="color:var(--color-text-secondary);margin-bottom:var(--space-8)">شارك إبداعك مع المجتمع</p>
       
-      <form id="new-prompt-form" style="display:flex;flex-direction:column;gap:20px">
+      <form id="new-prompt-form" style="display:flex;flex-direction:column;gap:var(--space-5)">
         <div>
-          <label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px">العنوان</label>
-          <input type="text" name="title" required style="width:100%;padding:12px 16px;border:1px solid var(--color-bebe);border-radius:8px;font-size:14px;font-family:var(--font-sans)">
+          <label style="display:block;font-size:var(--text-xs);font-weight:600;margin-bottom:var(--space-2);color:var(--color-text-secondary)">العنوان</label>
+          <input type="text" name="title" required style="width:100%;padding:14px 18px;background:var(--color-bg-elevated);border:1px solid var(--color-border);border-radius:var(--radius-md);font-size:var(--text-sm);font-family:var(--font-sans);color:var(--color-text-primary);transition:all 0.3s" onfocus="this.style.borderColor='var(--color-primary)';this.style.boxShadow='var(--shadow-glow)'" onblur="this.style.borderColor='var(--color-border)';this.style.boxShadow='none'">
         </div>
         <div>
-          <label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px">الوصف</label>
-          <textarea name="description" rows="3" style="width:100%;padding:12px 16px;border:1px solid var(--color-bebe);border-radius:8px;font-size:14px;font-family:var(--font-sans);resize:vertical"></textarea>
+          <label style="display:block;font-size:var(--text-xs);font-weight:600;margin-bottom:var(--space-2);color:var(--color-text-secondary)">الوصف</label>
+          <textarea name="description" rows="3" style="width:100%;padding:14px 18px;background:var(--color-bg-elevated);border:1px solid var(--color-border);border-radius:var(--radius-md);font-size:var(--text-sm);font-family:var(--font-sans);color:var(--color-text-primary);resize:vertical;transition:all 0.3s" onfocus="this.style.borderColor='var(--color-primary)';this.style.boxShadow='var(--shadow-glow)'" onblur="this.style.borderColor='var(--color-border)';this.style.boxShadow='none'"></textarea>
         </div>
         <div>
-          <label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px">نص البرومبت</label>
-          <textarea name="body" required rows="8" style="width:100%;padding:12px 16px;border:1px solid var(--color-bebe);border-radius:8px;font-size:14px;font-family:var(--font-mono);resize:vertical"></textarea>
+          <label style="display:block;font-size:var(--text-xs);font-weight:600;margin-bottom:var(--space-2);color:var(--color-text-secondary)">نص البرومبت</label>
+          <textarea name="body" required rows="8" style="width:100%;padding:14px 18px;background:var(--color-bg-elevated);border:1px solid var(--color-border);border-radius:var(--radius-md);font-size:var(--text-sm);font-family:var(--font-mono);color:var(--color-text-primary);resize:vertical;transition:all 0.3s" onfocus="this.style.borderColor='var(--color-primary)';this.style.boxShadow='var(--shadow-glow)'" onblur="this.style.borderColor='var(--color-border)';this.style.boxShadow='none'"></textarea>
         </div>
         <div>
-          <label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px">التصنيف</label>
-          <input type="text" name="category" placeholder="مثال: كتابة، برمجة" style="width:100%;padding:12px 16px;border:1px solid var(--color-bebe);border-radius:8px;font-size:14px;font-family:var(--font-sans)">
+          <label style="display:block;font-size:var(--text-xs);font-weight:600;margin-bottom:var(--space-2);color:var(--color-text-secondary)">التصنيف</label>
+          <input type="text" name="category" placeholder="مثال: كتابة، برمجة" style="width:100%;padding:14px 18px;background:var(--color-bg-elevated);border:1px solid var(--color-border);border-radius:var(--radius-md);font-size:var(--text-sm);font-family:var(--font-sans);color:var(--color-text-primary);transition:all 0.3s" onfocus="this.style.borderColor='var(--color-primary)';this.style.boxShadow='var(--shadow-glow)'" onblur="this.style.borderColor='var(--color-border)';this.style.boxShadow='none'">
         </div>
         <div>
-          <label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px">الوسوم (مفصولة بفاصلة)</label>
-          <input type="text" name="tags" placeholder="مثال: gpt4, كتابة, إبداع" style="width:100%;padding:12px 16px;border:1px solid var(--color-bebe);border-radius:8px;font-size:14px;font-family:var(--font-sans)">
+          <label style="display:block;font-size:var(--text-xs);font-weight:600;margin-bottom:var(--space-2);color:var(--color-text-secondary)">الوسوم (مفصولة بفاصلة)</label>
+          <input type="text" name="tags" placeholder="مثال: gpt4, كتابة, إبداع" style="width:100%;padding:14px 18px;background:var(--color-bg-elevated);border:1px solid var(--color-border);border-radius:var(--radius-md);font-size:var(--text-sm);font-family:var(--font-sans);color:var(--color-text-primary);transition:all 0.3s" onfocus="this.style.borderColor='var(--color-primary)';this.style.boxShadow='var(--shadow-glow)'" onblur="this.style.borderColor='var(--color-border)';this.style.boxShadow='none'">
         </div>
-        <button type="submit" class="btn btn-primary" style="width:100%">نشر</button>
+        <button type="submit" class="btn btn-primary" style="width:100%;padding:16px">نشر</button>
       </form>
     </div>`;
 
@@ -547,11 +546,11 @@ async function newPrompt(root, ctx) {
   });
 }
 
-/* ═══════════ 7 — تعديل برومبت ═══════════ */
+/* ══════════ 7 — تعديل برومبت ══════════ */
 async function editPrompt(root, ctx) {
   if (!ctx.state.user) { ctx.navigate('#/login'); return; }
 
-  root.innerHTML = `<div style="padding:48px 0">${skeletonPromptDetail()}</div>`;
+  root.innerHTML = `<div style="padding:var(--space-12) 0">${skeletonPromptDetail()}</div>`;
 
   try {
     const { prompt: p } = await ctx.api('/prompts/' + ctx.id);
@@ -563,32 +562,32 @@ async function editPrompt(root, ctx) {
 
     root.innerHTML = `
     <div style="max-width:640px;margin:0 auto">
-      <h1 style="font-size:28px;margin-bottom:8px">تعديل البرومبت</h1>
-      <p style="color:var(--color-foggy);margin-bottom:32px">${esc(p.title)}</p>
+      <h1 style="font-size:var(--text-3xl);margin-bottom:var(--space-2);background:linear-gradient(135deg,var(--color-primary),var(--color-accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">تعديل البرومبت</h1>
+      <p style="color:var(--color-text-secondary);margin-bottom:var(--space-8)">${esc(p.title)}</p>
       
-      <form id="edit-prompt-form" style="display:flex;flex-direction:column;gap:20px">
+      <form id="edit-prompt-form" style="display:flex;flex-direction:column;gap:var(--space-5)">
         <div>
-          <label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px">العنوان</label>
-          <input type="text" name="title" required value="${esc(p.title)}" style="width:100%;padding:12px 16px;border:1px solid var(--color-bebe);border-radius:8px;font-size:14px;font-family:var(--font-sans)">
+          <label style="display:block;font-size:var(--text-xs);font-weight:600;margin-bottom:var(--space-2);color:var(--color-text-secondary)">العنوان</label>
+          <input type="text" name="title" required value="${esc(p.title)}" style="width:100%;padding:14px 18px;background:var(--color-bg-elevated);border:1px solid var(--color-border);border-radius:var(--radius-md);font-size:var(--text-sm);font-family:var(--font-sans);color:var(--color-text-primary);transition:all 0.3s" onfocus="this.style.borderColor='var(--color-primary)';this.style.boxShadow='var(--shadow-glow)'" onblur="this.style.borderColor='var(--color-border)';this.style.boxShadow='none'">
         </div>
         <div>
-          <label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px">الوصف</label>
-          <textarea name="description" rows="3" style="width:100%;padding:12px 16px;border:1px solid var(--color-bebe);border-radius:8px;font-size:14px;font-family:var(--font-sans);resize:vertical">${esc(p.description || '')}</textarea>
+          <label style="display:block;font-size:var(--text-xs);font-weight:600;margin-bottom:var(--space-2);color:var(--color-text-secondary)">الوصف</label>
+          <textarea name="description" rows="3" style="width:100%;padding:14px 18px;background:var(--color-bg-elevated);border:1px solid var(--color-border);border-radius:var(--radius-md);font-size:var(--text-sm);font-family:var(--font-sans);color:var(--color-text-primary);resize:vertical;transition:all 0.3s" onfocus="this.style.borderColor='var(--color-primary)';this.style.boxShadow='var(--shadow-glow)'" onblur="this.style.borderColor='var(--color-border)';this.style.boxShadow='none'">${esc(p.description || '')}</textarea>
         </div>
         <div>
-          <label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px">نص البرومبت</label>
-          <textarea name="body" required rows="8" style="width:100%;padding:12px 16px;border:1px solid var(--color-bebe);border-radius:8px;font-size:14px;font-family:var(--font-mono);resize:vertical">${esc(p.body)}</textarea>
+          <label style="display:block;font-size:var(--text-xs);font-weight:600;margin-bottom:var(--space-2);color:var(--color-text-secondary)">نص البرومبت</label>
+          <textarea name="body" required rows="8" style="width:100%;padding:14px 18px;background:var(--color-bg-elevated);border:1px solid var(--color-border);border-radius:var(--radius-md);font-size:var(--text-sm);font-family:var(--font-mono);color:var(--color-text-primary);resize:vertical;transition:all 0.3s" onfocus="this.style.borderColor='var(--color-primary)';this.style.boxShadow='var(--shadow-glow)'" onblur="this.style.borderColor='var(--color-border)';this.style.boxShadow='none'">${esc(p.body)}</textarea>
         </div>
         <div>
-          <label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px">التصنيف</label>
-          <input type="text" name="category" value="${esc(p.category || '')}" style="width:100%;padding:12px 16px;border:1px solid var(--color-bebe);border-radius:8px;font-size:14px;font-family:var(--font-sans)">
+          <label style="display:block;font-size:var(--text-xs);font-weight:600;margin-bottom:var(--space-2);color:var(--color-text-secondary)">التصنيف</label>
+          <input type="text" name="category" value="${esc(p.category || '')}" style="width:100%;padding:14px 18px;background:var(--color-bg-elevated);border:1px solid var(--color-border);border-radius:var(--radius-md);font-size:var(--text-sm);font-family:var(--font-sans);color:var(--color-text-primary);transition:all 0.3s" onfocus="this.style.borderColor='var(--color-primary)';this.style.boxShadow='var(--shadow-glow)'" onblur="this.style.borderColor='var(--color-border)';this.style.boxShadow='none'">
         </div>
         <div>
-          <label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px">الوسوم</label>
-          <input type="text" name="tags" value="${esc((p.tags || []).join(', '))}" style="width:100%;padding:12px 16px;border:1px solid var(--color-bebe);border-radius:8px;font-size:14px;font-family:var(--font-sans)">
+          <label style="display:block;font-size:var(--text-xs);font-weight:600;margin-bottom:var(--space-2);color:var(--color-text-secondary)">الوسوم</label>
+          <input type="text" name="tags" value="${esc((p.tags || []).join(', '))}" style="width:100%;padding:14px 18px;background:var(--color-bg-elevated);border:1px solid var(--color-border);border-radius:var(--radius-md);font-size:var(--text-sm);font-family:var(--font-sans);color:var(--color-text-primary);transition:all 0.3s" onfocus="this.style.borderColor='var(--color-primary)';this.style.boxShadow='var(--shadow-glow)'" onblur="this.style.borderColor='var(--color-border)';this.style.boxShadow='none'">
         </div>
-        <div style="display:flex;gap:8px">
-          <button type="submit" class="btn btn-primary" style="flex:1">حفظ</button>
+        <div style="display:flex;gap:var(--space-2)">
+          <button type="submit" class="btn btn-primary" style="flex:1;padding:16px">حفظ</button>
           <button type="button" class="btn btn-ghost" id="cancel-btn">إلغاء</button>
         </div>
       </form>
@@ -611,12 +610,12 @@ async function editPrompt(root, ctx) {
   }
 }
 
-/* ═══════════ 8 — الملف الشخصي ═══════════ */
+/* ═══════════ 8 — الملف الشخصي ══════════ */
 async function profile(root, ctx) {
   const userId = ctx.id || ctx.state.user?.id;
   if (!userId) { ctx.navigate('#/login'); return; }
 
-  root.innerHTML = `<div style="padding:48px 0">${skeletonPromptDetail()}</div>`;
+  root.innerHTML = `<div style="padding:var(--space-12) 0">${skeletonPromptDetail()}</div>`;
 
   try {
     const { user, prompts } = await ctx.api('/users/' + userId);
@@ -624,32 +623,32 @@ async function profile(root, ctx) {
 
     root.innerHTML = `
     <div style="max-width:800px;margin:0 auto">
-      <div style="display:flex;align-items:center;gap:20px;margin-bottom:32px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:var(--space-5);margin-bottom:var(--space-8);flex-wrap:wrap;padding:var(--space-6);background:var(--color-bg-card);border:1px solid var(--color-border);border-radius:var(--radius-xl)">
         ${avatar(user, 80)}
         <div style="flex:1;min-width:200px">
-          <h1 style="font-size:24px;margin-bottom:4px">${esc(user.name)}${user.verified ? VCHECK : ''}</h1>
-          <p style="color:var(--color-foggy);font-family:var(--font-mono);font-size:13px;margin-bottom:8px">@${esc(user.username)}</p>
-          ${user.bio ? `<p style="color:var(--color-foggy);font-size:14px">${esc(user.bio)}</p>` : ''}
+          <h1 style="font-size:var(--text-2xl);margin-bottom:var(--space-1)">${esc(user.name)}${user.verified ? VCHECK : ''}</h1>
+          <p style="color:var(--color-text-muted);font-family:var(--font-mono);font-size:var(--text-sm);margin-bottom:var(--space-2)">@${esc(user.username)}</p>
+          ${user.bio ? `<p style="color:var(--color-text-secondary);font-size:var(--text-sm)">${esc(user.bio)}</p>` : ''}
         </div>
         ${!isMe ? `<button class="btn btn-primary btn-sm" id="follow-btn">متابعة</button>` : ''}
       </div>
 
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:32px">
-        <div style="background:var(--color-white);border:1px solid var(--color-bebe);border-radius:12px;padding:16px;text-align:center">
-          <div style="font-size:20px;font-weight:700;font-family:var(--font-mono)">${user.promptsCount || 0}</div>
-          <div style="font-size:12px;color:var(--color-foggy);margin-top:4px">برومبت</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-3);margin-bottom:var(--space-8)">
+        <div style="background:var(--color-bg-card);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-5);text-align:center;transition:all 0.3s" onmouseover="this.style.borderColor='var(--color-primary)';this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='var(--color-border)';this.style.transform='none'">
+          <div style="font-size:var(--text-2xl);font-weight:800;font-family:var(--font-mono);background:linear-gradient(135deg,var(--color-primary),var(--color-accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">${user.promptsCount || 0}</div>
+          <div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:var(--space-1)">برومبت</div>
         </div>
-        <div style="background:var(--color-white);border:1px solid var(--color-bebe);border-radius:12px;padding:16px;text-align:center">
-          <div style="font-size:20px;font-weight:700;font-family:var(--font-mono)">${user.likesCount || 0}</div>
-          <div style="font-size:12px;color:var(--color-foggy);margin-top:4px">إعجاب</div>
+        <div style="background:var(--color-bg-card);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-5);text-align:center;transition:all 0.3s" onmouseover="this.style.borderColor='var(--color-primary)';this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='var(--color-border)';this.style.transform='none'">
+          <div style="font-size:var(--text-2xl);font-weight:800;font-family:var(--font-mono);background:linear-gradient(135deg,var(--color-primary),var(--color-accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">${user.likesCount || 0}</div>
+          <div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:var(--space-1)">إعجاب</div>
         </div>
-        <div style="background:var(--color-white);border:1px solid var(--color-bebe);border-radius:12px;padding:16px;text-align:center">
-          <div style="font-size:20px;font-weight:700;font-family:var(--font-mono)">${user.followersCount || 0}</div>
-          <div style="font-size:12px;color:var(--color-foggy);margin-top:4px">متابع</div>
+        <div style="background:var(--color-bg-card);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-5);text-align:center;transition:all 0.3s" onmouseover="this.style.borderColor='var(--color-primary)';this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='var(--color-border)';this.style.transform='none'">
+          <div style="font-size:var(--text-2xl);font-weight:800;font-family:var(--font-mono);background:linear-gradient(135deg,var(--color-primary),var(--color-accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">${user.followersCount || 0}</div>
+          <div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-top:var(--space-1)">متابع</div>
         </div>
       </div>
 
-      <h2 style="font-size:20px;margin-bottom:20px">برومبتات ${esc(user.name)}</h2>
+      <h2 style="font-size:var(--text-xl);margin-bottom:var(--space-6)">برومبتات ${esc(user.name)}</h2>
       <div id="profile-prompts">
         ${prompts.length ? grid(prompts) : emptyState(ICON.empty, 'لا برومبتات', isMe ? 'انشر أول برومبت لك' : 'لم ينشر بعد')}
       </div>
@@ -676,7 +675,7 @@ async function favorites(root, ctx) {
   if (!ctx.state.user) { ctx.navigate('#/login'); return; }
 
   root.innerHTML = `
-    <h1 style="font-size:28px;margin-bottom:24px">تفضيلاتي</h1>
+    <h1 style="font-size:var(--text-3xl);margin-bottom:var(--space-6);background:linear-gradient(135deg,var(--color-primary),var(--color-accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">تفضيلاتي</h1>
     <div id="fav-list">${skeletonGrid(6)}</div>`;
 
   try {
@@ -689,7 +688,7 @@ async function favorites(root, ctx) {
   }
 }
 
-/* ═══════════ 10 — لوحة الإدارة ═══════════ */
+/* ═══════════ 10 — لوحة الإدارة ══════════ */
 async function admin(root, ctx) {
   if (ctx.state.user?.role !== 'admin') {
     root.innerHTML = emptyState(ICON.shield, 'وصول مرفوض', 'هذه الصفحة للمشرفين فقط');
@@ -697,30 +696,30 @@ async function admin(root, ctx) {
   }
 
   root.innerHTML = `
-    <h1 style="font-size:28px;margin-bottom:24px">لوحة الإدارة</h1>
-    <div id="admin-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:32px">
-      ${[1,2,3,4].map(() => `<div class="sk" style="height:100px;border-radius:12px"></div>`).join('')}
+    <h1 style="font-size:var(--text-3xl);margin-bottom:var(--space-6);background:linear-gradient(135deg,var(--color-primary),var(--color-accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">لوحة الإدارة</h1>
+    <div id="admin-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:var(--space-4);margin-bottom:var(--space-8)">
+      ${[1,2,3,4].map(() => `<div class="sk" style="height:100px;border-radius:var(--radius-lg)"></div>`).join('')}
     </div>
     <div id="admin-content"></div>`;
 
   try {
     const stats = await ctx.api('/admin/stats', { admin: true });
     root.querySelector('#admin-stats').innerHTML = `
-      <div style="background:var(--color-white);border:1px solid var(--color-bebe);border-radius:12px;padding:20px">
-        <div style="font-size:12px;color:var(--color-foggy);margin-bottom:8px">المستخدمون</div>
-        <div style="font-size:24px;font-weight:700;font-family:var(--font-mono)">${stats.users || 0}</div>
+      <div style="background:var(--color-bg-card);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-5);transition:all 0.3s" onmouseover="this.style.borderColor='var(--color-primary)';this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='var(--color-border)';this.style.transform='none'">
+        <div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-bottom:var(--space-2)">المستخدمون</div>
+        <div style="font-size:var(--text-2xl);font-weight:800;font-family:var(--font-mono);background:linear-gradient(135deg,var(--color-primary),var(--color-accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">${stats.users || 0}</div>
       </div>
-      <div style="background:var(--color-white);border:1px solid var(--color-bebe);border-radius:12px;padding:20px">
-        <div style="font-size:12px;color:var(--color-foggy);margin-bottom:8px">البرومبتات</div>
-        <div style="font-size:24px;font-weight:700;font-family:var(--font-mono)">${stats.prompts || 0}</div>
+      <div style="background:var(--color-bg-card);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-5);transition:all 0.3s" onmouseover="this.style.borderColor='var(--color-primary)';this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='var(--color-border)';this.style.transform='none'">
+        <div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-bottom:var(--space-2)">البرومبتات</div>
+        <div style="font-size:var(--text-2xl);font-weight:800;font-family:var(--font-mono);background:linear-gradient(135deg,var(--color-primary),var(--color-accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">${stats.prompts || 0}</div>
       </div>
-      <div style="background:var(--color-white);border:1px solid var(--color-bebe);border-radius:12px;padding:20px">
-        <div style="font-size:12px;color:var(--color-foggy);margin-bottom:8px">التعليقات</div>
-        <div style="font-size:24px;font-weight:700;font-family:var(--font-mono)">${stats.comments || 0}</div>
+      <div style="background:var(--color-bg-card);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-5);transition:all 0.3s" onmouseover="this.style.borderColor='var(--color-primary)';this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='var(--color-border)';this.style.transform='none'">
+        <div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-bottom:var(--space-2)">التعليقات</div>
+        <div style="font-size:var(--text-2xl);font-weight:800;font-family:var(--font-mono);background:linear-gradient(135deg,var(--color-primary),var(--color-accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">${stats.comments || 0}</div>
       </div>
-      <div style="background:var(--color-white);border:1px solid var(--color-bebe);border-radius:12px;padding:20px">
-        <div style="font-size:12px;color:var(--color-foggy);margin-bottom:8px">الإعجابات</div>
-        <div style="font-size:24px;font-weight:700;font-family:var(--font-mono)">${stats.likes || 0}</div>
+      <div style="background:var(--color-bg-card);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-5);transition:all 0.3s" onmouseover="this.style.borderColor='var(--color-primary)';this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='var(--color-border)';this.style.transform='none'">
+        <div style="font-size:var(--text-xs);color:var(--color-text-muted);margin-bottom:var(--space-2)">الإعجابات</div>
+        <div style="font-size:var(--text-2xl);font-weight:800;font-family:var(--font-mono);background:linear-gradient(135deg,var(--color-primary),var(--color-accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">${stats.likes || 0}</div>
       </div>`;
   } catch (e) {
     root.querySelector('#admin-stats').innerHTML = emptyState(ICON.empty, 'تعذّر التحميل', e.message);
@@ -730,13 +729,13 @@ async function admin(root, ctx) {
 /* ═══════════ 11 — غير متصل ══════════ */
 async function offline(root, ctx) {
   root.innerHTML = `
-    <div style="text-align:center;padding:64px 24px">
-      <div style="width:80px;height:80px;margin:0 auto 24px;background:var(--color-faint);border-radius:9999px;display:flex;align-items:center;justify-content:center">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--color-foggy)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.58 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+    <div style="text-align:center;padding:var(--space-16) var(--space-6)">
+      <div style="width:96px;height:96px;margin:0 auto var(--space-6);background:linear-gradient(135deg,var(--color-bg-elevated),var(--color-bg-card));border-radius:var(--radius-full);display:flex;align-items:center;justify-content:center;border:1px solid var(--color-border)">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.58 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
       </div>
-      <h2 style="font-size:22px;margin-bottom:8px">أنت غير متصل</h2>
-      <p style="color:var(--color-foggy);margin-bottom:24px">تحقق من اتصالك بالإنترنت وحاول مرة أخرى</p>
-      <button class="btn btn-primary" id="retry-btn">إعادة المحاولة</button>
+      <h2 style="font-size:var(--text-2xl);margin-bottom:var(--space-3)">أنت غير متصل</h2>
+      <p style="color:var(--color-text-secondary);margin-bottom:var(--space-8)">تحقق من اتصالك بالإنترنت وحاول مرة أخرى</p>
+      <button class="btn btn-primary" id="retry-btn" style="padding:16px 32px">إعادة المحاولة</button>
     </div>`;
 
   root.querySelector('#retry-btn').addEventListener('click', () => {
@@ -749,18 +748,18 @@ async function notifications(root, ctx) {
   if (!ctx.state.user) { ctx.navigate('#/login'); return; }
 
   root.innerHTML = `
-    <h1 style="font-size:28px;margin-bottom:24px">الإشعارات</h1>
+    <h1 style="font-size:var(--text-3xl);margin-bottom:var(--space-6);background:linear-gradient(135deg,var(--color-primary),var(--color-accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">الإشعارات</h1>
     <div id="notif-list">${skeletonGrid(6)}</div>`;
 
   try {
     const res = await ctx.api('/notifications');
     const el = root.querySelector('#notif-list');
     if (res.items && res.items.length) {
-      el.innerHTML = `<div style="display:flex;flex-direction:column;gap:12px">
+      el.innerHTML = `<div style="display:flex;flex-direction:column;gap:var(--space-3)">
         ${res.items.map(n => `
-          <div style="background:var(--color-white);border:1px solid var(--color-bebe);border-radius:12px;padding:16px;cursor:pointer" data-notif="${attr(n.id)}">
-            <div style="font-size:14px;font-weight:500;margin-bottom:4px">${esc(n.title || n.message)}</div>
-            <div style="font-size:12px;color:var(--color-foggy)">${timeAgo(n.createdAt)}</div>
+          <div style="background:var(--color-bg-card);border:1px solid var(--color-border);border-radius:var(--radius-lg);padding:var(--space-4);cursor:pointer;transition:all 0.3s" data-notif="${attr(n.id)}" onmouseover="this.style.borderColor='var(--color-primary)';this.style.transform='translateX(-4px)'" onmouseout="this.style.borderColor='var(--color-border)';this.style.transform='none'">
+            <div style="font-size:var(--text-base);font-weight:600;margin-bottom:var(--space-1)">${esc(n.title || n.message)}</div>
+            <div style="font-size:var(--text-xs);color:var(--color-text-muted)">${timeAgo(n.createdAt)}</div>
           </div>
         `).join('')}
       </div>`;
@@ -773,7 +772,7 @@ async function notifications(root, ctx) {
   }
 }
 
-/* ═══════════ Exports ═══════════ */
+/* ═══════════ Exports ══════════ */
 export const Screens = {
   home,
   login,
