@@ -1,15 +1,15 @@
 import { Screens } from './screens.js';
 import { prefetchPrompt, idbGet, idbSet, idbClear, cleanupOldEntries } from './cache.js';
 
-const TOKEN_KEY = 'khayal_token';
+const BEARER_KEY = 'khayal_token_bearer';
 const ADMIN_KEY = 'khayal_admin';
 
-export const APP_VERSION = '6.0.0';
+export const APP_VERSION = '6.1.0';
 
 export const state = {
   user: null,
   meta: { categories: [], models: [], stats: {} },
-  online: true,  // ✅ افترض الاتصال حتى يثبت العكس
+  online: true,
   adminToken: sessionStorage.getItem(ADMIN_KEY) || null,
   unreadCount: 0,
   networkFailStreak: 0
@@ -23,10 +23,13 @@ export class ApiError extends Error {
   }
 }
 
-/* ═══════════════════════════════════════════════
-   حالة الاتصال — لا نثق بـ navigator.onLine
-   ═══════════════════════════════════════════════ */
+/* ═══════════ CSRF ═══════════ */
+export function getCsrfToken() {
+  const m = document.cookie.match(/(?:^|;\s*)kh_csrf=([^;]+)/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
 
+/* ═══════════ حالة الاتصال ═══════════ */
 function showOfflineStrip(show) {
   const strip = document.getElementById('offline-strip');
   if (!strip) return;
@@ -61,13 +64,11 @@ function markUnreachable() {
   }
 }
 
-/* ═══════════════════════════════════════════════
-   API
-   ═══════════════════════════════════════════════ */
+/* ═══════════ API ═══════════ */
 export async function api(path, { method = 'GET', body, admin = false, useCache = true } = {}) {
   const isGet = method === 'GET';
   const cacheKey = isGet ? path : null;
-  const isPublicPath = /^\/(prompts|users|comments|meta)/.test(path);
+  const isPublicPath = /^\/(prompts|comments|meta)/.test(path);
 
   if (isGet && useCache && isPublicPath && !admin) {
     const cached = await idbGet('api:' + cacheKey);
@@ -79,14 +80,21 @@ export async function api(path, { method = 'GET', body, admin = false, useCache 
 
   const headers = {};
   if (body) headers['Content-Type'] = 'application/json';
-  const t = localStorage.getItem(TOKEN_KEY);
-  if (t) headers['Authorization'] = 'Bearer ' + t;
+
+  const bearer = localStorage.getItem(BEARER_KEY);
+  if (bearer) headers['Authorization'] = 'Bearer ' + bearer;
+
+  if (!isGet && !admin) {
+    const csrf = getCsrfToken();
+    if (csrf) headers['X-CSRF-Token'] = csrf;
+  }
   if (admin && state.adminToken) headers['x-admin-token'] = state.adminToken;
 
   let res;
   try {
     res = await fetch('/api' + path, {
       method, headers,
+      credentials: 'include',
       body: body ? JSON.stringify(body) : undefined
     });
     markReachable();
@@ -112,10 +120,10 @@ export async function api(path, { method = 'GET', body, admin = false, useCache 
 async function _bgRefresh(path, admin) {
   try {
     const headers = {};
-    const t = localStorage.getItem(TOKEN_KEY);
-    if (t) headers['Authorization'] = 'Bearer ' + t;
+    const bearer = localStorage.getItem(BEARER_KEY);
+    if (bearer) headers['Authorization'] = 'Bearer ' + bearer;
     if (admin && state.adminToken) headers['x-admin-token'] = state.adminToken;
-    const res = await fetch('/api' + path, { headers });
+    const res = await fetch('/api' + path, { headers, credentials: 'include' });
     markReachable();
     if (res.ok) {
       const data = await res.json();
@@ -126,9 +134,7 @@ async function _bgRefresh(path, admin) {
   }
 }
 
-/* ═══════════════════════════════════════════════
-   Toast
-   ═══════════════════════════════════════════════ */
+/* ═══════════ Toast ═══════════ */
 export function toast(message, type = 'info') {
   const box = document.getElementById('toasts');
   if (!box) return;
@@ -149,9 +155,7 @@ export const navigate = (hash) => {
   else location.hash = hash;
 };
 
-/* ═══════════════════════════════════════════════
-   Route parsing
-   ═══════════════════════════════════════════════ */
+/* ═══════════ Routes ═══════════ */
 function parseRoute() {
   const raw = location.hash.replace(/^#\/?/, '');
   const [path, qs] = raw.split('?');
@@ -187,7 +191,10 @@ function getScreenMeta() {
     case 'edit': return { title: 'تعديل البرومبت', sub: '' };
     case 'profile': case 'u': return { title: 'الملف الشخصي', sub: '' };
     case 'favorites': return { title: 'تفضيلاتي', sub: 'ما أعجبك' };
-    case 'notifications': return { title: 'الإشعارات', sub: state.unreadCount > 0 ? `${state.unreadCount} غير مقروء` : '' };
+    case 'notifications': return {
+      title: 'الإشعارات',
+      sub: state.unreadCount > 0 ? `${state.unreadCount} غير مقروء` : ''
+    };
     case 'admin': return { title: 'لوحة الإدارة', sub: '' };
     case 'login': return { title: 'تسجيل الدخول', sub: '' };
     case 'register': return { title: 'حساب جديد', sub: '' };
@@ -195,9 +202,7 @@ function getScreenMeta() {
   }
 }
 
-/* ═══════════════════════════════════════════════
-   Icons
-   ═══════════════════════════════════════════════ */
+/* ═══════════ Icons ═══════════ */
 const ICON = {
   home: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/></svg>`,
   explore: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-3.6-3.6"/></svg>`,
@@ -222,9 +227,7 @@ function escHtml(s) {
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-/* ═══════════════════════════════════════════════
-   Sidebar
-   ═══════════════════════════════════════════════ */
+/* ═══════════ Sidebar ═══════════ */
 function renderSidebar() {
   const { parts } = parseRoute();
   const root = parts[0] ?? '';
@@ -275,9 +278,7 @@ function renderSidebar() {
   foot.querySelector('#sidebar-version-btn')?.addEventListener('click', () => navigate('#/admin'));
 }
 
-/* ═══════════════════════════════════════════════
-   Topbar
-   ═══════════════════════════════════════════════ */
+/* ═══════════ Topbar ═══════════ */
 function renderTopbar() {
   const meta = getScreenMeta();
   const isHome = (location.hash === '' || location.hash === '#/' || location.hash === '#');
@@ -327,9 +328,7 @@ function renderTopbar() {
     </div>`;
 }
 
-/* ═══════════════════════════════════════════════
-   Bottom nav
-   ═══════════════════════════════════════════════ */
+/* ═══════════ Bottom nav ═══════════ */
 function renderBottomNav() {
   const { parts } = parseRoute();
   const root = parts[0] ?? '';
@@ -355,9 +354,7 @@ function renderBottomNav() {
     </div>`;
 }
 
-/* ═══════════════════════════════════════════════
-   Footer
-   ═══════════════════════════════════════════════ */
+/* ═══════════ Footer ═══════════ */
 function renderFooter() {
   const el = document.getElementById('site-footer');
   if (!el) return;
@@ -374,9 +371,7 @@ function renderFooter() {
   `;
 }
 
-/* ═══════════════════════════════════════════════
-   Render
-   ═══════════════════════════════════════════════ */
+/* ═══════════ Render ═══════════ */
 let _rendering = false;
 async function render() {
   if (_rendering) return;
@@ -428,21 +423,29 @@ async function render() {
           renderTopbar(); renderSidebar(); renderBottomNav();
         } catch (e) {
           if (e instanceof ApiError && e.status === 401) {
-            localStorage.removeItem(TOKEN_KEY);
             state.user = null;
             renderTopbar(); renderSidebar(); renderBottomNav();
           }
         }
       },
       logout() {
-        localStorage.removeItem(TOKEN_KEY);
         state.user = null;
         state.unreadCount = 0;
+        localStorage.removeItem(BEARER_KEY);
         idbClear().catch(() => {});
+        if ('caches' in window) {
+          caches.keys().then((keys) =>
+            Promise.all(
+              keys.filter((k) => /data|runtime/.test(k)).map((k) => caches.delete(k))
+            )
+          ).catch(() => {});
+        }
         renderTopbar(); renderSidebar(); renderBottomNav();
       },
-      setToken(t) { localStorage.setItem(TOKEN_KEY, t); },
-      getToken() { return localStorage.getItem(TOKEN_KEY); },
+      setToken(t) {
+        if (t) localStorage.setItem(BEARER_KEY, t);
+      },
+      getToken() { return localStorage.getItem(BEARER_KEY); },
       setAdminToken(t) {
         state.adminToken = t;
         if (t) sessionStorage.setItem(ADMIN_KEY, t);
@@ -472,9 +475,7 @@ async function render() {
   }
 }
 
-/* ═══════════════════════════════════════════════
-   Scroll effect
-   ═══════════════════════════════════════════════ */
+/* ═══════════ Scroll ═══════════ */
 let _scrollTick = false;
 window.addEventListener('scroll', () => {
   if (_scrollTick) return;
@@ -486,9 +487,7 @@ window.addEventListener('scroll', () => {
   });
 }, { passive: true });
 
-/* ═══════════════════════════════════════════════
-   WebView bridge
-   ═══════════════════════════════════════════════ */
+/* ═══════════ WebView bridge ═══════════ */
 function setupWebViewBridge() {
   window.addEventListener('hashchange', () => {
     if (window.AndroidBack?.onRouteChange) {
@@ -506,9 +505,7 @@ function setupWebViewBridge() {
   document.body.style.overscrollBehaviorY = 'contain';
 }
 
-/* ═══════════════════════════════════════════════
-   Service Worker
-   ═══════════════════════════════════════════════ */
+/* ═══════════ Service Worker ═══════════ */
 async function registerSW() {
   if (!('serviceWorker' in navigator)) return;
   try {
@@ -537,14 +534,9 @@ async function registerSW() {
   }
 }
 
-/* ═══════════════════════════════════════════════
-   Unread
-   ═══════════════════════════════════════════════ */
+/* ═══════════ Unread ═══════════ */
 async function refreshUnread() {
-  if (!localStorage.getItem(TOKEN_KEY) || !state.user) {
-    state.unreadCount = 0;
-    return;
-  }
+  if (!state.user) { state.unreadCount = 0; return; }
   try {
     const { unread } = await api('/notifications/unread-count', { useCache: false });
     if (state.unreadCount !== unread) {
@@ -554,15 +546,12 @@ async function refreshUnread() {
   } catch { /* تجاهل */ }
 }
 
-/* ═══════════════════════════════════════════════
-   Boot
-   ═══════════════════════════════════════════════ */
+/* ═══════════ Boot ═══════════ */
 async function boot() {
   setupWebViewBridge();
   registerSW();
   cleanupOldEntries();
 
-  // ✅ الشريط مخفي افتراضيًا — لا نستخدم navigator.onLine
   const strip = document.getElementById('offline-strip');
   if (strip) strip.hidden = true;
   state.online = true;
@@ -570,19 +559,13 @@ async function boot() {
 
   api('/meta').then(m => { state.meta = m; }).catch(() => {});
 
-  if (localStorage.getItem(TOKEN_KEY)) {
-    api('/me', { useCache: false })
-      .then(r => { state.user = r.user; })
-      .catch((e) => {
-        if (e instanceof ApiError && e.status === 401) {
-          localStorage.removeItem(TOKEN_KEY);
-        }
-      });
-  }
+  // نتحقق من الجلسة عبر الكوكي — لا شيء مخزّن محلياً
+  api('/me', { useCache: false })
+    .then(r => { state.user = r.user; })
+    .catch(() => { state.user = null; });
 
   window.addEventListener('hashchange', render);
 
-  // ✅ عند online: أعد الفحص بطلب حقيقي
   window.addEventListener('online', () => {
     state.networkFailStreak = 0;
     api('/meta', { useCache: false }).then(() => {
@@ -592,15 +575,11 @@ async function boot() {
     }).catch(() => {});
   });
 
-  // ✅ عند offline: لا نفعل شيئًا — ننتظر فشل الطلبات الحقيقية
-  // (لأن navigator.onLine غير موثوق على بعض الأجهزة)
-
   refreshUnread();
   setInterval(() => {
     if (state.online && state.user && !document.hidden) refreshUnread();
   }, 45000);
 
-  // فحص دوري عند الشك في الاتصال
   setInterval(() => {
     if (!state.online) {
       api('/meta', { useCache: false })
