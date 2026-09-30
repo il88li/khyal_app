@@ -1,5 +1,9 @@
 import bcrypt from 'bcryptjs';
-import { query, queryOne, queryAll, transaction, cacheGet, cacheSet, cacheClear } from './db.js';
+import { randomUUID } from 'node:crypto';
+import {
+  query, queryOne, queryAll, transaction,
+  cacheGet, cacheSet, cacheClear
+} from './db.js';
 import { deleteAllSessions as _deleteAllSessions } from './sessions.js';
 
 export const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'khayal-admin';
@@ -14,7 +18,7 @@ export const MODELS = [
   'Gemini 1.5 Pro', 'Llama 3.1 70B', 'Midjourney v6', 'DALL·E 3'
 ];
 
-/* ═══════════ تشفير كلمات المرور ═══════════ */
+/* ═══════════ كلمات المرور ═══════════ */
 const BCRYPT_ROUNDS = 10;
 
 export async function hashPassword(plain) {
@@ -31,6 +35,10 @@ export async function verifyPassword(plain, stored) {
 export function isHashed(stored) {
   return /^\$2[aby]\$/.test(stored || '');
 }
+
+/* ═══════════ ID آمن ═══════════ */
+const newId = (prefix) =>
+  prefix + '_' + randomUUID().replace(/-/g, '').slice(0, 12);
 
 /* ═══════════ slugify ═══════════ */
 const AR_MAP = {
@@ -79,7 +87,7 @@ export const findUserByUsername = (username) =>
   queryOne(`SELECT 1 FROM users WHERE username = $1`, [username]);
 
 export async function createUser({ name, email, password, username }) {
-  const id = 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const id = newId('u');
   const uname = username || email.split('@')[0];
   const hashed = await hashPassword(password);
   return queryOne(
@@ -128,7 +136,7 @@ const PROMPT_SELECT = `
   LEFT JOIN users u ON u.id = p.author_id
 `;
 
-function shapePrompt(row, likedSet, followedSet) {
+function shapePrompt(row, likedSet, followedSet, viewerId = null) {
   if (!row) return null;
   return {
     id: row.id, slug: row.slug, title: row.title, description: row.description,
@@ -137,6 +145,7 @@ function shapePrompt(row, likedSet, followedSet) {
     authorId: row.authorId, copies: row.copies, createdAt: row.createdAt,
     likes: row.likes, commentsCount: row.commentsCount || 0,
     liked: likedSet ? likedSet.has(row.id) : false,
+    isOwner: viewerId ? row.authorId === viewerId : false,
     author: row.aId ? {
       id: row.aId, name: row.aName,
       username: row.aUsername, verified: row.aVerified,
@@ -150,11 +159,22 @@ export async function listPrompts({ q, sort = 'new', author, limit = 20, offset 
   const where = [];
   const params = [];
 
-  if (q) {
+  // Full-Text Search بدل ILIKE على 4 أعمدة
+  if (q && q.length >= 2) {
+    params.push(q);
+    where.push(
+      `(p.search_tsv @@ plainto_tsquery('simple', $${params.length})
+        OR p.title ILIKE '%' || $${params.length} || '%')`
+    );
+  } else if (q) {
     params.push(`%${q}%`);
-    where.push(`(p.title ILIKE $1 OR p.description ILIKE $1 OR p.body ILIKE $1 OR EXISTS (SELECT 1 FROM unnest(p.tags) t WHERE t ILIKE $1))`);
+    where.push(`p.title ILIKE $${params.length}`);
   }
-  if (author) { params.push(author); where.push(`p.author_id = $${params.length}`); }
+
+  if (author) {
+    params.push(author);
+    where.push(`p.author_id = $${params.length}`);
+  }
 
   const order =
     sort === 'likes'  ? 'likes DESC, p.created_at DESC' :
@@ -170,14 +190,22 @@ export async function listPrompts({ q, sort = 'new', author, limit = 20, offset 
     ORDER BY ${order}
     LIMIT $${params.length - 1} OFFSET $${params.length}`;
 
-  const rows = await queryAll(sql, params);
+  // توازي: جلب الصفوف + الإعجابات معاً
+  const [rows, likedSet] = await Promise.all([
+    queryAll(sql, params),
+    getLikedSet(viewerId)
+  ]);
+
   const hasMore = rows.length > safeLimit;
   if (hasMore) rows.pop();
 
-  const likedSet = await getLikedSet(viewerId);
   const authorIds = [...new Set(rows.map((r) => r.authorId).filter(Boolean))];
   const followedSet = await getFollowedSet(viewerId, authorIds);
-  return { items: rows.map((r) => shapePrompt(r, likedSet, followedSet)), hasMore };
+
+  return {
+    items: rows.map((r) => shapePrompt(r, likedSet, followedSet, viewerId)),
+    hasMore
+  };
 }
 
 export async function countPrompts() {
@@ -188,18 +216,22 @@ export async function countPrompts() {
 export async function getPrompt(id, viewerId) {
   const row = await queryOne(`${PROMPT_SELECT} WHERE p.id = $1`, [id]);
   if (!row) return null;
-  const likedSet = await getLikedSet(viewerId);
-  const followedSet = await getFollowedSet(viewerId, [row.authorId]);
-  return shapePrompt(row, likedSet, followedSet);
+  const [likedSet, followedSet] = await Promise.all([
+    getLikedSet(viewerId),
+    getFollowedSet(viewerId, [row.authorId])
+  ]);
+  return shapePrompt(row, likedSet, followedSet, viewerId);
 }
 
 export async function getPromptByKey(key, viewerId) {
   if (!key) return null;
   const row = await queryOne(`${PROMPT_SELECT} WHERE p.id = $1 OR p.slug = $1`, [key]);
   if (!row) return null;
-  const likedSet = await getLikedSet(viewerId);
-  const followedSet = await getFollowedSet(viewerId, [row.authorId]);
-  return shapePrompt(row, likedSet, followedSet);
+  const [likedSet, followedSet] = await Promise.all([
+    getLikedSet(viewerId),
+    getFollowedSet(viewerId, [row.authorId])
+  ]);
+  return shapePrompt(row, likedSet, followedSet, viewerId);
 }
 
 export async function getRelated(promptId, category, viewerId, limit = 3) {
@@ -228,10 +260,11 @@ export async function getRelated(promptId, category, viewerId, limit = 3) {
     );
   }
 
-  const likedSet = await getLikedSet(viewerId);
-  const authorIds = [...new Set(rows.map((r) => r.authorId).filter(Boolean))];
-  const followedSet = await getFollowedSet(viewerId, authorIds);
-  return rows.map((r) => shapePrompt(r, likedSet, followedSet));
+  const [likedSet, followedSet] = await Promise.all([
+    getLikedSet(viewerId),
+    getFollowedSet(viewerId, [...new Set(rows.map((r) => r.authorId).filter(Boolean))])
+  ]);
+  return rows.map((r) => shapePrompt(r, likedSet, followedSet, viewerId));
 }
 
 export async function findDuplicatePrompt(authorId, title) {
@@ -246,17 +279,24 @@ export async function findDuplicatePrompt(authorId, title) {
 }
 
 export async function createPrompt(data) {
-  const id = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const id = newId('p');
   const slug = await uniqueSlug(slugify(data.title));
-  const row = await queryOne(
-    `INSERT INTO prompts (id,slug,title,description,body,category,tags,models,cover,author_id,copies)
-     VALUES ($1,$2,$3,$4,$5,$6,$7::text[],$8::text[],$9,$10,0)
-     RETURNING id`,
-    [id, slug, data.title, data.description || '', data.body, data.category || '',
-     data.tags || [], data.models || [], data.cover || '', data.authorId]
-  );
+
+  // transaction كامل
+  const created = await transaction(async (client) => {
+    const { rows } = await client.query(
+      `INSERT INTO prompts (id,slug,title,description,body,category,tags,models,cover,author_id,copies)
+       VALUES ($1,$2,$3,$4,$5,$6,$7::text[],$8::text[],$9,$10,0)
+       RETURNING id`,
+      [id, slug, data.title, data.description || '', data.body,
+       data.category || '', data.tags || [], data.models || [],
+       data.cover || '', data.authorId]
+    );
+    return rows[0];
+  });
+
   cacheClear('home:');
-  return getPrompt(row.id, data.authorId);
+  return getPrompt(created.id, data.authorId);
 }
 
 export async function updatePrompt(id, patch) {
@@ -320,11 +360,10 @@ export async function toggleLike(userId, promptId) {
         [promptId]
       );
       if (p.length && p[0].author_id !== userId) {
-        const notifId = 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
         await client.query(
           `INSERT INTO notifications (id, user_id, actor_id, type, prompt_id)
            VALUES ($1, $2, $3, 'like', $4)`,
-          [notifId, p[0].author_id, userId, promptId]
+          [newId('n'), p[0].author_id, userId, promptId]
         );
       }
     }
@@ -360,9 +399,8 @@ export async function getUserLikes(userId) {
     [userId]
   );
   const likedSet = new Set(rows.map((r) => r.id));
-  const authorIds = [...new Set(rows.map((r) => r.authorId).filter(Boolean))];
-  const followedSet = await getFollowedSet(userId, authorIds);
-  return rows.map((r) => shapePrompt(r, likedSet, followedSet));
+  const followedSet = await getFollowedSet(userId, [...new Set(rows.map((r) => r.authorId).filter(Boolean))]);
+  return rows.map((r) => shapePrompt(r, likedSet, followedSet, userId));
 }
 
 /* ═══════════ المتابعة ═══════════ */
@@ -388,11 +426,10 @@ export async function toggleFollow(followerId, followingId) {
     }
 
     if (following) {
-      const notifId = 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
       await client.query(
         `INSERT INTO notifications (id, user_id, actor_id, type)
          VALUES ($1, $2, $3, 'follow')`,
-        [notifId, followingId, followerId]
+        [newId('n'), followingId, followerId]
       );
     }
 
@@ -459,7 +496,7 @@ export async function countComments(promptId) {
 }
 
 export async function createComment({ promptId, userId, body }) {
-  const id = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const id = newId('c');
   await query(
     `INSERT INTO comments (id, prompt_id, user_id, body)
      VALUES ($1, $2, $3, $4)`,
@@ -470,11 +507,10 @@ export async function createComment({ promptId, userId, body }) {
     `SELECT author_id FROM prompts WHERE id = $1`, [promptId]
   );
   if (prompt && prompt.author_id !== userId) {
-    const notifId = 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     await query(
       `INSERT INTO notifications (id, user_id, actor_id, type, prompt_id, comment_id)
        VALUES ($1, $2, $3, 'comment', $4, $5)`,
-      [notifId, prompt.author_id, userId, promptId, id]
+      [newId('n'), prompt.author_id, userId, promptId, id]
     );
   }
 
@@ -503,8 +539,7 @@ export async function deleteComment(id, userId) {
 }
 
 export async function findComment(id) {
-  const row = await queryOne(`SELECT id, user_id AS "userId" FROM comments WHERE id = $1`, [id]);
-  return row;
+  return queryOne(`SELECT id, user_id AS "userId" FROM comments WHERE id = $1`, [id]);
 }
 
 /* ═══════════ الإشعارات ═══════════ */
@@ -719,17 +754,54 @@ export async function deleteUser(id) {
 }
 
 export async function eligibleUsers() {
-  const users = await queryAll(`
-    SELECT u.id, u.name, u.username, u.verified, u.joined::text AS joined,
-           (SELECT COUNT(*)::int FROM prompts WHERE author_id = u.id) AS "promptCount",
-           (SELECT COUNT(*)::int FROM likes l JOIN prompts p ON p.id = l.prompt_id
-             WHERE p.author_id = u.id) AS "totalLikes"
-    FROM users u WHERE u.verified = FALSE
+  // استعلام واحد بدل N+1
+  const rows = await queryAll(`
+    SELECT
+      u.id, u.name, u.username, u.avatar, u.verified,
+      u.bio, u.joined::text AS joined,
+      COUNT(DISTINCT p.id)::int AS "promptCount",
+      COALESCE(SUM(pl.likes), 0)::int AS "totalLikes",
+      COALESCE(SUM(p.copies), 0)::int AS "totalCopies",
+      GREATEST(0,
+        EXTRACT(YEAR FROM AGE(NOW(), u.joined))::int * 12
+        + EXTRACT(MONTH FROM AGE(NOW(), u.joined))::int
+      ) AS months
+    FROM users u
+    LEFT JOIN prompts p ON p.author_id = u.id
+    LEFT JOIN (
+      SELECT prompt_id, COUNT(*)::int AS likes
+      FROM likes GROUP BY prompt_id
+    ) pl ON pl.prompt_id = p.id
+    WHERE u.verified = FALSE
+    GROUP BY u.id
+    HAVING COUNT(DISTINCT p.id) >= 10
+       AND COALESCE(SUM(pl.likes), 0) >= 100
+       AND COALESCE(SUM(p.copies), 0) >= 500
+       AND (EXTRACT(YEAR FROM AGE(NOW(), u.joined))::int * 12
+            + EXTRACT(MONTH FROM AGE(NOW(), u.joined))::int) >= 3
+    ORDER BY "totalLikes" DESC
+    LIMIT 100
   `);
-  const out = [];
-  for (const u of users) {
-    const e = await eligibility(u.id);
-    if (e?.eligible) out.push({ user: publicUser(u), eligibility: e });
-  }
-  return out;
+
+  return rows.map((u) => {
+    const values = {
+      prompts: u.promptCount,
+      likes: u.totalLikes,
+      copies: u.totalCopies,
+      months: u.months
+    };
+    return {
+      user: publicUser(u),
+      eligibility: {
+        eligible: true,
+        verified: false,
+        rules: VERIFY_RULES.map((r) => ({
+          ...r,
+          value: values[r.key] || 0,
+          met: true
+        })),
+        values
+      }
+    };
+  });
 }
