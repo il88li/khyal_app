@@ -4,9 +4,23 @@ import {
   skeletonComments, skeletonNotifications
 } from './skeleton.js';
 
+/* ═══════════════════════════════════════════════
+   Helpers
+   ═══════════════════════════════════════════════ */
 const esc = (s = '') => String(s).replace(/[&<>"']/g,
   (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/* escape للسمات — يمنع كسر data-* بأي قيمة */
+const attr = (s) => String(s ?? '')
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#39;')
+  .replace(/`/g, '&#96;');
+
 const fmt = (n = 0) => (n >= 1000 ? (n / 1000).toFixed(1).replace('.0', '') + 'k' : String(n));
+
 const initials = (name = '') =>
   String(name).trim().split(/\s+/).slice(0, 2).map((w) => w[0] || '').join('');
 
@@ -32,6 +46,9 @@ const VCHECK = `<span class="verify-check" title="موثّق">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 9 17.5 20 6.5"/></svg>
 </span>`;
 
+/* ═══════════════════════════════════════════════
+   Icons
+   ═══════════════════════════════════════════════ */
 const ICON = {
   heart: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.4-7-9.2A4.2 4.2 0 0 1 12 8a4.2 4.2 0 0 1 7 2.8C19 15.6 12 20 12 20Z"/></svg>`,
   heartFill: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.2 10.7 19C5.4 14.4 2 11.5 2 7.9 2 5 4.2 3 7 3c1.6 0 3.1.7 4 1.9C12 3.7 13.5 3 15.1 3 17.9 3 20 5 20 7.9c0 3.6-3.4 6.5-8.7 11.1Z"/></svg>`,
@@ -53,91 +70,103 @@ const ICON = {
   bell: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 6 2 7 2 7H4s2-1 2-7Z"/><path d="M9.5 17a2.5 2.5 0 0 0 5 0"/></svg>`,
   settings: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>`,
   lock: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>`,
-  search: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-3.6-3.6"/></svg>`
+  search: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-3.6-3.6"/></svg>`,
+  fileText: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h12l4 4v12H4z"/><path d="M8 10h8M8 14h6"/></svg>`,
+  clock: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`
 };
 
 /* ═══════════════════════════════════════════════
-   بطاقة البرومبت v6
+   بطاقة البرومبت v7 — Split Layout
    ═══════════════════════════════════════════════ */
 function promptCard(p, idx = 0) {
   const mark = (p.category || p.title || 'خ').charAt(0);
   const slugPath = p.slug || p.id;
-  const isOwner = (window.__khayal_user_id === p.authorId);
+  const isOwner = !!p.isOwner;
   const isFollowing = !!p.isFollowingAuthor;
   const tags = (p.tags || []).slice(0, 3);
-  const desc = p.description || p.body.replace(/\s+/g, ' ').slice(0, 100);
+  const desc = p.description || p.body.replace(/\s+/g, ' ').slice(0, 140);
 
   const coverContent = p.cover
     ? `<img class="pc-media-img" src="${esc(p.cover)}" alt="" loading="lazy" decoding="async">`
     : `<span class="pc-media-mark">${esc(mark)}</span>`;
 
-  return `
-  <article class="prompt-card" data-prompt="${esc(p.id)}" data-slug="${esc(slugPath)}" data-author="${esc(p.authorId)}">
+  const floatAvatar = p.author?.avatar
+    ? `<img src="${esc(p.author.avatar)}" alt="" loading="lazy" decoding="async">`
+    : esc(initials(p.author?.name || '؟'));
 
-    <header class="pc-author">
-      <a class="pc-av ${p.author?.verified ? 'verified' : ''}" href="#/u/${esc(p.authorId)}">
-        ${p.author?.avatar
-          ? `<img src="${esc(p.author.avatar)}" alt="" loading="lazy" decoding="async">`
-          : esc(initials(p.author?.name || '؟'))}
-      </a>
-      <div class="pc-author-info">
-        <a class="pc-name" href="#/u/${esc(p.authorId)}">
+  return `
+  <article class="prompt-card" data-prompt="${attr(p.id)}" data-slug="${attr(slugPath)}" data-author="${attr(p.authorId)}">
+
+    <div class="pc-media-split">
+      ${coverContent}
+      ${p.category ? `<span class="pc-badge">${esc(p.category)}</span>` : ''}
+      <a class="pc-float-av ${p.author?.verified ? 'verified' : ''}"
+         href="#/u/${attr(p.authorId)}"
+         title="${esc(p.author?.name || '')}"
+         aria-label="زيارة الملف الشخصي">${floatAvatar}</a>
+      <div class="pc-dots-nav" aria-hidden="true">
+        <i class="active"></i>
+      </div>
+    </div>
+
+    <div class="pc-body-split">
+
+      <div class="pc-head">
+        <a class="pc-name" href="#/u/${attr(p.authorId)}">
           <span>${esc(p.author?.name || 'مجهول')}</span>
           ${p.author?.verified ? VCHECK : ''}
         </a>
-        <span class="pc-handle">@${esc(p.author?.username || 'unknown')}</span>
+        ${isOwner
+          ? `<span class="pc-self">أنت</span>`
+          : `<button class="pc-follow ${isFollowing ? 'following' : ''}"
+                     data-follow="${attr(p.authorId)}"
+                     data-following="${isFollowing ? '1' : '0'}">
+               ${isFollowing ? 'متابَع' : '+ متابعة'}
+             </button>`}
       </div>
-      ${isOwner
-        ? `<span class="pc-self">أنت</span>`
-        : `<button class="pc-follow ${isFollowing ? 'following' : ''}" data-follow="${esc(p.authorId)}" data-following="${isFollowing ? '1' : '0'}">
-             ${isFollowing ? 'متابَع' : '+ متابعة'}
-           </button>`}
-    </header>
 
-    <div class="pc-media">
-      ${coverContent}
-      ${p.category ? `<span class="pc-badge">${esc(p.category)}</span>` : ''}
-    </div>
+      <a class="pc-title-new" href="#/p/${attr(slugPath)}">${esc(p.title)}</a>
 
-    <div class="pc-info">
-      <a class="pc-title" href="#/p/${esc(slugPath)}">${esc(p.title)}</a>
-      ${desc ? `<p class="pc-desc">${esc(desc)}</p>` : ''}
-      <div class="pc-meta">
-        <span>${timeAgo(p.createdAt)}</span>
-        ${p.copies ? `<span class="dot-sep"></span><span>${fmt(p.copies)} نسخ</span>` : ''}
-      </div>
+      ${desc ? `<p class="pc-desc-new">${esc(desc)}</p>` : ''}
+
       ${tags.length ? `
-      <div class="pc-tags">
-        ${tags.map((t) => `<span class="pc-tag">${esc(t)}</span>`).join('')}
+      <div class="pc-tags-new">
+        ${tags.map((t) => `<a class="pc-tag" href="#/explore?q=${encodeURIComponent(t)}">#${esc(t)}</a>`).join('')}
       </div>` : ''}
+
+      <div class="pc-footer">
+        <button class="pc-stat ${p.liked ? 'liked' : ''}"
+                data-like="${attr(p.id)}"
+                data-liked="${p.liked ? '1' : '0'}"
+                aria-label="إعجاب">
+          ${p.liked ? ICON.heartFill : ICON.heart}
+          <span class="pc-num">${fmt(p.likes)}</span>
+        </button>
+
+        <button class="pc-stat" data-expand="${attr(p.id)}" aria-label="التعليقات">
+          ${ICON.chat}
+          <span class="pc-num">${fmt(p.commentsCount || 0)}</span>
+        </button>
+
+        <button class="pc-stat" data-share="${attr(p.id)}" aria-label="مشاركة" style="padding:6px 8px">
+          ${ICON.share}
+        </button>
+
+        <button class="pc-view-new" data-expand="${attr(p.id)}">
+          <span>عرض</span>
+          <span class="pc-chev">${ICON.chev}</span>
+        </button>
+      </div>
     </div>
 
-    <div class="pc-bar">
-      <button class="pc-btn ${p.liked ? 'liked' : ''}" data-like="${esc(p.id)}" data-liked="${p.liked ? '1' : '0'}">
-        <span class="ic">${p.liked ? ICON.heartFill : ICON.heart}</span>
-        <span class="pc-num">${fmt(p.likes)}</span>
-      </button>
-      <button class="pc-btn" data-expand="${esc(p.id)}">
-        ${ICON.chat}
-        <span class="pc-num">${fmt(p.commentsCount || 0)}</span>
-      </button>
-      <button class="pc-icon-btn" data-share="${esc(p.id)}" title="مشاركة" aria-label="مشاركة">
-        ${ICON.share}
-      </button>
-      <button class="pc-view" data-expand="${esc(p.id)}">
-        <span class="pc-view-text">عرض</span>
-        <span class="pc-chev">${ICON.chev}</span>
-      </button>
-    </div>
-
-    <div class="pc-panel" data-panel="${esc(p.id)}">
+    <div class="pc-panel" data-panel="${attr(p.id)}">
       <div class="pc-panel-inner">
         <div class="pc-panel-body">
           <div class="pc-prompt">
             <div class="pc-prompt-head">
               <span class="pc-dots"><i></i><i></i><i></i></span>
               <span class="pc-prompt-name">prompt.txt</span>
-              <button class="pc-mini-btn" data-copy="${esc(p.id)}" title="نسخ" aria-label="نسخ">
+              <button class="pc-mini-btn" data-copy="${attr(p.id)}" title="نسخ" aria-label="نسخ">
                 ${ICON.copy}
               </button>
             </div>
@@ -146,7 +175,7 @@ function promptCard(p, idx = 0) {
             </div>
           </div>
 
-          <div class="pc-comments" data-comments="${esc(p.id)}">
+          <div class="pc-comments" data-comments="${attr(p.id)}">
             <div class="pc-comments-loading">…</div>
           </div>
         </div>
@@ -157,13 +186,16 @@ function promptCard(p, idx = 0) {
 
 const grid = (items) => `<div class="grid-cards">${items.map((p, i) => promptCard(p, i)).join('')}</div>`;
 
+/* ═══════════════════════════════════════════════
+   bindCards — ربط الأحداث بالبطاقات
+   ═══════════════════════════════════════════════ */
 function bindCards(root, ctx) {
-  window.__khayal_user_id = ctx.state.user?.id || null;
 
   /* ─── إعجاب ─── */
   root.querySelectorAll('[data-like]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
+      e.preventDefault();
       if (!ctx.state.user) {
         ctx.toast('سجّل الدخول للإعجاب', 'error');
         return ctx.navigate('#/login');
@@ -171,31 +203,34 @@ function bindCards(root, ctx) {
       const id = btn.dataset.like;
       const wasLiked = btn.dataset.liked === '1';
       const nEl = btn.querySelector('.pc-num');
-      const icEl = btn.querySelector('.ic');
       const wasCount = parseInt(nEl.textContent.replace(/[^\d]/g, '')) || 0;
       const newLiked = !wasLiked;
       const newCount = Math.max(0, wasCount + (newLiked ? 1 : -1));
 
+      // تحديث متفائل
       btn.dataset.liked = newLiked ? '1' : '0';
       btn.classList.toggle('liked', newLiked);
       if (newLiked) {
         btn.classList.add('just-liked');
         setTimeout(() => btn.classList.remove('just-liked'), 600);
       }
-      icEl.innerHTML = newLiked ? ICON.heartFill : ICON.heart;
+      const svg = btn.querySelector('svg');
+      if (svg) svg.outerHTML = newLiked ? ICON.heartFill : ICON.heart;
       nEl.textContent = fmt(newCount);
 
       ctx.api(`/prompts/${id}/like`, { method: 'POST', useCache: false })
         .then((r) => {
           btn.dataset.liked = r.liked ? '1' : '0';
           btn.classList.toggle('liked', r.liked);
-          icEl.innerHTML = r.liked ? ICON.heartFill : ICON.heart;
+          const s2 = btn.querySelector('svg');
+          if (s2) s2.outerHTML = r.liked ? ICON.heartFill : ICON.heart;
           nEl.textContent = fmt(r.likes);
         })
         .catch((ex) => {
           btn.dataset.liked = wasLiked ? '1' : '0';
           btn.classList.toggle('liked', wasLiked);
-          icEl.innerHTML = wasLiked ? ICON.heartFill : ICON.heart;
+          const s3 = btn.querySelector('svg');
+          if (s3) s3.outerHTML = wasLiked ? ICON.heartFill : ICON.heart;
           nEl.textContent = fmt(wasCount);
           ctx.toast(ex.message, 'error');
         });
@@ -206,6 +241,7 @@ function bindCards(root, ctx) {
   root.querySelectorAll('[data-follow]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
+      e.preventDefault();
       if (!ctx.state.user) {
         ctx.toast('سجّل الدخول للمتابعة', 'error');
         return ctx.navigate('#/login');
@@ -275,7 +311,7 @@ function bindCards(root, ctx) {
       const id = btn.dataset.share;
       const card = btn.closest('.prompt-card');
       const slug = card?.dataset.slug || id;
-      const title = card?.querySelector('.pc-title')?.textContent || '';
+      const title = card?.querySelector('.pc-title-new')?.textContent || '';
       const url = location.origin + '/#/p/' + slug;
 
       if (navigator.share) {
@@ -292,14 +328,18 @@ function bindCards(root, ctx) {
   root.querySelectorAll('[data-expand]').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
+      e.preventDefault();
       const id = btn.dataset.expand;
       const card = btn.closest('.prompt-card');
       const panel = card.querySelector(`[data-panel="${id}"]`);
-      const viewBtn = card.querySelector('.pc-view');
+      const viewBtn = card.querySelector('.pc-view-new');
       const isOpen = panel.classList.toggle('open');
       card.classList.toggle('expanded', isOpen);
-      viewBtn.classList.toggle('open', isOpen);
-      viewBtn.querySelector('.pc-view-text').textContent = isOpen ? 'إغلاق' : 'عرض';
+      if (viewBtn) {
+        viewBtn.classList.toggle('open', isOpen);
+        const txt = viewBtn.querySelector('span');
+        if (txt) txt.textContent = isOpen ? 'إغلاق' : 'عرض';
+      }
 
       if (isOpen) {
         const box = card.querySelector(`[data-comments="${id}"]`);
@@ -318,7 +358,7 @@ function bindCards(root, ctx) {
       hoverTimer = setTimeout(() => {
         const slug = card.dataset.slug;
         if (slug && ctx.prefetchPrompt) {
-          ctx.prefetchPrompt(slug, ctx.getToken());
+          ctx.prefetchPrompt(slug);
         }
       }, 200);
     };
@@ -332,7 +372,7 @@ function bindCards(root, ctx) {
 }
 
 /* ═══════════════════════════════════════════════
-   تعليقات البطاقة
+   تعليقات البطاقة (Inline)
    ═══════════════════════════════════════════════ */
 async function loadInlineComments(box, promptId, ctx) {
   try {
@@ -418,6 +458,9 @@ async function loadInlineComments(box, promptId, ctx) {
   }
 }
 
+/* ═══════════════════════════════════════════════
+   Shared UI
+   ═══════════════════════════════════════════════ */
 const emptyState = (icon, title, text, action = '') => `
   <div class="state">
     <div class="icon">${icon}</div>
@@ -432,6 +475,72 @@ const sectionHead = (index, label, title, sub = '') => `
     <h2 class="section-title">${title}</h2>
     ${sub ? `<p class="section-sub">${sub}</p>` : ''}
   </div>`;
+
+/* ═══════════════════════════════════════════════
+   بطاقة التوثيق — Stepper
+   ═══════════════════════════════════════════════ */
+function renderVerifyCard(eligibility) {
+  const rules = eligibility.rules || [];
+  const metCount = rules.filter((r) => r.met).length;
+  const totalRules = rules.length;
+  const percent = totalRules ? Math.round((metCount / totalRules) * 100) : 0;
+  const allMet = metCount === totalRules;
+
+  const icons = {
+    prompts: ICON.fileText,
+    likes:   ICON.heart,
+    copies:  ICON.copy,
+    months:  ICON.clock
+  };
+
+  const step = (r) => {
+    const pct = Math.min(100, Math.round((r.value / r.target) * 100));
+    return `
+      <div class="verify-step ${r.met ? 'met' : ''}">
+        <div class="vs-icon">${icons[r.key] || icons.prompts}</div>
+        <div>
+          <div class="vs-label">${esc(r.label)}</div>
+          <div class="vs-values">
+            <span class="vs-current">${fmt(r.value)}</span>
+            <span class="vs-target">/ ${fmt(r.target)}</span>
+          </div>
+          <div class="vs-bar">
+            <div class="vs-bar-fill" style="width:${pct}%"></div>
+          </div>
+        </div>
+      </div>`;
+  };
+
+  return `
+  <section class="verify-card">
+    <div class="verify-head">
+      <div class="verify-shield">${ICON.shield}</div>
+      <div class="verify-head-text">
+        <h3>${allMet ? 'مبروك! أنت مؤهّل للتوثيق' : 'شروط التوثيق'}</h3>
+        <p>${allMet
+          ? 'أكملت جميع المتطلبات — يمكنك الآن طلب شارة التوثيق.'
+          : 'أكمل الشروط التالية للحصول على شارة التوثيق'}</p>
+      </div>
+      <span class="verify-progress-pill">${metCount}/${totalRules}</span>
+    </div>
+
+    <div class="verify-progress-bar">
+      <div class="verify-progress-fill" style="width:${percent}%"></div>
+    </div>
+
+    <div class="verify-steps">
+      ${rules.map(step).join('')}
+    </div>
+
+    ${allMet ? `
+    <div class="verify-cta">
+      <p><strong>خطوة أخيرة:</strong> اطلب من الإدارة مراجعة حسابك للحصول على الشارة.</p>
+      <a class="btn btn-primary btn-sm" href="#/admin">
+        تقدّم للتوثيق ←
+      </a>
+    </div>` : ''}
+  </section>`;
+}
 
 /* ═══════════ 1 — الدخول ═══════════ */
 async function login(root, ctx) {
@@ -621,7 +730,7 @@ async function home(root, ctx) {
       const dailySection = root.querySelector('#daily-section');
       dailySection.hidden = false;
       dailySection.innerHTML = `
-        <div class="daily-widget" data-slug="${esc(daily.slug || daily.id)}">
+        <div class="daily-widget" data-slug="${attr(daily.slug || daily.id)}">
           <div class="daily-widget-head">
             <span class="daily-widget-icon">🔥</span>
             <span class="daily-widget-label">برومبت اليوم</span>
@@ -646,7 +755,7 @@ async function home(root, ctx) {
                 <span class="daily-widget-author-name">${esc(daily.author?.name || 'مجهول')}</span>
               </div>
               <div class="daily-widget-actions">
-                <a class="btn btn-primary btn-sm" href="#/p/${esc(daily.slug || daily.id)}">اقرأ الآن</a>
+                <a class="btn btn-primary btn-sm" href="#/p/${attr(daily.slug || daily.id)}">اقرأ الآن</a>
               </div>
             </div>
           </div>
@@ -826,7 +935,7 @@ async function prompt(root, ctx) {
         </div>
         <div class="acts">
           ${isOwner ? `
-            <a class="btn btn-outline btn-sm" href="#/edit/${p.id}">${ICON.edit} تعديل</a>
+            <a class="btn btn-outline btn-sm" href="#/edit/${attr(p.id)}">${ICON.edit} تعديل</a>
             <button class="btn btn-danger btn-sm" id="delete-btn">${ICON.trash}</button>
           ` : `
             <button class="btn ${isFollowingAuthor ? 'btn-soft' : 'btn-outline'} btn-sm" id="follow-btn" data-following="${isFollowingAuthor ? '1' : '0'}">
@@ -858,7 +967,7 @@ async function prompt(root, ctx) {
       </div>
 
       ${(p.tags || []).length ? `
-      <div class="pc-tags" style="margin-top:16px">
+      <div class="pc-tags-new" style="margin-top:16px">
         ${(p.tags || []).map((t) => `<a class="pc-tag" href="#/explore?q=${encodeURIComponent(t)}">#${esc(t)}</a>`).join('')}
       </div>` : ''}
     </div>
@@ -872,7 +981,13 @@ async function prompt(root, ctx) {
 
   <section class="comments-section">
     <div class="comments-head">
-      <h3>${ICON.chat} التعليقات <span class="cnt" id="cm-count">${p.commentsCount || 0}</span></h3>
+      <h3>
+        ${ICON.chat}
+        التعليقات
+        <span class="cnt ${!p.commentsCount ? 'empty' : ''}" id="cm-count">
+          ${p.commentsCount || 0}
+        </span>
+      </h3>
     </div>
 
     ${ctx.state.user ? `
@@ -884,8 +999,8 @@ async function prompt(root, ctx) {
       </div>
     </div>` : `
     <div class="comments-empty" style="margin-bottom:16px">
-      <a href="#/login" style="color:var(--orange);font-weight:600">سجّل الدخول</a>
-      لتتمكن من التعليق.
+      <strong>شارك رأيك</strong>
+      <a href="#/login">سجّل الدخول</a> لتتمكن من التعليق.
     </div>`}
 
     <div class="comments-list" id="cm-list"></div>
@@ -1020,25 +1135,33 @@ async function prompt(root, ctx) {
   let cmOffset = 0, cmAll = [], cmHasMore = true, cmLoading = false;
   const CM_PAGE = 10;
 
+  function updateCount(n) {
+    cmCount.textContent = n;
+    cmCount.classList.toggle('empty', n === 0);
+  }
+
   function commentItem(c) {
     const isOwn = ctx.state.user?.id === c.userId;
     const isPromptOwner = ctx.state.user?.id === p.authorId;
     const canDelete = isOwn || isPromptOwner || ctx.state.user?.role === 'admin';
     const edited = c.updatedAt && new Date(c.updatedAt) - new Date(c.createdAt) > 1000;
     return `
-    <div class="comment-item" data-cid="${esc(c.id)}">
-      <div class="c-avatar">${avatar(c.author, 38)}</div>
+    <div class="comment-item" data-cid="${attr(c.id)}">
+      <div class="c-avatar">${avatar(c.author, 42)}</div>
       <div class="c-body">
         <div class="c-head">
-          <span class="c-name">${esc(c.author?.name || 'مجهول')}${c.author?.verified ? VCHECK : ''}</span>
+          <a class="c-name" href="#/u/${attr(c.userId)}">
+            ${esc(c.author?.name || 'مجهول')}
+            ${c.author?.verified ? VCHECK : ''}
+          </a>
           <span class="c-time">${timeAgo(c.createdAt)}${edited ? ' · معدّل' : ''}</span>
           ${isOwn || canDelete ? `
           <div class="c-actions">
-            ${isOwn ? `<button data-edit="${esc(c.id)}">تعديل</button>` : ''}
-            ${canDelete ? `<button class="danger" data-del="${esc(c.id)}">حذف</button>` : ''}
+            ${isOwn ? `<button data-edit="${attr(c.id)}" aria-label="تعديل">تعديل</button>` : ''}
+            ${canDelete ? `<button class="danger" data-del="${attr(c.id)}" aria-label="حذف">حذف</button>` : ''}
           </div>` : ''}
         </div>
-        <div class="c-text" data-body="${esc(c.id)}">${esc(c.body)}</div>
+        <div class="c-text" data-body="${attr(c.id)}">${esc(c.body)}</div>
       </div>
     </div>`;
   }
@@ -1058,9 +1181,13 @@ async function prompt(root, ctx) {
       cmAll = reset ? items : cmAll.concat(items);
       cmOffset = cmAll.length;
       cmHasMore = hasMore;
-      cmCount.textContent = total;
+      updateCount(total);
       if (!cmAll.length) {
-        cmList.innerHTML = `<div class="comments-empty">لا توجد تعليقات بعد. كن أول من يعلّق.</div>`;
+        cmList.innerHTML = `
+          <div class="comments-empty">
+            <strong>لا توجد تعليقات بعد</strong>
+            كن أول من يشارك رأيه.
+          </div>`;
         cmMore.innerHTML = '';
         return;
       }
@@ -1098,10 +1225,10 @@ async function prompt(root, ctx) {
     if (actionsEl) actionsEl.style.display = 'none';
     bodyEl.innerHTML = `
       <div class="c-edit-form">
-        <textarea data-edit-input="${esc(cid)}" maxlength="2000">${esc(c.body)}</textarea>
+        <textarea data-edit-input="${attr(cid)}" maxlength="2000">${esc(c.body)}</textarea>
         <div class="row-actions">
-          <button class="btn btn-ghost btn-xs" data-edit-cancel="${esc(cid)}">إلغاء</button>
-          <button class="btn btn-primary btn-xs" data-edit-save="${esc(cid)}">حفظ</button>
+          <button class="btn btn-ghost btn-xs" data-edit-cancel="${attr(cid)}">إلغاء</button>
+          <button class="btn btn-primary btn-xs" data-edit-save="${attr(cid)}">حفظ</button>
         </div>
       </div>`;
     item.querySelector(`[data-edit-cancel="${cid}"]`).addEventListener('click', () => {
@@ -1130,9 +1257,13 @@ async function prompt(root, ctx) {
       await ctx.api(`/comments/${cid}`, { method: 'DELETE', useCache: false });
       cmAll = cmAll.filter((x) => x.id !== cid);
       cmOffset = cmAll.length;
-      cmCount.textContent = Math.max(0, parseInt(cmCount.textContent || '0') - 1);
+      updateCount(Math.max(0, parseInt(cmCount.textContent || '0') - 1));
       if (!cmAll.length) {
-        cmList.innerHTML = `<div class="comments-empty">لا توجد تعليقات بعد.</div>`;
+        cmList.innerHTML = `
+          <div class="comments-empty">
+            <strong>لا توجد تعليقات بعد</strong>
+            كن أول من يشارك رأيه.
+          </div>`;
       } else {
         cmList.innerHTML = cmAll.map(commentItem).join('');
         bindCommentActions();
@@ -1146,7 +1277,10 @@ async function prompt(root, ctx) {
   const cmChar = root.querySelector('#cm-char');
   if (cmInput) {
     cmInput.addEventListener('input', () => {
-      cmChar.textContent = `${cmInput.value.length} / 2000`;
+      const len = cmInput.value.length;
+      cmChar.textContent = `${len} / 2000`;
+      cmChar.classList.toggle('warn', len > 1500 && len <= 1900);
+      cmChar.classList.toggle('danger', len > 1900);
       cmSubmit.disabled = cmInput.value.trim().length === 0;
     });
     cmSubmit.addEventListener('click', async () => {
@@ -1163,7 +1297,8 @@ async function prompt(root, ctx) {
         cmOffset = cmAll.length;
         cmInput.value = '';
         cmChar.textContent = '0 / 2000';
-        cmCount.textContent = (parseInt(cmCount.textContent || '0') + 1);
+        cmChar.classList.remove('warn', 'danger');
+        updateCount(parseInt(cmCount.textContent || '0') + 1);
         cmList.innerHTML = cmAll.map(commentItem).join('');
         bindCommentActions();
         ctx.toast('تم إرسال التعليق');
@@ -1179,7 +1314,7 @@ async function prompt(root, ctx) {
   await loadComments(true);
 }
 
-/* ═══════════ 6 — نشر برومبت ═══════════ */
+/* ═══════════ 6 — نشر/تعديل برومبت ═══════════ */
 async function newPrompt(root, ctx) {
   if (!ctx.state.user) {
     ctx.toast('سجّل الدخول للنشر', 'error');
@@ -1348,8 +1483,6 @@ async function profile(root, ctx) {
   const avatarInner = u.avatar
     ? `<img src="${esc(u.avatar)}" alt="" decoding="async">`
     : esc(initials(u.name));
-  const metCount = eligibility ? eligibility.rules.filter((r) => r.met).length : 0;
-  const totalRules = eligibility ? eligibility.rules.length : 0;
 
   root.innerHTML = `
   <div class="profile-head">
@@ -1466,24 +1599,7 @@ async function profile(root, ctx) {
     </div>
   </div>
 
-  ${u.isSelf && eligibility ? `
-  <details class="accordion">
-    <summary>
-      <span>${ICON.shield}</span>
-      <span>شروط التوثيق</span>
-      <span class="progress">${metCount}/${totalRules}</span>
-    </summary>
-    <div class="accordion-body">
-      <ul class="checks">
-        ${eligibility.rules.map((r) => `
-          <li class="${r.met ? 'ok' : ''}">
-            <span class="mark">${r.met ? '✓' : ''}</span>
-            <span>${esc(r.label)}</span>
-            <span class="val">${fmt(r.value)} / ${fmt(r.target)}</span>
-          </li>`).join('')}
-      </ul>
-    </div>
-  </details>` : ''}
+  ${u.isSelf && eligibility ? renderVerifyCard(eligibility) : ''}
 
   <div class="tabs" id="profile-tabs">
     <button class="tab active" data-tab="prompts">
@@ -1542,7 +1658,7 @@ async function profile(root, ctx) {
 
   function userMiniCard(x) {
     return `
-      <div class="user-mini" data-uid="${esc(x.id)}">
+      <div class="user-mini" data-uid="${attr(x.id)}">
         ${avatar(x, 42)}
         <div class="info">
           <div class="nm">${esc(x.name)}${x.verified ? VCHECK : ''}</div>
@@ -1791,18 +1907,18 @@ async function notifications(root, ctx) {
     let line = '', target = '';
     if (n.type === 'like') {
       line = `<strong>${esc(actor.name || 'مجهول')}</strong> أعجب ببرومبتك`;
-      target = n.promptSlug ? `<a class="n-target" href="#/p/${esc(n.promptSlug)}">${esc(n.promptTitle || '')}</a>` : '';
+      target = n.promptSlug ? `<a class="n-target" href="#/p/${attr(n.promptSlug)}">${esc(n.promptTitle || '')}</a>` : '';
     } else if (n.type === 'follow') {
       line = `<strong>${esc(actor.name || 'مجهول')}</strong> بدأ متابعتك`;
     } else if (n.type === 'comment') {
       line = `<strong>${esc(actor.name || 'مجهول')}</strong> علّق على`;
-      target = n.promptSlug ? `<a class="n-target" href="#/p/${esc(n.promptSlug)}">${esc(n.promptTitle || '')}</a>` : '';
+      target = n.promptSlug ? `<a class="n-target" href="#/p/${attr(n.promptSlug)}">${esc(n.promptTitle || '')}</a>` : '';
     }
     const icon = n.type === 'like' ? ICON.heart
       : n.type === 'follow' ? ICON.userPlus : ICON.chat;
-    const href = n.promptSlug ? '#/p/' + esc(n.promptSlug) : '#/u/' + esc(actor.id);
+    const href = n.promptSlug ? '#/p/' + attr(n.promptSlug) : '#/u/' + attr(actor.id);
     return `
-    <a class="notif-item ${n.isRead ? '' : 'unread'}" href="${href}" data-nid="${esc(n.id)}" data-read="${n.isRead ? '1' : '0'}">
+    <a class="notif-item ${n.isRead ? '' : 'unread'}" href="${href}" data-nid="${attr(n.id)}" data-read="${n.isRead ? '1' : '0'}">
       <div class="n-icon">${icon}</div>
       <div class="n-body">
         <div class="n-line">${line}${target ? ' ' + target : ''}</div>
@@ -1998,8 +2114,8 @@ async function admin(root, ctx) {
                 <td>${u.verified ? '<span class="badge">موثّق</span>' : '<span class="badge badge-soft">لا</span>'}</td>
                 <td class="mono">${u.promptCount || 0}</td>
                 <td><div class="td-actions">
-                  <button class="btn btn-outline btn-xs" data-verify="${u.id}">${u.verified ? 'إلغاء' : 'توثيق'}</button>
-                  <button class="btn btn-danger btn-xs" data-del="${u.id}">${ICON.trash}</button>
+                  <button class="btn btn-outline btn-xs" data-verify="${attr(u.id)}">${u.verified ? 'إلغاء' : 'توثيق'}</button>
+                  <button class="btn btn-danger btn-xs" data-del="${attr(u.id)}">${ICON.trash}</button>
                 </div></td>
               </tr>`).join('')}
           </tbody>
@@ -2026,13 +2142,13 @@ async function admin(root, ctx) {
           <tbody>
             ${items.map((p) => `
               <tr>
-                <td><a href="#/p/${esc(p.slug || p.id)}" style="font-weight:600">${esc(p.title)}</a></td>
+                <td><a href="#/p/${attr(p.slug || p.id)}" style="font-weight:600">${esc(p.title)}</a></td>
                 <td class="mono" style="font-size:11px;color:var(--ash)">${p.slug ? '/' + esc(p.slug) : '—'}</td>
                 <td>${esc(p.author?.name || '—')}</td>
                 <td class="mono">${fmt(p.likes)}</td>
                 <td class="mono">${fmt(p.commentsCount || 0)}</td>
                 <td class="mono">${fmt(p.copies)}</td>
-                <td><button class="btn btn-danger btn-xs" data-delp="${p.id}">${ICON.trash}</button></td>
+                <td><button class="btn btn-danger btn-xs" data-delp="${attr(p.id)}">${ICON.trash}</button></td>
               </tr>`).join('')}
           </tbody>
         </table>
@@ -2066,8 +2182,8 @@ async function admin(root, ctx) {
               <span>♥ ${fmt(u.totalLikes)}</span>
             </div>
             <div class="row gap-6">
-              <a class="btn btn-outline btn-xs" href="#/u/${u.id}">عرض</a>
-              <button class="btn btn-primary btn-xs" data-v="${u.id}">توثيق</button>
+              <a class="btn btn-outline btn-xs" href="#/u/${attr(u.id)}">عرض</a>
+              <button class="btn btn-primary btn-xs" data-v="${attr(u.id)}">توثيق</button>
             </div>
           </div>`).join('')}
       </div>`;
@@ -2104,6 +2220,7 @@ async function offline(root, ctx) {
   window.addEventListener('online', onOnline);
 }
 
+/* ═══════════ Exports ═══════════ */
 export const Screens = {
   home, login, register, explore, prompt,
   newPrompt, editPrompt, profile, favorites, admin, offline,
